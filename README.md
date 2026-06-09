@@ -1,66 +1,77 @@
-# kale-mobile-app
+# Kale Mobile App
 
-Kale mobile app — **Expo + React Native + TypeScript**.
-
-## Design reference (link both repos)
-
-**Open both folders in one Cursor window** so the AI can read the design:
-
-1. **File → Open Workspace from File…**
-2. Choose `~/Downloads/kale.code-workspace`
-
-Or: **File → Add Folder to Workspace…** → add `kale-mobile-design`.
-
-All UI specs:
-
-```
-../kale-mobile-design/
-  DESIGN.md          ← canonical style (Lumen), screen map, Garmin rules
-  screens/*.jsx      ← read BEFORE building each RN screen
-  capture-*.html     ← layout reference
-  kale-tokens.css    ← brand tokens
-```
-
-Before building a screen, the AI must read **DESIGN.md** + the matching JSX file.
-Do not let the app invent its own UI — match the design repo.
-
-Preview design locally:
-
-```bash
-cd ../kale-mobile-design && python3 -m http.server 5173
-```
+Kale longevity & fitness app — **Expo**, **React Native**, and **TypeScript**.
 
 ## Stack
 
-- Expo SDK 56
-- React Native
-- TypeScript
-- Firebase (to be added)
+- Expo SDK 54
+- React Native 0.81
+- React Navigation (native stack + bottom tabs)
+- Sora font (`@expo-google-fonts/sora`)
+- React Native Reanimated + SVG
 
-## Run
+## Getting started
 
 ```bash
 npm install
 npm start
-# then i for iOS simulator, a for Android
+```
+
+Then press `i` for the iOS simulator or `a` for Android.
+
+Clear the Metro cache if needed:
+
+```bash
+npx expo start --clear
 ```
 
 ## Project structure
 
 ```
 src/
-  theme/       ← colors & type from design repo (copy values, not CSS)
-  screens/     ← one file per screen; comment design ref at top
-  components/  ← shared UI
+  components/lumen/   Shared Lumen UI (buttons, fields, result layout, etc.)
+  screens/
+    onboarding/       Welcome, sign-in, cardio/strength/knowledge flows
+    result/           Pillar result screens (cardio, strength, knowledge)
+  navigation/         Root stack + tab navigator
+  theme/              Colors, typography, Lumen tokens
+  data/               Static content (e.g. quiz questions)
+  hooks/              App hooks (fonts, etc.)
+  utils/              Helpers (video picker, fonts, etc.)
 ```
 
-## Screen checklist
+## Onboarding flow (current)
 
-See `../kale-mobile-design/DESIGN.md` for full map. Build order suggestion:
+```
+Welcome → Sign in → Cardio analysing → Cardio result
+  → Strength intro → Strength analysing → Strength result
+  → Knowledge intro → Knowledge quiz → Knowledge analysing → Knowledge result
+  → Main (tabs)
+```
 
-1. Theme + tab shell
-2. Settings (`lum-20`) — capture-settings.html
-3. Welcome + sign in (`lum-01`, `lum-01b`)
-4. Home (`lum-12`)
-5. Activity log (`lum-13`) — port Garmin row from capture-activity-log.html
-6. Firebase auth + Firestore
+## Design reference
+
+UI specs and screen prototypes live in the companion repo **`kale-mobile-design`** (sibling folder). Key files:
+
+- `DESIGN.md` — screen map, Lumen tokens, conventions
+- `screens/*.jsx` — reference implementations per screen
+- `kale-tokens.css` — brand color tokens
+
+Preview the design repo locally:
+
+```bash
+cd ../kale-mobile-design && python3 -m http.server 5173
+```
+
+## Scripts
+
+| Command        | Description              |
+|----------------|--------------------------|
+| `npm start`    | Start Expo dev server    |
+| `npm run ios`  | Open iOS simulator       |
+| `npm run android` | Open Android emulator |
+| `npm run web`  | Run in web browser       |
+
+## License
+
+See [LICENSE](LICENSE).
