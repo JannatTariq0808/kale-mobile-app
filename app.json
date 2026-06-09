@@ -5,11 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "backgroundColor": "#082B25",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "backgroundColor": "#082B25",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -18,6 +20,22 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-navigation-bar",
+        {
+          "visibility": "hidden",
+          "barStyle": "dark"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Kale to access your videos to upload your plank recording."
+        }
+      ],
+      "expo-font"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
