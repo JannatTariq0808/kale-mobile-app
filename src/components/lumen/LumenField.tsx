@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — LumenField (screens/KaleLumen.jsx)
 
-import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -23,6 +23,7 @@ type FieldStatus = 'neutral' | 'pending' | 'valid' | 'invalid';
 type LumenFieldProps = {
   label: string;
   value?: string;
+  onChangeText?: (value: string) => void;
   placeholder?: string;
   validate?: (value: string) => boolean;
   canReveal?: boolean;
@@ -30,6 +31,8 @@ type LumenFieldProps = {
   autoCapitalize?: TextInputProps['autoCapitalize'];
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
+  onFocus?: TextInputProps['onFocus'];
+  onBlur?: TextInputProps['onBlur'];
   blurOnSubmit?: boolean;
   style?: ViewStyle;
 };
@@ -95,6 +98,7 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
   {
     label,
     value = '',
+    onChangeText,
     placeholder,
     validate,
     canReveal = false,
@@ -102,6 +106,8 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
     autoCapitalize = 'none',
     returnKeyType,
     onSubmitEditing,
+    onFocus,
+    onBlur,
     blurOnSubmit = true,
     style,
   },
@@ -112,7 +118,16 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
   const [focused, setFocused] = useState(false);
   const [reveal, setReveal] = useState(false);
 
+  useEffect(() => {
+    setText(value);
+  }, [value]);
+
   useImperativeHandle(forwardedRef, () => inputRef.current as TextInput);
+
+  const handleChange = (next: string) => {
+    setText(next);
+    onChangeText?.(next);
+  };
 
   const status = useMemo(() => fieldStatus(text, focused, validate), [text, focused, validate]);
   const glow = glowTone[status];
@@ -144,9 +159,15 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
         <TextInput
           ref={inputRef}
           value={text}
-          onChangeText={setText}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onChangeText={handleChange}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
           placeholder={placeholder}
           placeholderTextColor={lumen.fgFaint}
           keyboardType={keyboardType}

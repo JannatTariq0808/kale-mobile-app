@@ -5,7 +5,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
-import { LumenWelcomeBackground } from '../../components/lumen/LumenWelcomeBackground';
 import { ResultLoaderRing } from '../../components/lumen/ResultLoaderRing';
 import type { RootStackParamList } from '../../navigation/types';
 import { lumen, sora } from '../../theme';
@@ -27,7 +26,6 @@ export function CardioAnalysingScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
       <View
         style={[
           styles.content,
@@ -54,7 +52,7 @@ export function CardioAnalysingScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

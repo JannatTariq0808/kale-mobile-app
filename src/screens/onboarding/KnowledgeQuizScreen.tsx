@@ -6,7 +6,6 @@ import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QuizAdvanceBar } from '../../components/lumen/QuizAdvanceBar';
-import { LumenWelcomeBackground } from '../../components/lumen/LumenWelcomeBackground';
 import { KNOWLEDGE_QUIZ_QUESTIONS } from '../../data/knowledgeQuizQuestions';
 import type { RootStackParamList } from '../../navigation/types';
 import { lumen, lumenPillar, sora } from '../../theme';
@@ -15,17 +14,14 @@ type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeQuiz'>;
 
 type Phase = 'answering' | 'revealed';
 
-function toneColor(tone: 'correct' | 'wrong' | null) {
-  if (tone === 'correct') return lumen.lime;
-  if (tone === 'wrong') return lumen.coral;
+function optionPalette(highlight: 'correct' | 'wrong' | null) {
+  if (highlight === 'correct') {
+    return { bg: lumen.quizCorrectBg, accent: lumen.lime };
+  }
+  if (highlight === 'wrong') {
+    return { bg: lumen.quizWrongBg, accent: lumen.coral };
+  }
   return null;
-}
-
-function hexWithAlpha(hex: string, alpha: number) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 type OptionTileProps = {
@@ -37,46 +33,49 @@ type OptionTileProps = {
 };
 
 function OptionTile({ letter, text, highlight, disabled, onPress }: OptionTileProps) {
-  const color = toneColor(highlight);
+  const palette = optionPalette(highlight);
   const showIcon = highlight !== null;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[
-        styles.option,
-        color
-          ? {
-              backgroundColor: hexWithAlpha(color, 0.13),
-              borderColor: color,
-              borderWidth: 1.5,
-            }
-          : styles.optionIdle,
-      ]}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
     >
       <View
         style={[
-          styles.optionLetter,
-          color
-            ? { backgroundColor: color }
-            : { backgroundColor: 'rgba(234,243,228,0.08)' },
+          styles.option,
+          palette
+            ? {
+                backgroundColor: palette.bg,
+                borderColor: palette.accent,
+                borderWidth: 1.5,
+              }
+            : styles.optionIdle,
         ]}
       >
-        <Text style={[styles.optionLetterText, color ? styles.optionLetterTextOn : null]}>
-          {letter}
-        </Text>
+        <View
+          style={[
+            styles.optionLetter,
+            palette
+              ? { backgroundColor: palette.accent }
+              : { backgroundColor: 'rgba(234,243,228,0.08)' },
+          ]}
+        >
+          <Text style={[styles.optionLetterText, palette ? styles.optionLetterTextOn : null]}>
+            {letter}
+          </Text>
+        </View>
+        <Text style={styles.optionText}>{text}</Text>
+        {showIcon ? (
+          <Ionicons
+            name={highlight === 'correct' ? 'checkmark-circle' : 'close-circle'}
+            size={20}
+            color={palette?.accent ?? lumen.fgMuted}
+          />
+        ) : null}
       </View>
-      <Text style={styles.optionText}>{text}</Text>
-      {showIcon ? (
-        <Ionicons
-          name={highlight === 'correct' ? 'checkmark-circle' : 'close-circle'}
-          size={20}
-          color={color ?? lumen.fgMuted}
-        />
-      ) : null}
     </Pressable>
   );
 }
@@ -128,7 +127,6 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
       <View
         style={[
           styles.content,
@@ -219,7 +217,7 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   flex: {
     flex: 1,

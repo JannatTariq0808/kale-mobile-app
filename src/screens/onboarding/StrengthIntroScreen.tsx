@@ -7,7 +7,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
-import { LumenWelcomeBackground } from '../../components/lumen/LumenWelcomeBackground';
 import type { RootStackParamList } from '../../navigation/types';
 import { lumen, lumenPillar, sora } from '../../theme';
 import { pickPlankVideo } from '../../utils/pickPlankVideo';
@@ -40,7 +39,6 @@ export function StrengthIntroScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
       <View
         style={[
           styles.content,
@@ -107,7 +105,7 @@ export function StrengthIntroScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   flex: {
     flex: 1,

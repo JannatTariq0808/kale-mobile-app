@@ -43,7 +43,7 @@ src/
 ## Onboarding flow (current)
 
 ```
-Welcome → Sign in → Cardio analysing → Cardio result
+Welcome → Sign in → Connect apps → Cardio analysing → Cardio result
   → Strength intro → Strength analysing → Strength result
   → Knowledge intro → Knowledge quiz → Knowledge analysing → Knowledge result
   → Main (tabs)

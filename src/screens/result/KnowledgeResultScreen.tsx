@@ -34,7 +34,7 @@ export function KnowledgeResultScreen({ navigation }: Props) {
         nextBtn: 'See your Longevity Level',
       }}
       onBack={() => navigation.goBack()}
-      onNext={() => navigation.replace('Main')}
+      onNext={() => navigation.replace('LevelReveal')}
     />
   );
 }

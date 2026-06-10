@@ -1,14 +1,24 @@
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  type NavigationContainerRef,
+  type NavigationState,
+} from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useAuthDeepLink } from './src/hooks/useAuthDeepLink';
 import { useSoraFonts } from './src/hooks/useSoraFonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import type { RootStackParamList } from './src/navigation/types';
+import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
+import { SplashView } from './src/components/lumen/SplashView';
+import { BackdropAnimatedContext } from './src/navigation/backdropContext';
 import { lumen, navigationFonts } from './src/theme';
 import { applySoraFontGlobally } from './src/utils/applySoraFont';
 import { hideAndroidSystemNav } from './src/utils/hideAndroidSystemNav';
+import { ensureFirebase } from './src/services/auth/firebaseApp';
 
 const styles = StyleSheet.create({
   root: {
@@ -17,8 +27,37 @@ const styles = StyleSheet.create({
   },
 });
 
+/** Screens where the slow breathing curve is worth the GPU cost. */
+const ANIMATED_BACKDROP_ROUTES = new Set<keyof RootStackParamList>(['Welcome']);
+
+function isBackdropAnimated(state: NavigationState | undefined) {
+  const route = state?.routes[state.index]?.name as keyof RootStackParamList | undefined;
+  return route != null && ANIMATED_BACKDROP_ROUTES.has(route);
+}
+
 export default function App() {
   const fontsReady = useSoraFonts();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+  const [backdropAnimated, setBackdropAnimated] = useState(true);
+  const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
+
+  const handleNavigationStateChange = useCallback((state: NavigationState | undefined) => {
+    setBackdropAnimated(isBackdropAnimated(state));
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      setAppActive(nextState === 'active');
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  useAuthDeepLink(navigationRef);
+
+  useEffect(() => {
+    ensureFirebase();
+  }, []);
 
   useEffect(() => {
     if (fontsReady) applySoraFontGlobally();
@@ -41,7 +80,7 @@ export default function App() {
   }, []);
 
   if (!fontsReady) {
-    return null;
+    return <SplashView />;
   }
 
   return (
@@ -49,6 +88,16 @@ export default function App() {
     <SafeAreaProvider style={styles.root}>
       <View style={styles.root}>
         <NavigationContainer
+          ref={navigationRef}
+          onStateChange={handleNavigationStateChange}
+          linking={{
+            prefixes: AUTH_LINK_PREFIXES,
+            config: {
+              screens: {
+                NewPassword: 'reset-password',
+              },
+            },
+          }}
           theme={{
             dark: true,
             colors: {
@@ -62,7 +111,9 @@ export default function App() {
             fonts: navigationFonts,
           }}
         >
-          <RootNavigator />
+          <BackdropAnimatedContext.Provider value={backdropAnimated && appActive}>
+            <RootNavigator />
+          </BackdropAnimatedContext.Provider>
           <StatusBar style="light" backgroundColor={lumen.bgDark} />
         </NavigationContainer>
       </View>

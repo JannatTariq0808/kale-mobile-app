@@ -1,7 +1,7 @@
 // Design: kale-mobile-design — LumenResultPage (screens/KaleLumenResults.jsx)
 
 import { Ionicons } from '@expo/vector-icons';
-import { Fragment } from 'react';
+import { Fragment, memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LevelRing } from './LevelRing';
@@ -10,7 +10,6 @@ import { LumenButton } from './LumenButton';
 import { LumenHistogram } from './LumenHistogram';
 import { LumenRuleCaption } from './LumenRuleCaption';
 import { LumenStat } from './LumenStat';
-import { LumenWelcomeBackground } from './LumenWelcomeBackground';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type PillarKey = keyof typeof lumenPillar;
@@ -86,12 +85,15 @@ function TrendChip({ trend, delta }: { trend: Trend; delta?: number }) {
   return null;
 }
 
-export function LumenResultView({ config, onBack, onNext }: LumenResultViewProps) {
+export const LumenResultView = memo(function LumenResultView({
+  config,
+  onBack,
+  onNext,
+}: LumenResultViewProps) {
   const accent = lumenPillar[config.pillar];
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
       <SafeAreaView style={styles.content} edges={['top', 'left', 'right', 'bottom']}>
         <View style={styles.header}>
           <Pressable
@@ -189,12 +191,12 @@ export function LumenResultView({ config, onBack, onNext }: LumenResultViewProps
       </SafeAreaView>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   flex: {
     flex: 1,
@@ -319,9 +321,6 @@ const styles = StyleSheet.create({
   },
   sectionLast: {
     paddingTop: 22,
-    paddingBottom: 22,
-    borderBottomWidth: 1,
-    borderBottomColor: lumen.hairline,
   },
   sectionHeader: {
     flexDirection: 'row',

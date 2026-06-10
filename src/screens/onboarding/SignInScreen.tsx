@@ -2,21 +2,24 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Keyboard,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isFirebaseConfigured } from '../../config/firebase';
+import { LumenAuthScrollView } from '../../components/lumen/LumenAuthScrollView';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
-import { LumenWelcomeBackground } from '../../components/lumen/LumenWelcomeBackground';
 import type { RootStackParamList } from '../../navigation/types';
+import { mapFirebaseAuthError, signInWithEmail } from '../../services/auth/passwordReset';
 import { lumen, sora, typography } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
@@ -33,34 +36,65 @@ function isValidPassword(value: string) {
 export function SignInScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const passwordRef = useRef<TextInput>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const clearErrors = () => {
+    setEmailError(null);
+    setPasswordError(null);
+    setAuthError(null);
+  };
+
+  const handleSignIn = async () => {
+    if (busy) return;
+    clearErrors();
+
+    if (!isFirebaseConfigured()) {
+      navigation.navigate('ConnectTracker');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setEmailError('Enter a valid email address.');
+      return;
+    }
+
+    if (!isValidPassword(password)) {
+      setPasswordError('Enter your password.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await signInWithEmail(email, password);
+      navigation.navigate('ConnectTracker');
+    } catch (err) {
+      Keyboard.dismiss();
+      setAuthError(mapFirebaseAuthError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
-      <View
-        style={[
-          styles.content,
-          styles.flex,
-          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 },
-        ]}
-      >
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
-          </Pressable>
+      <View style={[styles.content, styles.flex, { paddingTop: insets.top + 10 }]}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
+        </Pressable>
 
-          <ScrollView
-            style={styles.flex}
+          <LumenAuthScrollView
             contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="always"
-            keyboardDismissMode="on-drag"
-            automaticallyAdjustKeyboardInsets
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
+            bottomInset={insets.bottom}
           >
             <View style={styles.main}>
               <View style={styles.glyphMark}>
@@ -75,40 +109,71 @@ export function SignInScreen({ navigation }: Props) {
               </Text>
 
               <View style={styles.form}>
-                <LumenField
-                  label="Email"
-                  value="alex@pendragon.io"
-                  keyboardType="email-address"
-                  returnKeyType="next"
-                  blurOnSubmit={false}
-                  onSubmitEditing={() => passwordRef.current?.focus()}
-                  validate={isValidEmail}
-                />
-                <View>
+                <View style={styles.fieldGroup}>
+                  <LumenField
+                    label="Email"
+                    value={email}
+                    onChangeText={(value) => {
+                      setEmail(value);
+                      if (emailError) setEmailError(null);
+                      if (authError) setAuthError(null);
+                    }}
+                    keyboardType="email-address"
+                    returnKeyType="next"
+                    blurOnSubmit={false}
+                    onSubmitEditing={() => passwordRef.current?.focus()}
+                    validate={isValidEmail}
+                  />
+                  {emailError ? <Text style={styles.fieldError}>{emailError}</Text> : null}
+                </View>
+                <View style={styles.fieldGroup}>
                   <LumenField
                     ref={passwordRef}
                     label="Password"
-                    value="quinoa2024"
+                    value={password}
+                    onChangeText={(value) => {
+                      setPassword(value);
+                      if (passwordError) setPasswordError(null);
+                      if (authError) setAuthError(null);
+                    }}
                     canReveal
                     returnKeyType="done"
                     validate={isValidPassword}
                   />
-                  <Pressable style={styles.forgotLink} accessibilityRole="button">
+                  {passwordError ? <Text style={styles.fieldError}>{passwordError}</Text> : null}
+                  {authError ? <Text style={styles.authFieldError}>{authError}</Text> : null}
+                  <Pressable
+                    style={styles.forgotLink}
+                    onPress={() => navigation.navigate('ResetPassword')}
+                    accessibilityRole="button"
+                  >
                     <Text style={styles.forgotText}>Forgot password?</Text>
                   </Pressable>
                 </View>
               </View>
 
-              <LumenButton style={styles.submit} onPress={() => navigation.replace('CardioAnalysing')}>
-                Log in
+              <LumenButton style={styles.submit} onPress={handleSignIn}>
+                {busy ? 'Logging in…' : 'Log in'}
               </LumenButton>
+
+              <Pressable
+                style={styles.signUpLink}
+                onPress={() => navigation.navigate('SignUp')}
+                accessibilityRole="button"
+              >
+                <Text style={styles.signUpText}>
+                  New to Kale? <Text style={styles.signUpAccent}>Sign up</Text>
+                </Text>
+              </Pressable>
+
+              {busy ? <ActivityIndicator color={lumen.lime} style={styles.busy} /> : null}
 
               <Text style={styles.footer}>
                 Kale is available to policy holders. Your login arrives by email when your policy
                 begins.
               </Text>
             </View>
-          </ScrollView>
+          </LumenAuthScrollView>
       </View>
     </View>
   );
@@ -117,7 +182,7 @@ export function SignInScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   flex: {
     flex: 1,
@@ -141,8 +206,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   main: {
-    flex: 1,
-    minHeight: 520,
+    flexGrow: 1,
   },
   glyphMark: {
     width: 52,
@@ -177,9 +241,27 @@ const styles = StyleSheet.create({
     marginTop: 30,
     gap: 18,
   },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldError: {
+    ...sora('semibold'),
+    fontSize: 12,
+    lineHeight: 16,
+    color: lumen.coral,
+    paddingLeft: 2,
+  },
+  authFieldError: {
+    ...sora('semibold'),
+    fontSize: 12,
+    lineHeight: 16,
+    color: lumen.coral,
+    paddingLeft: 2,
+    marginTop: 2,
+  },
   forgotLink: {
     alignSelf: 'flex-end',
-    marginTop: 10,
+    marginTop: 4,
     padding: 2,
   },
   forgotText: {
@@ -188,12 +270,29 @@ const styles = StyleSheet.create({
     color: lumen.green,
   },
   submit: {
-    marginTop: 8,
+    marginTop: 22,
+  },
+  signUpLink: {
+    alignSelf: 'center',
+    marginTop: 16,
+    padding: 4,
+  },
+  signUpText: {
+    ...sora('semibold'),
+    fontSize: 13.5,
+    color: lumen.fgMuted,
+  },
+  signUpAccent: {
+    ...sora('bold'),
+    color: lumen.green,
+  },
+  busy: {
+    marginTop: 16,
   },
   footer: {
     ...sora('semibold'),
-    marginTop: 'auto',
-    paddingTop: 28,
+    marginTop: 28,
+    paddingTop: 8,
     paddingBottom: 10,
     textAlign: 'center',
     fontSize: 13,

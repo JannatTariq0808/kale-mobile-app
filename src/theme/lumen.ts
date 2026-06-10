@@ -20,6 +20,9 @@ export const lumen = {
   track: '#45807E',
   /** Onboarding glyph / ring — KaleLumen.jsx Lumen.green */
   green: '#14C088',
+  /** Quiz option feedback — KaleLumenOnboarding.jsx `${color}22` */
+  quizCorrectBg: '#CCFA7D22',
+  quizWrongBg: '#E8826E22',
 } as const;
 
 export const lumenPillar = {

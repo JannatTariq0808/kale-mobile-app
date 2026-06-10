@@ -1,0 +1,17 @@
+{
+  "appleTeamId": "DKQRH8FY75",
+  "android": {
+    "production": {
+      "packageName": "insure.kale.mobile",
+      "sha256CertFingerprints": [
+        "PASTE_DEBUG_SHA256_HERE"
+      ]
+    },
+    "staging": {
+      "packageName": "insure.kale.mobile.staging",
+      "sha256CertFingerprints": [
+        "PASTE_DEBUG_SHA256_HERE"
+      ]
+    }
+  }
+}

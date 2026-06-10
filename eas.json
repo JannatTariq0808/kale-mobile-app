@@ -1,0 +1,47 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "staging",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAas74eBxmiyJTpxFG7JcUD3ipQVhNK660",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "kale-staging-17edd.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "kale-staging-17edd",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "kale-staging-17edd.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "238686530748",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:238686530748:web:93defc84627e4c3fee74b9"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "APP_VARIANT": "staging",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyAas74eBxmiyJTpxFG7JcUD3ipQVhNK660",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "kale-staging-17edd.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "kale-staging-17edd",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "kale-staging-17edd.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "238686530748",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:238686530748:web:93defc84627e4c3fee74b9"
+      }
+    },
+    "production": {
+      "env": {
+        "APP_VARIANT": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

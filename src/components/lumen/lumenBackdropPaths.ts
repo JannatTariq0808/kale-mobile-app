@@ -62,3 +62,7 @@ export function glassCurvePathAt(progress: number) {
   const [y0, c1x, c1y, c2x, c2y, y1] = interpolateKeyframeSet(GLASS_CURVE_KEYFRAMES, progress);
   return `M0,${y0} C ${c1x},${c1y} ${c2x},${c2y} 390,${y1}`;
 }
+
+/** Precomputed frame-0 paths for the static backdrop (no Reanimated / no per-frame SVG work). */
+export const STATIC_UPPER_PATH = upperPathAt(0);
+export const STATIC_GLASS_PATH = glassCurvePathAt(0);

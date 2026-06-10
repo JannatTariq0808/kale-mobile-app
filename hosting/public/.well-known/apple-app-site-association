@@ -1,0 +1,23 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "DKQRH8FY75.insure.kale.mobile",
+        "paths": [
+          "/reset-password",
+          "/reset-password/*",
+          "/__/auth/*"
+        ]
+      },
+      {
+        "appID": "DKQRH8FY75.insure.kale.mobile.staging",
+        "paths": [
+          "/reset-password",
+          "/reset-password/*",
+          "/__/auth/*"
+        ]
+      }
+    ]
+  }
+}

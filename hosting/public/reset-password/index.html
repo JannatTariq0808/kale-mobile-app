@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kale — Reset password</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 28rem;
+        margin: 4rem auto;
+        padding: 0 1.25rem;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Opening Kale…</h1>
+    <p>If the app does not open, install Kale and tap the email link again.</p>
+    <p id="fallback" hidden>
+      Or <a id="open-app" href="#">open Kale manually</a>.
+    </p>
+    <script>
+      (function () {
+        var search = window.location.search || '';
+        var params = new URLSearchParams(search);
+        if (params.get('mode') !== 'resetPassword' || !params.get('oobCode')) return;
+
+        var appUrl = 'kale://reset-password' + search;
+        var link = document.getElementById('open-app');
+        var fallback = document.getElementById('fallback');
+        if (link) link.href = appUrl;
+        if (fallback) fallback.hidden = false;
+
+        window.location.replace(appUrl);
+      })();
+    </script>
+  </body>
+</html>

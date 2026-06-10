@@ -1,0 +1,26 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "insure.kale.mobile",
+      "sha256_cert_fingerprints": [
+        "0CC48419FC8786D4C5886C6A6910055D4202ABA2422553A8F0E538E28E1CF146"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "insure.kale.mobile.staging",
+      "sha256_cert_fingerprints": [
+        "0CC48419FC8786D4C5886C6A6910055D4202ABA2422553A8F0E538E28E1CF146"
+      ]
+    }
+  }
+]

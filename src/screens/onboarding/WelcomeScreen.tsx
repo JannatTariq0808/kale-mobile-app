@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { StepGlowDot } from '../../components/lumen/StepGlowDot';
 import { LumenLogotype } from '../../components/lumen/LumenLogotype';
-import { LumenWelcomeBackground } from '../../components/lumen/LumenWelcomeBackground';
 import { WelcomeHeroLoader } from '../../components/lumen/WelcomeHeroLoader';
 import type { RootStackParamList } from '../../navigation/types';
 import { lumen, lumenPillar, sora, typography } from '../../theme';
@@ -42,7 +41,6 @@ export function WelcomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <LumenWelcomeBackground />
       <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.hero}>
           <WelcomeHeroLoader size={HERO_SIZE} glyphColor={lumen.green} />
@@ -73,7 +71,11 @@ export function WelcomeScreen({ navigation }: Props) {
 
         <View style={styles.cta}>
           <LumenButton onPress={() => navigation.navigate('SignIn')}>Log in to Kale</LumenButton>
-          <Pressable style={styles.resetLink} accessibilityRole="button">
+          <Pressable
+            style={styles.resetLink}
+            onPress={() => navigation.navigate('ResetPassword')}
+            accessibilityRole="button"
+          >
             <Text style={styles.resetText}>Reset password</Text>
           </Pressable>
         </View>
@@ -85,7 +87,7 @@ export function WelcomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
   },
   content: {
     flex: 1,

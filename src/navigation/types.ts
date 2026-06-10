@@ -1,6 +1,10 @@
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
+  SignUp: undefined;
+  ResetPassword: undefined;
+  NewPassword: { oobCode: string };
+  ConnectTracker: undefined;
   CardioAnalysing: undefined;
   CardioResult: undefined;
   StrengthIntro: undefined;
@@ -10,5 +14,8 @@ export type RootStackParamList = {
   KnowledgeQuiz: undefined;
   KnowledgeAnalysing: undefined;
   KnowledgeResult: undefined;
+  LevelReveal: undefined;
+  HealthYears: undefined;
+  FirstCycleRewards: undefined;
   Main: undefined;
 };

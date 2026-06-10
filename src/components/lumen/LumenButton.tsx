@@ -1,7 +1,7 @@
 // Design: kale-mobile-design — LumenButton (screens/KaleLumen.jsx, --lumen-btn #00C896)
 
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { lumen, sora } from '../../theme';
 
 type LumenButtonProps = {
@@ -17,8 +17,17 @@ export function LumenButton({ children, onPress, style }: LumenButtonProps) {
       style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
       accessibilityRole="button"
     >
-      <Text style={styles.label}>{children}</Text>
-      <Ionicons name="arrow-forward" size={19} color={lumen.bgDark} />
+      <View style={styles.inner}>
+        <Text
+          style={styles.label}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.88}
+        >
+          {children}
+        </Text>
+        <Ionicons name="arrow-forward" size={18} color={lumen.bgDark} style={styles.icon} />
+      </View>
     </Pressable>
   );
 }
@@ -27,20 +36,33 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: 58,
+    paddingHorizontal: 20,
     borderRadius: 9999,
     backgroundColor: lumen.mint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
+    gap: 8,
+    maxWidth: '100%',
   },
   pressed: {
     opacity: 0.92,
   },
   label: {
     ...sora('bold'),
+    flexShrink: 1,
     color: lumen.bgDark,
-    fontSize: 16.5,
-    letterSpacing: -0.2,
+    fontSize: 16,
+    lineHeight: 18,
+    letterSpacing: -0.3,
+    textAlign: 'center',
+    ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
+  },
+  icon: {
+    flexShrink: 0,
   },
 });
