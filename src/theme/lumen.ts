@@ -6,8 +6,11 @@ export const lumen = {
   bgDark: '#082B25',
   /** Primary content surface — kale-tokens.css --kale-dark */
   bgSurface: brand.kaleDark,
-  /** Lumen teal accent surface — kale-tokens.css --kale-deep */
+  /** Lumen main app shell — KaleLumenApp.jsx LP.bgDark */
   bgDeep: brand.kaleDeep,
+  /** LumAppBg curved header gradient */
+  bgAppUpperStart: '#0A6B61',
+  bgAppUpperEnd: '#075049',
   bgLight: '#08615A',
   fg: '#EAF3E4',
   fgMuted: 'rgba(234,243,228,0.58)',

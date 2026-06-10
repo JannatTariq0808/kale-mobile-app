@@ -35,7 +35,10 @@ const TAB_INACTIVE_COLOR = lumen.fgMuted;
 
 const styles = StyleSheet.create({
   scene: {
+    flex: 1,
+    width: '100%',
     backgroundColor: lumen.bgDark,
+    overflow: 'hidden',
   },
   tabBarBackground: {
     ...StyleSheet.absoluteFillObject,

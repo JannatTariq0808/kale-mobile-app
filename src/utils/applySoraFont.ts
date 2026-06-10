@@ -35,6 +35,7 @@ export function applySoraFontGlobally() {
   Text.render = function render(...args) {
     const origin = textRender.call(this, ...args);
     return React.cloneElement(origin, {
+      maxFontSizeMultiplier: origin.props.maxFontSizeMultiplier ?? 1,
       style: withSoraFont(origin.props.style),
     });
   };

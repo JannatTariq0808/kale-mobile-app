@@ -13,6 +13,7 @@ import { useSoraFonts } from './src/hooks/useSoraFonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
+import { ResponsiveAppFrame } from './src/components/layout/ResponsiveAppFrame';
 import { SplashView } from './src/components/lumen/SplashView';
 import { BackdropAnimatedContext } from './src/navigation/backdropContext';
 import { lumen, navigationFonts } from './src/theme';
@@ -38,7 +39,7 @@ function isBackdropAnimated(state: NavigationState | undefined) {
 export default function App() {
   const fontsReady = useSoraFonts();
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
-  const [backdropAnimated, setBackdropAnimated] = useState(true);
+  const [backdropAnimated, setBackdropAnimated] = useState(false);
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
 
   const handleNavigationStateChange = useCallback((state: NavigationState | undefined) => {
@@ -90,6 +91,9 @@ export default function App() {
         <NavigationContainer
           ref={navigationRef}
           onStateChange={handleNavigationStateChange}
+          onReady={() => {
+            setBackdropAnimated(isBackdropAnimated(navigationRef.current?.getRootState()));
+          }}
           linking={{
             prefixes: AUTH_LINK_PREFIXES,
             config: {
@@ -112,7 +116,9 @@ export default function App() {
           }}
         >
           <BackdropAnimatedContext.Provider value={backdropAnimated && appActive}>
-            <RootNavigator />
+            <ResponsiveAppFrame>
+              <RootNavigator />
+            </ResponsiveAppFrame>
           </BackdropAnimatedContext.Provider>
           <StatusBar style="light" backgroundColor={lumen.bgDark} />
         </NavigationContainer>

@@ -2,7 +2,8 @@
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { StepGlowDot } from '../../components/lumen/StepGlowDot';
 import { LumenLogotype } from '../../components/lumen/LumenLogotype';
@@ -38,11 +39,14 @@ const STEPS = [
 
 export function WelcomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { pad } = useResponsiveLayout();
+  const widePad = pad(30);
 
   return (
     <View style={styles.screen}>
+      <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.hero}>
+        <View style={[styles.hero, { paddingHorizontal: widePad }]}>
           <WelcomeHeroLoader size={HERO_SIZE} glyphColor={lumen.green} />
 
           <View style={styles.headlineRow}>
@@ -54,7 +58,7 @@ export function WelcomeScreen({ navigation }: Props) {
           <Text style={styles.subhead}>The longevity programme inside your Kale policy.</Text>
         </View>
 
-        <View style={styles.steps}>
+        <View style={[styles.steps, { paddingHorizontal: widePad }]}>
           {STEPS.map((step, index) => (
             <View
               key={step.title}
@@ -69,7 +73,7 @@ export function WelcomeScreen({ navigation }: Props) {
           ))}
         </View>
 
-        <View style={styles.cta}>
+        <View style={[styles.cta, { paddingHorizontal: widePad }]}>
           <LumenButton onPress={() => navigation.navigate('SignIn')}>Log in to Kale</LumenButton>
           <Pressable
             style={styles.resetLink}
@@ -80,6 +84,7 @@ export function WelcomeScreen({ navigation }: Props) {
           </Pressable>
         </View>
       </View>
+      </SafeAreaView>
     </View>
   );
 }
@@ -88,13 +93,18 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+    overflow: 'hidden',
+  },
+  safe: {
+    flex: 1,
+    width: '100%',
   },
   content: {
     flex: 1,
     zIndex: 2,
+    width: '100%',
   },
   hero: {
-    paddingHorizontal: 30,
     paddingTop: 20,
     alignItems: 'center',
   },
@@ -131,7 +141,6 @@ const styles = StyleSheet.create({
   steps: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 30,
   },
   stepRow: {
     flexDirection: 'row',
@@ -160,7 +169,6 @@ const styles = StyleSheet.create({
     color: 'rgba(234,243,228,0.55)',
   },
   cta: {
-    paddingHorizontal: 30,
     paddingBottom: 14,
     gap: 14,
   },

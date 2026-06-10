@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Fragment, memo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LevelRing } from './LevelRing';
 import { LumEyebrow } from './LumEyebrow';
 import { LumenButton } from './LumenButton';
@@ -91,11 +92,12 @@ export const LumenResultView = memo(function LumenResultView({
   onNext,
 }: LumenResultViewProps) {
   const accent = lumenPillar[config.pillar];
+  const { horizontalPadding, pad } = useResponsiveLayout();
 
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.content} edges={['top', 'left', 'right', 'bottom']}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
           <Pressable
             onPress={onBack}
             style={styles.backButton}
@@ -110,7 +112,7 @@ export const LumenResultView = memo(function LumenResultView({
 
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: pad(26) }]}
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.levelRow}>
@@ -185,7 +187,7 @@ export const LumenResultView = memo(function LumenResultView({
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingHorizontal: pad(26) }]}>
           <LumenButton onPress={onNext}>{config.nextBtn}</LumenButton>
         </View>
       </SafeAreaView>
@@ -211,7 +213,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 22,
     paddingBottom: 4,
   },
   backButton: {
@@ -226,7 +227,6 @@ const styles = StyleSheet.create({
     width: 32,
   },
   scrollContent: {
-    paddingHorizontal: 26,
     paddingTop: 12,
     paddingBottom: 8,
   },
@@ -443,7 +443,6 @@ const styles = StyleSheet.create({
     color: lumen.fg,
   },
   footer: {
-    paddingHorizontal: 26,
     paddingTop: 18,
     paddingBottom: 8,
   },

@@ -1,8 +1,10 @@
 // Design: kale-mobile-design — lum-20 KaleSettingsLumen (screens/KaleLumenApp2.jsx)
 
 import { Ionicons } from '@expo/vector-icons';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScreenScroll } from '../components/layout/ScreenScroll';
+import { resetToWelcome, signOutUser } from '../services/auth/session';
 import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumenCard } from '../components/lumen/LumenCard';
 import { LumenHeader } from '../components/lumen/LumenHeader';
@@ -12,18 +14,22 @@ import { SettingsToggle } from '../components/lumen/SettingsToggle';
 import { lumen, lumenPillar, sora, typography } from '../theme';
 
 export function SettingsScreen() {
-  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+    } finally {
+      resetToWelcome(navigation);
+    }
+  };
 
   return (
     <View style={styles.screen}>
-      <LumenBackground peak={130} />
-      <View style={[styles.content, { paddingTop: insets.top }]}>
+      <LumenBackground />
+      <View style={styles.content}>
         <LumenHeader />
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 }]}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScreenScroll contentContainerStyle={styles.scrollContent}>
           <SectionLabel variant="page">Settings</SectionLabel>
 
           <LumenCard style={styles.profileCard}>
@@ -78,12 +84,18 @@ export function SettingsScreen() {
           <LumenCard padding={0} style={styles.sectionCard}>
             <SettingsRow label="Privacy & data" />
             <SettingsRow label="Help & support" />
-            <SettingsRow label="Log out" labelColor={lumen.coral} chevron={false} last />
+            <SettingsRow
+              label="Log out"
+              labelColor={lumen.coral}
+              chevron={false}
+              last
+              onPress={handleLogout}
+            />
           </LumenCard>
 
           <Text style={styles.footer}>Kale Insurance · v2.4.1</Text>
-        </ScrollView>
-      </View>
+          </ScreenScroll>
+        </View>
     </View>
   );
 }
@@ -92,16 +104,15 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: lumen.bgDark,
+    overflow: 'hidden',
+    width: '100%',
   },
   content: {
     flex: 1,
     zIndex: 2,
-  },
-  scroll: {
-    flex: 1,
+    width: '100%',
   },
   scrollContent: {
-    paddingHorizontal: 22,
     paddingTop: 18,
   },
   profileCard: {

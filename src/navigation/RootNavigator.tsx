@@ -34,7 +34,7 @@ export function RootNavigator() {
     <View style={styles.root}>
       <LumenWelcomeBackground animated={backdropAnimated} />
       <Stack.Navigator
-        initialRouteName="Welcome"
+        initialRouteName="Main"
         screenOptions={{
           headerShown: false,
           animation: 'fade',

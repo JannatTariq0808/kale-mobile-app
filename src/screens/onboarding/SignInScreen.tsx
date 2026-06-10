@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { isFirebaseConfigured } from '../../config/firebase';
 import { LumenAuthScrollView } from '../../components/lumen/LumenAuthScrollView';
 import { LumenButton } from '../../components/lumen/LumenButton';
@@ -35,6 +36,7 @@ function isValidPassword(value: string) {
 
 export function SignInScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { horizontalPadding } = useResponsiveLayout();
   const passwordRef = useRef<TextInput>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -85,7 +87,7 @@ export function SignInScreen({ navigation }: Props) {
       <View style={[styles.content, styles.flex, { paddingTop: insets.top + 10 }]}>
         <Pressable
           onPress={() => navigation.goBack()}
-          style={styles.backButton}
+          style={[styles.backButton, { paddingHorizontal: horizontalPadding }]}
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
@@ -194,7 +196,6 @@ const styles = StyleSheet.create({
   backButton: {
     alignSelf: 'flex-start',
     paddingVertical: 6,
-    paddingHorizontal: 22,
     marginLeft: -6,
   },
   backIcon: {
@@ -202,7 +203,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 30,
     paddingTop: 6,
   },
   main: {
