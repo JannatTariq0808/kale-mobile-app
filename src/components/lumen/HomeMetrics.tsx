@@ -5,14 +5,18 @@ import { lumen, sora } from '../../theme';
 
 type LegendDotProps = {
   color: string;
-  label: string;
+  name: string;
+  value: string;
 };
 
-export function LegendDot({ color, label }: LegendDotProps) {
+export function LegendDot({ color, name, value }: LegendDotProps) {
   return (
-    <View style={styles.row}>
+    <View style={styles.legendItem}>
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label} numberOfLines={1}>
+        {name}{' '}
+        <Text style={styles.labelValue}>{value}</Text>
+      </Text>
     </View>
   );
 }
@@ -61,16 +65,16 @@ type QuickStatProps = {
 
 /** KAQuickStat — kale-mobile-design/screens/KaleApp.jsx */
 export function QuickStatPillar({ pillar, level, color }: QuickStatProps) {
-  const { scale, type, isTight } = useResponsiveLayout();
-  const ringSize = scale(isTight ? 20 : 26);
-  const levelSize = type(isTight ? 22 : 30);
-  const pillarSize = type(isTight ? 9 : 12);
+  const { scale, type, isCompact } = useResponsiveLayout();
+  const ringSize = scale(isCompact ? 22 : 26);
+  const levelSize = type(isCompact ? 24 : 30);
+  const pillarSize = type(isCompact ? 9 : 10);
 
   return (
-    <View style={[styles.stat, isTight && styles.statNarrow, isTight && styles.statFullWidth]}>
+    <View style={[styles.stat, isCompact && styles.statNarrow]}>
       <View style={styles.statPillarWrap}>
         <Text
-          style={[styles.statPillar, { fontSize: pillarSize, letterSpacing: isTight ? 0.2 : 0.5 }]}
+          style={[styles.statPillar, { fontSize: pillarSize, letterSpacing: isCompact ? 0.2 : 0.5 }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.75}
@@ -94,12 +98,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
   label: {
+    ...sora('semibold'),
+    fontSize: 12,
+    color: lumen.fg,
+    flexShrink: 0,
+  },
+  labelValue: {
     ...sora('semibold'),
     fontSize: 12,
     color: lumen.fg,
@@ -121,21 +137,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statNarrow: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 12,
     minHeight: 82,
-    width: '100%',
-    flexBasis: 'auto',
-  },
-  statFullWidth: {
-    flex: 0,
-    flexGrow: 0,
-    flexShrink: 0,
-    flexBasis: 'auto',
-    width: '100%',
   },
   statPillarWrap: {
-    height: 14,
+    minHeight: 14,
     width: '100%',
     justifyContent: 'center',
   },

@@ -1,0 +1,33 @@
+{
+  "collection": "knowledgeQuestions",
+  "documents": [
+    {
+      "id": "how-level-calculated",
+      "question": "How is the Knowledge Level calculated?",
+      "answer": "Your level (1–10) is calculated from your latest quiz score, weighted by topic difficulty. The 20-question quiz refreshes each cycle so the level reflects current knowledge, not your best ever.",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "id": "why-different-topic",
+      "question": "Why focus on a different topic next time?",
+      "answer": "We weight your next quiz toward your weakest area. Improving where you're weakest moves your Knowledge Level fastest — and gives the biggest healthspan return.",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "id": "where-questions-from",
+      "question": "Where do the questions come from?",
+      "answer": "Every question is written or vetted by our science team and reviewed against peer-reviewed sources. No marketing claims, no folklore.",
+      "sortOrder": 3,
+      "active": true
+    },
+    {
+      "id": "skip-quiz",
+      "question": "What happens to my level if I skip a quiz?",
+      "answer": "Knowledge Level pauses at its last value until you take the next quiz. Your overall Longevity Level still ticks, but Knowledge stops contributing until you re-engage.",
+      "sortOrder": 4,
+      "active": true
+    }
+  ]
+}

@@ -2,7 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
+import { useAssessmentCycle } from '../hooks/useAssessmentCycle';
+import { useAssessmentWindow } from '../hooks/useAssessmentWindow';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { AssessmentLiveCard } from '../components/lumen/AssessmentLiveCard';
+import { FirstAssessmentCard } from '../components/lumen/FirstAssessmentCard';
 import { HealthYearsTrendChart } from '../components/lumen/HealthYearsTrendChart';
 import { LegendDot, QuickStatPillar } from '../components/lumen/HomeMetrics';
 import { LongevityLevelTrendChart } from '../components/lumen/LongevityLevelTrendChart';
@@ -11,32 +15,40 @@ import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumenCard } from '../components/lumen/LumenCard';
 import { LumenButton } from '../components/lumen/LumenButton';
 import { LumenHeader } from '../components/lumen/LumenHeader';
-import { QuarterBaselineTimeline } from '../components/lumen/QuarterBaselineTimeline';
+import { TrendChartScroll } from '../components/lumen/TrendChartScroll';
+import { getHomeChartSeries } from '../data/homeChartData';
 import { homeDemo } from '../data/homeDemo';
 import { lumen, lumenPillar, sora } from '../theme';
 
-function SectionEyebrow({ children, trailing }: { children: string; trailing?: string }) {
+function SectionEyebrow({
+  children,
+  trailing,
+  trailingMuted,
+}: {
+  children: string;
+  trailing?: string;
+  trailingMuted?: boolean;
+}) {
   const { type } = useResponsiveLayout();
   const labelSize = type(11);
 
   return (
     <View style={styles.eyebrowRow}>
       <Text
-        style={[
-          styles.eyebrow,
-          { fontSize: labelSize, letterSpacing: 0.6 },
-        ]}
-        numberOfLines={2}
+        style={[styles.eyebrow, { fontSize: labelSize, letterSpacing: 0.6 }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
       >
         {children}
       </Text>
       {trailing ? (
         <Text
           style={[
-            styles.eyebrowTrailing,
-            { fontSize: labelSize, letterSpacing: 0.6 },
-            styles.eyebrowTrailingStack,
+            trailingMuted ? styles.eyebrowTrailingMuted : styles.eyebrowTrailing,
+            { fontSize: labelSize, letterSpacing: trailingMuted ? 0 : 0.6 },
           ]}
+          numberOfLines={1}
         >
           {trailing}
         </Text>
@@ -45,44 +57,14 @@ function SectionEyebrow({ children, trailing }: { children: string; trailing?: s
   );
 }
 
-function BaselineLevelReadout() {
-  const { type } = useResponsiveLayout();
-  const valueSize = type(34);
-
-  return (
-    <View style={styles.baselineReadout}>
-      <Text style={[styles.baselineValue, { fontSize: valueSize, lineHeight: valueSize + 4 }]}>
-        Level <Text style={styles.baselineValueAccent}>{homeDemo.level}</Text>
-      </Text>
-      <Text style={[styles.baselineHint, { fontSize: type(12) }]}>Recorded at Q1</Text>
-    </View>
-  );
-}
-
-function BaselineHealthReadout() {
-  const { type, isTight } = useResponsiveLayout();
-  const valueSize = type(isTight ? 24 : 28);
-
-  return (
-    <View style={[styles.baselineMetrics, isTight && styles.baselineMetricsTight]}>
-      <View style={styles.baselineMetric}>
-        <Text style={[styles.baselineMetricValue, { fontSize: valueSize }]}>+{homeDemo.lifespanYears}y</Text>
-        <Text style={[styles.baselineMetricLabel, { fontSize: type(11) }]}>Lifespan</Text>
-      </View>
-      <View style={styles.baselineDivider} />
-      <View style={styles.baselineMetric}>
-        <Text style={[styles.baselineMetricValue, { fontSize: valueSize }]}>+{homeDemo.healthspanYears}y</Text>
-        <Text style={[styles.baselineMetricLabel, { fontSize: type(11) }]}>Healthspan</Text>
-      </View>
-    </View>
-  );
-}
-
 export function LongevityScreen() {
-  const { scale, type, isCompact, isNarrow, isTight, cardPadding } = useResponsiveLayout();
+  const { scale, type, isCompact, isNarrow, isTight, cardPadding, contentWidth } = useResponsiveLayout();
   const isFirstAssessment = homeDemo.assessmentCount <= 1;
+  const chartSeries = getHomeChartSeries();
+  const assessmentCycle = useAssessmentCycle();
+  const assessmentWindow = useAssessmentWindow();
   const heroRingSize = scale(isCompact ? 80 : 104);
-  const statSize = type(isNarrow ? 36 : 52);
+  const promoStatSize = type(contentWidth < 340 ? 34 : isNarrow ? 40 : 52);
   const countdownSize = type(isTight ? 34 : 46);
   const promoPad = isTight ? Math.max(12, cardPadding - 4) : cardPadding;
 
@@ -113,115 +95,149 @@ export function LongevityScreen() {
           </View>
         </View>
 
-        <LumenCard accent={lumen.coral} style={styles.nextCard}>
-          <View style={styles.nextHeader}>
-            <Text style={[styles.nextLabel, { fontSize: type(11) }]}>Next assessment</Text>
-            <Text style={[styles.nextProgress, { fontSize: type(12) }]}>
-              {homeDemo.cycleProgressPct}% through cycle
+        {assessmentWindow.live ? (
+          <AssessmentLiveCard
+            window={assessmentWindow}
+            kaletteReward={homeDemo.kaletteReward}
+          />
+        ) : (
+          <LumenCard accent={lumen.coral} style={styles.nextCard}>
+            <View style={styles.nextHeader}>
+              <Text style={[styles.nextLabel, { fontSize: type(11) }]}>Next assessment</Text>
+              <Text style={[styles.nextProgress, { fontSize: type(12) }]}>
+                {assessmentCycle.cycleProgressPct}% through cycle
+              </Text>
+            </View>
+            <View style={[styles.countdownRow, isTight && styles.countdownRowWrap]}>
+              <Text style={[styles.countdownNum, { fontSize: countdownSize, lineHeight: countdownSize }]}>
+                {assessmentCycle.weeksToAssessment}
+              </Text>
+              <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>weeks</Text>
+              <Text
+                style={[
+                  styles.countdownNum,
+                  styles.countdownGap,
+                  { fontSize: countdownSize, lineHeight: countdownSize },
+                ]}
+              >
+                {assessmentCycle.daysToAssessment}
+              </Text>
+              <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>days</Text>
+            </View>
+            <View style={styles.progressTrack}>
+              <View
+                style={[styles.progressFill, { width: `${assessmentCycle.cycleProgressPct}%` }]}
+              />
+            </View>
+            <Text style={[styles.nextReward, { fontSize: type(13) }]}>
+              Complete it to bank{' '}
+              <Text style={styles.nextRewardAccent}>{homeDemo.kaletteReward} Kalettes</Text>.
             </Text>
-          </View>
-          <View style={[styles.countdownRow, isTight && styles.countdownRowWrap]}>
-            <Text style={[styles.countdownNum, { fontSize: countdownSize, lineHeight: countdownSize }]}>
-              {homeDemo.weeksToAssessment}
-            </Text>
-            <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>weeks</Text>
-            <Text
-              style={[
-                styles.countdownNum,
-                styles.countdownGap,
-                { fontSize: countdownSize, lineHeight: countdownSize },
-              ]}
-            >
-              {homeDemo.daysToAssessment}
-            </Text>
-            <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>days</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${homeDemo.cycleProgressPct}%` }]} />
-          </View>
-          <Text style={[styles.nextReward, { fontSize: type(13) }]}>
-            Complete it to bank{' '}
-            <Text style={styles.nextRewardAccent}>{homeDemo.kaletteReward} Kalettes</Text>.
-          </Text>
-        </LumenCard>
+          </LumenCard>
+        )}
 
-        <LumenCard style={styles.chartCard}>
-          <SectionEyebrow trailing={isFirstAssessment ? 'Q1 baseline' : '5y outlook'}>
-            Health Years over time
-          </SectionEyebrow>
-          {isFirstAssessment ? (
-            <>
-              <BaselineHealthReadout />
-              <QuarterBaselineTimeline activeIndex={0} />
-            </>
-          ) : (
-            <HealthYearsTrendChart />
-          )}
-          <View style={styles.legendRow}>
-            <LegendDot color={lumenPillar.cardio} label={`Lifespan +${homeDemo.lifespanYears}y`} />
-            <LegendDot color={lumenPillar.knowledge} label={`Healthspan +${homeDemo.healthspanYears}y`} />
-            <Text style={styles.levelTag}>at Level {homeDemo.level}</Text>
-          </View>
-        </LumenCard>
+        {isFirstAssessment ? (
+          <FirstAssessmentCard
+            level={homeDemo.level}
+            lifespanYears={homeDemo.lifespanYears}
+            healthspanYears={homeDemo.healthspanYears}
+          />
+        ) : (
+          <>
+            <LumenCard style={styles.chartCard}>
+              <SectionEyebrow trailing="5y outlook" trailingMuted>
+                Health Years over time
+              </SectionEyebrow>
+              <TrendChartScroll pointCount={chartSeries.count} height={120}>
+                {(width) => (
+                  <HealthYearsTrendChart
+                    width={width}
+                    labels={chartSeries.labels}
+                    lifespan={chartSeries.lifespan}
+                    healthspan={chartSeries.healthspan}
+                  />
+                )}
+              </TrendChartScroll>
+              <View style={styles.legendRow}>
+                <View style={styles.legendColumn}>
+                  <LegendDot color={lumenPillar.cardio} name="Lifespan" value={`+${homeDemo.lifespanYears}y`} />
+                  <LegendDot
+                    color={lumenPillar.knowledge}
+                    name="Healthspan"
+                    value={`+${homeDemo.healthspanYears}y`}
+                  />
+                </View>
+                <Text style={styles.levelTag}>at Level {homeDemo.level}</Text>
+              </View>
+            </LumenCard>
 
-        <LumenCard style={styles.chartCard}>
-          <SectionEyebrow trailing={isFirstAssessment ? 'Q1 baseline' : `${homeDemo.assessmentCount} QUARTERS`}>
-            Longevity Level over time
-          </SectionEyebrow>
-          {isFirstAssessment ? (
-            <>
-              <BaselineLevelReadout />
-              <QuarterBaselineTimeline activeIndex={0} />
-            </>
-          ) : (
-            <LongevityLevelTrendChart
-              levels={[3, 4, 5, homeDemo.level]}
-              labels={['Q1', 'Q2', 'Q3', 'Now']}
-            />
-          )}
-        </LumenCard>
+            <LumenCard style={styles.chartCard}>
+              <SectionEyebrow trailing={`${chartSeries.count} CYCLES`}>
+                Longevity Level over time
+              </SectionEyebrow>
+              <TrendChartScroll pointCount={chartSeries.count} height={130}>
+                {(width) => (
+                  <LongevityLevelTrendChart
+                    width={width}
+                    levels={chartSeries.levels}
+                    labels={chartSeries.labels}
+                  />
+                )}
+              </TrendChartScroll>
+            </LumenCard>
+          </>
+        )}
 
-        <View style={isTight ? styles.quickStatsStack : styles.quickStats}>
+        <View style={styles.quickStats}>
           <QuickStatPillar pillar="Cardio" level={homeDemo.pillarLevels.cardio} color={lumenPillar.cardio} />
           <QuickStatPillar pillar="Strength" level={homeDemo.pillarLevels.strength} color={lumenPillar.strength} />
           <QuickStatPillar pillar="Knowledge" level={homeDemo.pillarLevels.knowledge} color={lumenPillar.knowledge} />
         </View>
 
-        <LinearGradient
-          colors={['rgba(204,250,125,0.14)', 'rgba(0,200,150,0.08)', 'rgba(234,243,228,0.04)']}
-          locations={[0, 0.55, 1]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.promo, { padding: promoPad }]}
-        >
-          <View style={styles.promoBadgeRow}>
-            <Text style={[styles.promoBadge, { fontSize: type(10.5) }]}>New</Text>
-            <View style={styles.promoRule} />
-          </View>
-          <View style={styles.promoBody}>
-            <View style={styles.promoCopy}>
-              <Text style={[styles.promoTitle, { fontSize: type(23), lineHeight: type(25) }]}>
-                Your <Text style={styles.promoTitleAccent}>Running Years</Text>
-              </Text>
-              <Text style={[styles.promoText, { fontSize: type(13.5), lineHeight: type(19.6) }]}>
-                See the good years you've got ahead — and the moments worth training for.
-              </Text>
+        <View style={styles.promo}>
+          <LinearGradient
+            colors={['rgba(204,250,125,0.14)', 'rgba(0,200,150,0.08)', 'rgba(234,243,228,0.04)']}
+            locations={[0, 0.55, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+            pointerEvents="none"
+          />
+          <View style={[styles.promoInner, { padding: promoPad }]}>
+            <View style={styles.promoBadgeRow}>
+              <Text style={[styles.promoBadge, { fontSize: type(10.5) }]}>New</Text>
+              <View style={styles.promoRule} />
             </View>
-            <View style={[styles.promoStat, styles.promoStatStacked]}>
-              <Text style={[styles.promoStatTilde, { fontSize: type(14) }]}>~</Text>
-              <Text
-                style={[
-                  styles.promoStatNum,
-                  { fontSize: statSize, lineHeight: Math.round(statSize * 0.85) },
-                ]}
-              >
-                {homeDemo.runningYearsAhead}
-              </Text>
-              <Text style={[styles.promoStatLabel, { fontSize: type(11) }]}>years ahead</Text>
+            <View style={styles.promoMidRow}>
+              <View style={styles.promoCopy}>
+                <Text style={[styles.promoTitle, { fontSize: type(23), lineHeight: type(28) }]}>
+                  Your <Text style={styles.promoTitleAccent}>Running Years</Text>
+                </Text>
+                <Text
+                  style={[
+                    styles.promoText,
+                    { fontSize: type(13.5), lineHeight: Math.round(type(13.5) * 1.45) },
+                  ]}
+                >
+                  See the good years you've got ahead — and the moments worth training for.
+                </Text>
+              </View>
+              <View style={styles.promoStat}>
+                <Text style={[styles.promoStatTilde, { fontSize: type(14) }]}>~</Text>
+                <Text
+                  style={[
+                    styles.promoStatNum,
+                    { fontSize: promoStatSize, lineHeight: Math.round(promoStatSize * 0.9) },
+                  ]}
+                >
+                  {homeDemo.runningYearsAhead}
+                </Text>
+                <Text style={[styles.promoStatLabel, { fontSize: type(11) }]}>years ahead</Text>
+              </View>
             </View>
+            <LumenButton style={styles.promoButton}>Explore your Running Years</LumenButton>
           </View>
-          <LumenButton style={styles.promoButton}>Explore your Running Years</LumenButton>
-        </LinearGradient>
+        </View>
         </ScreenScroll>
     </View>
   );
@@ -289,17 +305,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   nextHeader: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 10,
-    minWidth: 0,
     width: '100%',
-  },
-  nextHeaderStack: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
   },
   nextLabel: {
     ...sora('bold'),
@@ -311,8 +322,8 @@ const styles = StyleSheet.create({
   nextProgress: {
     ...sora('semibold'),
     color: lumen.fgMuted,
-    flexShrink: 1,
-    textAlign: 'left',
+    flexShrink: 0,
+    textAlign: 'right',
   },
   countdownRow: {
     flexDirection: 'row',
@@ -362,9 +373,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   eyebrowRow: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 4,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
     marginBottom: 14,
     width: '100%',
   },
@@ -372,80 +384,44 @@ const styles = StyleSheet.create({
     ...sora('bold'),
     textTransform: 'uppercase',
     color: lumen.fgMuted,
+    flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    width: '100%',
   },
   eyebrowTrailing: {
-    ...sora('semibold'),
+    ...sora('bold'),
     textTransform: 'uppercase',
     color: lumen.lime,
     flexShrink: 0,
+    textAlign: 'right',
   },
-  eyebrowTrailingStack: {
-    marginLeft: 0,
-  },
-  baselineReadout: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  baselineValue: {
-    ...sora('extrabold'),
-    color: lumen.fg,
-    letterSpacing: -1,
-  },
-  baselineValueAccent: {
-    color: lumen.lime,
-  },
-  baselineHint: {
+  eyebrowTrailingMuted: {
     ...sora('semibold'),
-    marginTop: 4,
-    fontSize: 12,
+    textTransform: 'none',
     color: lumen.fgMuted,
-  },
-  baselineMetrics: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    gap: 20,
-  },
-  baselineMetric: {
-    alignItems: 'center',
-  },
-  baselineMetricsTight: {
-    gap: 12,
-  },
-  baselineMetricValue: {
-    ...sora('semibold'),
-    color: lumen.lime,
-    letterSpacing: -0.8,
-  },
-  baselineMetricLabel: {
-    ...sora('bold'),
-    marginTop: 4,
-    fontSize: 11,
-    letterSpacing: 1.1,
-    textTransform: 'uppercase',
-    color: lumen.fgMuted,
-  },
-  baselineDivider: {
-    width: 1,
-    height: 36,
-    backgroundColor: lumen.hairline,
+    flexShrink: 0,
+    textAlign: 'right',
   },
   legendRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-    marginTop: 12,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 12,
+    width: '100%',
+  },
+  legendColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+    flexShrink: 1,
   },
   levelTag: {
     ...sora('semibold'),
-    marginLeft: 'auto',
     fontSize: 11,
     color: lumen.fgMuted,
+    flexShrink: 0,
+    textAlign: 'right',
   },
   quickStats: {
     flexDirection: 'row',
@@ -454,13 +430,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: '100%',
     overflow: 'hidden',
-    gap: 8,
-  },
-  quickStatsStack: {
-    flexDirection: 'column',
-    marginTop: 14,
-    width: '100%',
-    maxWidth: '100%',
     gap: 10,
   },
   promo: {
@@ -472,6 +441,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     width: '100%',
     maxWidth: '100%',
+    position: 'relative',
+  },
+  promoInner: {
+    width: '100%',
   },
   promoButton: {
     marginTop: 18,
@@ -496,22 +469,22 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(204,250,125,0.25)',
   },
-  promoBody: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 12,
-    minWidth: 0,
+  promoMidRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 14,
     width: '100%',
   },
   promoCopy: {
     flex: 1,
-    minWidth: 0,
-    width: '100%',
+    flexShrink: 1,
+    minWidth: 120,
+    paddingRight: 4,
   },
   promoTitle: {
     ...sora('extrabold'),
     fontSize: 23,
-    lineHeight: 25,
+    lineHeight: 28,
     letterSpacing: -0.58,
     color: lumen.fg,
   },
@@ -522,17 +495,15 @@ const styles = StyleSheet.create({
     ...sora('semibold'),
     marginTop: 8,
     fontSize: 13.5,
-    lineHeight: 19.6,
-    color: lumen.fgMuted,
+    lineHeight: 20,
+    color: 'rgba(234,243,228,0.65)',
+    maxWidth: 220,
   },
   promoStat: {
     flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 3,
-  },
-  promoStatStacked: {
-    alignSelf: 'flex-start',
   },
   promoStatTilde: {
     ...sora('semibold'),
@@ -547,8 +518,9 @@ const styles = StyleSheet.create({
   promoStatLabel: {
     ...sora('bold'),
     fontSize: 11,
-    lineHeight: 12,
+    lineHeight: 13,
     color: lumen.fg,
-    flexShrink: 1,
+    flexShrink: 0,
+    maxWidth: 56,
   },
 });

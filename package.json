@@ -37,6 +37,7 @@
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",
     "@types/react": "~19.1.10",
+    "firebase-admin": "^14.0.0",
     "react-native-svg-transformer": "^1.5.3",
     "typescript": "~5.9.2"
   },
@@ -47,7 +48,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "generate:assets": "node scripts/generate-brand-assets.mjs",
-    "generate:well-known": "node scripts/generate-well-known.mjs"
+    "generate:well-known": "node scripts/generate-well-known.mjs",
+    "seed:strength-questions": "node scripts/seed-strengthQuestions.mjs",
+    "seed:knowledge-questions": "node scripts/seed-knowledgeQuestions.mjs"
   },
   "private": true
 }

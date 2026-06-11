@@ -37,6 +37,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase Admin service accounts (never commit)
+*-service-account.json
+
 hosting/hosting.config.json
 
 # typescript
