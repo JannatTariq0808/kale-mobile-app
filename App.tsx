@@ -14,7 +14,6 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
 import { ResponsiveAppFrame } from './src/components/layout/ResponsiveAppFrame';
-import { SplashView } from './src/components/lumen/SplashView';
 import { BackdropAnimatedContext } from './src/navigation/backdropContext';
 import { welcomeSurfaceReady } from './src/navigation/welcomeSurface';
 import { lumen, navigationFonts } from './src/theme';
@@ -102,7 +101,7 @@ export default function App() {
   }, []);
 
   if (!fontsReady) {
-    return <SplashView />;
+    return null;
   }
 
   return (
@@ -141,7 +140,7 @@ export default function App() {
               <RootNavigator />
             </ResponsiveAppFrame>
           </BackdropAnimatedContext.Provider>
-          <StatusBar style="light" backgroundColor={lumen.bgDark} />
+          <StatusBar style="light" backgroundColor={lumen.bgDeep} />
         </NavigationContainer>
       </View>
     </SafeAreaProvider>

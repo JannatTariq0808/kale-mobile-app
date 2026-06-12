@@ -18,13 +18,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/icon.png',
-  backgroundColor: '#082B25',
+  backgroundColor: '#004C4C',
   userInterfaceStyle: 'dark',
   scheme: 'kale',
   splash: {
     image: './assets/splash.png',
     resizeMode: 'cover',
-    backgroundColor: '#082B25',
+    backgroundColor: '#004C4C',
   },
   ios: {
     supportsTablet: true,
@@ -32,7 +32,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     associatedDomains: [`applinks:${AUTH_HOST}`, 'applinks:kale.insure'],
   },
   android: {
-    backgroundColor: '#082B25',
+    backgroundColor: '#004C4C',
     softwareKeyboardLayoutMode: 'pan',
     package: PACKAGE_NAME,
     adaptiveIcon: {
@@ -59,16 +59,21 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#082B25',
-        image: './assets/splash.png',
-        resizeMode: 'cover',
+        backgroundColor: '#004C4C',
+        image: './assets/splash-icon.png',
+        imageWidth: 220,
+        resizeMode: 'contain',
         android: {
-          backgroundColor: '#082B25',
-          image: './assets/splash.png',
+          backgroundColor: '#004C4C',
+          image: './assets/splash-icon.png',
+          imageWidth: 220,
+          resizeMode: 'contain',
         },
         ios: {
-          backgroundColor: '#082B25',
+          backgroundColor: '#004C4C',
           image: './assets/splash.png',
+          enableFullScreenImage_legacy: true,
+          resizeMode: 'cover',
         },
       },
     ],

@@ -11,8 +11,13 @@ const root = path.join(__dirname, '..');
 const assets = path.join(root, 'assets');
 const glyphSvg = fs.readFileSync(path.join(assets, 'splash-glyph.svg'), 'utf8');
 
+/** Splash + iOS icon shell */
 const BG = '#082B25';
+/** In-app / Android window shell */
+const BG_DEEP = '#004C4C';
 const GLYPH = '#14C088';
+/** Brighter glyph for adaptive-icon foreground (green-on-green is hard to see on launchers) */
+const GLYPH_ADAPTIVE = '#CCFA7D';
 const VIEW_W = 618;
 const VIEW_H = 886;
 
@@ -21,14 +26,16 @@ function glyphPaths() {
   return matches.map((m) => m[1]);
 }
 
-function pathMarkup(monochrome = false) {
-  const fill = monochrome ? '#FFFFFF' : GLYPH;
+function pathMarkup(fill) {
   return glyphPaths()
     .map((d) => `<path d="${d}" fill="${fill}"/>`)
     .join('\n    ');
 }
 
-function composeSquareSvg(size, { background = null, glyphScale = 0.58, monochrome = false } = {}) {
+function composeSquareSvg(
+  size,
+  { background = null, glyphScale = 0.58, glyphFill = GLYPH } = {},
+) {
   const scaledW = VIEW_W * glyphScale;
   const scaledH = VIEW_H * glyphScale;
   const x = (size - scaledW) / 2;
@@ -40,7 +47,7 @@ function composeSquareSvg(size, { background = null, glyphScale = 0.58, monochro
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
   ${bgRect}
   <g transform="translate(${x} ${y}) scale(${glyphScale})">
-    ${pathMarkup(monochrome)}
+    ${pathMarkup(glyphFill)}
   </g>
 </svg>`;
 }
@@ -54,9 +61,9 @@ function composePortraitSplashSvg(width, height) {
   const y = (height - scaledH) / 2;
 
   return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${width}" height="${height}" fill="${BG}"/>
+  <rect width="${width}" height="${height}" fill="${BG_DEEP}"/>
   <g transform="translate(${x} ${y}) scale(${glyphScale})">
-    ${pathMarkup()}
+    ${pathMarkup(GLYPH)}
   </g>
 </svg>`;
 }
@@ -73,7 +80,25 @@ function render(svg, outName) {
 }
 
 render(composePortraitSplashSvg(1284, 2778), 'splash.png');
+render(
+  composeSquareSvg(1024, { background: null, glyphScale: 0.42, glyphFill: GLYPH }),
+  'splash-icon.png',
+);
 render(composeSquareSvg(1024, { background: BG, glyphScale: 0.58 }), 'icon.png');
-render(composeSquareSvg(1024, { background: null, glyphScale: 0.52 }), 'android-icon-foreground.png');
-render(composeSquareSvg(1024, { background: BG, glyphScale: 0.58, monochrome: true }), 'android-icon-monochrome.png');
+render(
+  composeSquareSvg(1024, {
+    background: null,
+    glyphScale: 0.64,
+    glyphFill: GLYPH_ADAPTIVE,
+  }),
+  'android-icon-foreground.png',
+);
+render(
+  composeSquareSvg(1024, {
+    background: null,
+    glyphScale: 0.64,
+    glyphFill: '#FFFFFF',
+  }),
+  'android-icon-monochrome.png',
+);
 render(composeSquareSvg(48, { background: BG, glyphScale: 0.58 }), 'favicon.png');

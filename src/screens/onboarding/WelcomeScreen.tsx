@@ -2,7 +2,7 @@
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
@@ -21,9 +21,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 const HERO_SIZE = 152;
 const HEADLINE_SIZE = typography.hero;
-/** Design: LumenLogotype height 0.72em, verticalAlign -0.03em (KaleLumen.jsx) */
+/** Design: LumenLogotype height 0.72em (KaleLumen.jsx) */
 const LOGOTYPE_HEIGHT = HEADLINE_SIZE * 0.72;
-const LOGOTYPE_BASELINE_NUDGE = HEADLINE_SIZE * 0.03;
 
 const STEPS = [
   {
@@ -149,9 +148,9 @@ const styles = StyleSheet.create({
   },
   headlineRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     justifyContent: 'center',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     marginTop: 26,
   },
   headline: {
@@ -160,13 +159,10 @@ const styles = StyleSheet.create({
     lineHeight: HEADLINE_SIZE,
     letterSpacing: -1.3,
     color: lumen.fg,
-    textAlign: 'center',
     includeFontPadding: false,
   },
   logotypeWrap: {
-    height: LOGOTYPE_HEIGHT,
-    marginTop: LOGOTYPE_BASELINE_NUDGE,
-    justifyContent: 'center',
+    transform: [{ translateY: Platform.OS === 'android' ? -2 : -1 }],
   },
   subhead: {
     ...sora('semibold'),

@@ -9,6 +9,7 @@ import * as SystemUI from 'expo-system-ui';
 import App from './App';
 
 void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 0, fade: false });
 void SystemUI.setBackgroundColorAsync('#004C4C');
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

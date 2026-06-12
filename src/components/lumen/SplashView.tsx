@@ -14,7 +14,7 @@ export function SplashView() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDark,
+    backgroundColor: lumen.bgDeep,
     alignItems: 'center',
     justifyContent: 'center',
   },
