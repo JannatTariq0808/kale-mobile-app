@@ -49,9 +49,25 @@ function BackdropDefs() {
   );
 }
 
-function StaticBackdrop() {
+const styles = StyleSheet.create({
+  root: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: lumen.bgDeep,
+  },
+  svg: StyleSheet.absoluteFillObject,
+});
+
+function BackdropSvg({ animated }: { animated: boolean }) {
   return (
-    <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+    <Svg style={styles.svg} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      {animated ? <AnimatedBackdropContent /> : <StaticBackdropContent />}
+    </Svg>
+  );
+}
+
+function StaticBackdropContent() {
+  return (
+    <>
       <BackdropDefs />
       <Rect x={0} y={0} width={W} height={H} fill={lumen.bgDeep} />
       <Path d={STATIC_UPPER_PATH} fill="url(#lumUpperGrad)" />
@@ -64,11 +80,11 @@ function StaticBackdrop() {
         strokeOpacity={0.13}
         strokeWidth={1.4}
       />
-    </Svg>
+    </>
   );
 }
 
-function AnimatedBackdrop() {
+function AnimatedBackdropContent() {
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -92,7 +108,7 @@ function AnimatedBackdrop() {
   }));
 
   return (
-    <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+    <>
       <BackdropDefs />
       <Rect x={0} y={0} width={W} height={H} fill={lumen.bgDeep} />
       <AnimatedPath animatedProps={upperProps} fill="url(#lumUpperGrad)" />
@@ -105,7 +121,7 @@ function AnimatedBackdrop() {
         strokeOpacity={0.13}
         strokeWidth={1.4}
       />
-    </Svg>
+    </>
   );
 }
 
@@ -114,8 +130,8 @@ export const LumenWelcomeBackground = memo(function LumenWelcomeBackground({
   animated = false,
 }: LumenWelcomeBackgroundProps) {
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {animated ? <AnimatedBackdrop /> : <StaticBackdrop />}
+    <View style={styles.root} pointerEvents="none">
+      <BackdropSvg animated={animated} />
     </View>
   );
 });

@@ -50,7 +50,9 @@
     "generate:assets": "node scripts/generate-brand-assets.mjs",
     "generate:well-known": "node scripts/generate-well-known.mjs",
     "seed:strength-questions": "node scripts/seed-strengthQuestions.mjs",
-    "seed:knowledge-questions": "node scripts/seed-knowledgeQuestions.mjs"
+    "seed:knowledge-questions": "node scripts/seed-knowledgeQuestions.mjs",
+    "seed:kalettes-questions": "node scripts/seed-kalettesQuestions.mjs",
+    "seed:rewards-products": "node scripts/seed-rewardsProducts.mjs"
   },
   "private": true
 }

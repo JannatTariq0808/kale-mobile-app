@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { LumRing } from '../../components/lumen/LumRing';
 import { LumenButton } from '../../components/lumen/LumenButton';
@@ -38,14 +39,17 @@ const PILLARS: PillarRing[] = [
 const LONGEVITY_LEVEL = 6;
 const RING_ROW_WIDTH = 320;
 const SMALL_RING = 86;
-const BIG_RING = 200;
+const BIG_RING = 176;
 const GLOW_SIZE = 340;
 
 type RevealStage = 0 | 1 | 2 | 3;
 
 export function LevelRevealScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { leading } = useResponsiveLayout();
   const [stage, setStage] = useState<RevealStage>(0);
+  const headlineSize = 26;
+  const subheadSize = 14;
 
   const glowOpacity = useSharedValue(0);
   const bigRingScale = useSharedValue(0.6);
@@ -150,7 +154,12 @@ export function LevelRevealScreen({ navigation }: Props) {
         </View>
 
         <Animated.View style={[styles.copy, copyStyle]}>
-          <Text style={styles.headline}>
+          <Text
+            style={[
+              styles.headline,
+              { fontSize: headlineSize, lineHeight: leading(headlineSize, 1.15) },
+            ]}
+          >
             <Text style={styles.headlineAccent}>Level {LONGEVITY_LEVEL}.</Text> You're in good shape.
           </Text>
 
@@ -159,7 +168,14 @@ export function LevelRevealScreen({ navigation }: Props) {
             <Text style={styles.trendText}>+1 from last cycle</Text>
           </View>
 
-          <Text style={styles.subhead}>And you've got a clear path to Level 7.</Text>
+          <Text
+            style={[
+              styles.subhead,
+              { fontSize: subheadSize, lineHeight: leading(subheadSize) },
+            ]}
+          >
+            And you've got a clear path to Level 7.
+          </Text>
         </Animated.View>
 
         <Animated.View style={[styles.footer, footerStyle]}>
@@ -292,6 +308,7 @@ const styles = StyleSheet.create({
     ...sora('bold'),
     marginTop: 8,
     fontSize: 10,
+    lineHeight: 14,
     letterSpacing: 1.6,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -329,8 +346,6 @@ const styles = StyleSheet.create({
   },
   headline: {
     ...sora('extrabold'),
-    fontSize: 26,
-    lineHeight: 29,
     letterSpacing: -0.65,
     color: lumen.fg,
     textAlign: 'center',
@@ -356,8 +371,6 @@ const styles = StyleSheet.create({
   },
   subhead: {
     ...sora('semibold'),
-    fontSize: 14,
-    lineHeight: 21,
     color: lumen.fgMuted,
     textAlign: 'center',
   },

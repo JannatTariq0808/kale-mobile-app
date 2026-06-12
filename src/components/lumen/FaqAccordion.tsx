@@ -17,7 +17,7 @@ type FaqAccordionProps = {
 };
 
 export function FaqAccordion({ items }: FaqAccordionProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
   const [openId, setOpenId] = useState<string | null>(items[0]?.id ?? null);
 
   return (
@@ -32,7 +32,7 @@ export function FaqAccordion({ items }: FaqAccordionProps) {
               accessibilityRole="button"
               accessibilityState={{ expanded: open }}
             >
-              <Text style={[styles.question, { fontSize: type(14), lineHeight: type(18) }]}>
+              <Text style={[styles.question, { fontSize: type(14), lineHeight: leading(type(14)) }]}>
                 {item.question}
               </Text>
               <View style={[styles.toggle, open && styles.toggleOpen]}>
@@ -40,7 +40,9 @@ export function FaqAccordion({ items }: FaqAccordionProps) {
               </View>
             </Pressable>
             {open ? (
-              <Text style={[styles.answer, { fontSize: type(13), lineHeight: type(20) }]}>{item.answer}</Text>
+              <Text style={[styles.answer, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
+                {item.answer}
+              </Text>
             ) : null}
           </View>
         );
@@ -63,7 +65,7 @@ const styles = StyleSheet.create({
   },
   questionRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
     padding: 16,
@@ -82,6 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginTop: 1,
   },
   toggleOpen: {
     backgroundColor: lumen.mint,

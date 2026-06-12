@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { ResultLoaderRing } from '../../components/lumen/ResultLoaderRing';
 import type { RootStackParamList } from '../../navigation/types';
-import { lumen, sora } from '../../theme';
+import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
+import { lumen } from '../../theme';
 
 /** Simulated analysis — replace with real API completion later */
 const ANALYSIS_DURATION_MS = 4500;
@@ -16,6 +17,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CardioAnalysing'>;
 
 export function CardioAnalysingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const headlineSize = 28;
+  const subheadSize = 14;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -35,8 +38,22 @@ export function CardioAnalysingScreen({ navigation }: Props) {
         <View style={styles.center}>
           <ResultLoaderRing />
 
-          <Text style={styles.headline}>Analysing your run…</Text>
-          <Text style={styles.subhead}>
+          <Text
+            style={[
+              styles.headline,
+              headlineTextStyle(headlineSize, lumen.fg),
+              { marginTop: 42, marginBottom: 10, letterSpacing: -0.7, textAlign: 'center' },
+            ]}
+          >
+            Analysing your run…
+          </Text>
+          <Text
+            style={[
+              styles.subhead,
+              bodyTextStyle(subheadSize, lumen.fgMuted),
+              { textAlign: 'center' },
+            ]}
+          >
             Reviewing your best qualifying run and estimating VO₂max.
           </Text>
         </View>
@@ -53,33 +70,24 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   content: {
     flex: 1,
     zIndex: 2,
+    overflow: 'visible',
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 28,
+    overflow: 'visible',
   },
   headline: {
-    ...sora('extrabold'),
-    fontSize: 28,
-    lineHeight: 32,
-    letterSpacing: -0.7,
-    color: lumen.fg,
-    textAlign: 'center',
-    marginTop: 42,
-    marginBottom: 10,
+    maxWidth: 300,
   },
   subhead: {
-    ...sora('semibold'),
-    fontSize: 14,
-    lineHeight: 22,
-    color: lumen.fgMuted,
-    textAlign: 'center',
     maxWidth: 280,
   },
   footer: {

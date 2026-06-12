@@ -7,12 +7,22 @@ import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenRuleCaption } from '../../components/lumen/LumenRuleCaption';
 import type { RootStackParamList } from '../../navigation/types';
+import {
+  bodyTextStyle,
+  displayTextStyle,
+  headlineTextStyle,
+} from '../../theme/textMetrics';
 import { lumen, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HealthYears'>;
 
 export function HealthYearsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const headlineSize = 38;
+  const subheadSize = 14.5;
+  const heroValueSize = 92;
+  const breakdownValueSize = 34;
+  const calloutValueSize = 40;
 
   return (
     <View style={styles.screen}>
@@ -33,17 +43,17 @@ export function HealthYearsScreen({ navigation }: Props) {
         >
           <LumEyebrow pillar="cardio" label="What this means" />
 
-          <Text style={styles.headline}>
+          <Text style={[styles.headline, headlineTextStyle(headlineSize, lumen.fg)]}>
             You've added <Text style={styles.headlineAccent}>healthy years</Text>.
           </Text>
-          <Text style={styles.subhead}>
+          <Text style={[styles.subhead, bodyTextStyle(subheadSize, lumen.fgMuted)]}>
             At Level 6, here's your trajectory versus an inactive life.
           </Text>
 
           <View style={styles.heroBlock}>
             <Text style={styles.heroLabel}>Healthy years added</Text>
             <View style={styles.heroValueRow}>
-              <Text style={styles.heroValue}>+6.8</Text>
+              <Text style={displayTextStyle(heroValueSize, lumen.lime)}>+6.8</Text>
               <Text style={styles.heroUnit}>years</Text>
             </View>
           </View>
@@ -52,19 +62,23 @@ export function HealthYearsScreen({ navigation }: Props) {
             <View style={styles.breakdownCol}>
               <Text style={styles.breakdownLabel}>Lifespan</Text>
               <View style={styles.breakdownValueRow}>
-                <Text style={styles.breakdownValue}>+4.2</Text>
+                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>+4.2</Text>
                 <Text style={styles.breakdownUnit}>yrs</Text>
               </View>
-              <Text style={styles.breakdownNote}>Projected additional years of life.</Text>
+              <Text style={[styles.breakdownNote, bodyTextStyle(12, lumen.fgMuted)]}>
+                Projected additional years of life.
+              </Text>
             </View>
             <View style={styles.breakdownDivider} />
             <View style={[styles.breakdownCol, styles.breakdownColRight]}>
               <Text style={styles.breakdownLabel}>Healthspan</Text>
               <View style={styles.breakdownValueRow}>
-                <Text style={styles.breakdownValue}>+6.8</Text>
+                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>+6.8</Text>
                 <Text style={styles.breakdownUnit}>yrs</Text>
               </View>
-              <Text style={styles.breakdownNote}>Projected healthy, active years.</Text>
+              <Text style={[styles.breakdownNote, bodyTextStyle(12, lumen.fgMuted)]}>
+                Projected healthy, active years.
+              </Text>
             </View>
           </View>
 
@@ -75,9 +89,11 @@ export function HealthYearsScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.levelCallout}>
-            <Text style={styles.levelCalloutValue}>+0.9</Text>
+            <Text style={displayTextStyle(calloutValueSize, lumen.lime)}>+0.9</Text>
             <View style={styles.levelCalloutCopy}>
-              <Text style={styles.levelCalloutTitle}>extra healthspan years at Level 7.</Text>
+              <Text style={[styles.levelCalloutTitle, bodyTextStyle(13.5, lumen.fg)]}>
+                extra healthspan years at Level 7.
+              </Text>
               <Text style={styles.levelCalloutSub}>That's a lot for one level.</Text>
             </View>
           </View>
@@ -97,13 +113,16 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   flex: {
     flex: 1,
+    overflow: 'visible',
   },
   content: {
     flex: 1,
     zIndex: 2,
+    overflow: 'visible',
   },
   levelBadgeRow: {
     paddingHorizontal: 26,
@@ -112,6 +131,7 @@ const styles = StyleSheet.create({
   levelBadge: {
     ...sora('bold'),
     fontSize: 12,
+    lineHeight: 16,
     letterSpacing: 1.92,
     color: lumen.fgMuted,
   },
@@ -122,30 +142,24 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headline: {
-    ...sora('extrabold'),
     marginTop: 14,
-    fontSize: 38,
-    lineHeight: 41.8,
     letterSpacing: -0.95,
-    color: lumen.fg,
   },
   headlineAccent: {
     color: lumen.lime,
   },
   subhead: {
-    ...sora('semibold'),
     marginTop: 12,
-    fontSize: 14.5,
-    lineHeight: 21.75,
-    color: lumen.fgMuted,
     maxWidth: 320,
   },
   heroBlock: {
     marginTop: 26,
+    overflow: 'visible',
   },
   heroLabel: {
     ...sora('bold'),
     fontSize: 11,
+    lineHeight: 15,
     letterSpacing: 1.76,
     textTransform: 'uppercase',
     color: lumen.fgMuted,
@@ -153,20 +167,16 @@ const styles = StyleSheet.create({
   },
   heroValueRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     gap: 8,
-  },
-  heroValue: {
-    ...sora('semibold'),
-    fontSize: 92,
-    lineHeight: 75,
-    letterSpacing: -4.14,
-    color: lumen.lime,
+    overflow: 'visible',
   },
   heroUnit: {
     ...sora('semibold'),
     fontSize: 16,
+    lineHeight: 22,
     color: lumen.fgMuted,
+    paddingBottom: 10,
   },
   breakdown: {
     flexDirection: 'row',
@@ -174,10 +184,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: lumen.hairline,
+    overflow: 'visible',
   },
   breakdownCol: {
     flex: 1,
     paddingVertical: 18,
+    overflow: 'visible',
   },
   breakdownColRight: {
     paddingLeft: 22,
@@ -189,34 +201,28 @@ const styles = StyleSheet.create({
   breakdownLabel: {
     ...sora('bold'),
     fontSize: 11,
+    lineHeight: 15,
     letterSpacing: 1.76,
     textTransform: 'uppercase',
     color: lumen.fgMuted,
   },
   breakdownValueRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     gap: 4,
     marginTop: 8,
-  },
-  breakdownValue: {
-    ...sora('semibold'),
-    fontSize: 34,
-    lineHeight: 30.6,
-    letterSpacing: -1.02,
-    color: lumen.fg,
+    overflow: 'visible',
   },
   breakdownUnit: {
     ...sora('semibold'),
     fontSize: 13,
+    lineHeight: 17,
     color: lumen.fgMuted,
+    paddingBottom: 4,
   },
   breakdownNote: {
     ...sora('regular'),
     marginTop: 8,
-    fontSize: 12,
-    lineHeight: 17.4,
-    color: lumen.fgMuted,
     maxWidth: 130,
   },
   captionWrap: {
@@ -230,27 +236,19 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: lumen.hairline,
-  },
-  levelCalloutValue: {
-    ...sora('semibold'),
-    fontSize: 40,
-    lineHeight: 36,
-    letterSpacing: -1.6,
-    color: lumen.lime,
+    overflow: 'visible',
   },
   levelCalloutCopy: {
     flex: 1,
   },
   levelCalloutTitle: {
     ...sora('bold'),
-    fontSize: 13.5,
-    lineHeight: 18.2,
-    color: lumen.fg,
   },
   levelCalloutSub: {
     ...sora('regular'),
     marginTop: 2,
     fontSize: 12,
+    lineHeight: 16,
     color: lumen.fgMuted,
   },
   footer: {

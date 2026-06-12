@@ -13,7 +13,7 @@ type ActivityLogListProps = {
 };
 
 function ActivityRow({ activity }: { activity: FitnessActivity }) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
   const isRide = activity.type === 'ride';
   const accent = isRide ? lumenPillar.knowledge : lumenPillar.cardio;
   const iconBg = activity.counted
@@ -27,6 +27,11 @@ function ActivityRow({ activity }: { activity: FitnessActivity }) {
       : 'rgba(0,200,150,0.4)'
     : lumen.hairline;
   const iconColor = activity.counted ? accent : lumen.fgMuted;
+  const eyebrowSize = type(9);
+  const nameSize = type(14);
+  const metaSize = type(11);
+  const sideSize = type(14);
+  const metricsSize = type(10);
 
   return (
     <View style={styles.row}>
@@ -40,34 +45,43 @@ function ActivityRow({ activity }: { activity: FitnessActivity }) {
       </View>
 
       <View style={styles.body}>
-        <Text style={[styles.typeEyebrow, { fontSize: type(9), color: accent }]}>
+        <Text
+          style={[
+            styles.typeEyebrow,
+            { fontSize: eyebrowSize, lineHeight: leading(eyebrowSize, 1.3), color: accent },
+          ]}
+        >
           {isRide ? 'Ride' : 'Run'}
         </Text>
-        <View style={styles.titleRow}>
-          <Text style={[styles.name, { fontSize: type(14) }]} numberOfLines={2}>
-            {activity.name}
-          </Text>
-          <Text style={[styles.dist, { fontSize: type(14) }]}>{activity.dist}</Text>
-        </View>
-        <View style={styles.metaRow}>
-          <Text style={[styles.meta, { fontSize: type(11) }]} numberOfLines={2}>
-            {activity.date}
-            {!activity.counted && activity.reason ? (
-              <Text style={styles.reason}> · {activity.reason}</Text>
-            ) : null}
-          </Text>
-          <Text style={[styles.metrics, { fontSize: type(10) }]}>
-            {activity.metric} {activity.metricUnit} · {activity.hr} bpm
-          </Text>
-        </View>
+        <Text
+          style={[styles.name, { fontSize: nameSize, lineHeight: leading(nameSize) }]}
+          numberOfLines={2}
+        >
+          {activity.name}
+        </Text>
+        <Text style={[styles.meta, { fontSize: metaSize, lineHeight: leading(metaSize) }]}>
+          {activity.date}
+          {!activity.counted && activity.reason ? (
+            <Text style={styles.reason}> · {activity.reason}</Text>
+          ) : null}
+        </Text>
         {activity.device ? <GarminDeviceTag device={activity.device} /> : null}
+      </View>
+
+      <View style={styles.side}>
+        <Text style={[styles.dist, { fontSize: sideSize, lineHeight: leading(sideSize, 1.1) }]}>
+          {activity.dist}
+        </Text>
+        <Text style={[styles.metrics, { fontSize: metricsSize, lineHeight: leading(metricsSize, 1.3) }]}>
+          {activity.metric} {activity.metricUnit} · {activity.hr} bpm
+        </Text>
       </View>
     </View>
   );
 }
 
 export function ActivityLogList({ activities, onLearnMorePress }: ActivityLogListProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
 
   return (
     <View>
@@ -83,7 +97,7 @@ export function ActivityLogList({ activities, onLearnMorePress }: ActivityLogLis
       </View>
 
       <Pressable onPress={onLearnMorePress} style={styles.learnMore}>
-        <Text style={[styles.learnMoreText, { fontSize: type(13) }]}>
+        <Text style={[styles.learnMoreText, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
           How do we decide which activities count?{' '}
           <Text style={styles.learnMoreArrow}>→</Text>
         </Text>
@@ -106,7 +120,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
@@ -118,7 +132,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
+    flexShrink: 0,
   },
   warnBadge: {
     position: 'absolute',
@@ -136,58 +150,48 @@ const styles = StyleSheet.create({
   warnMark: {
     ...sora('extrabold'),
     fontSize: 9,
-    lineHeight: 10,
+    lineHeight: 11,
     color: lumenPillar.strength,
   },
   body: {
     flex: 1,
     minWidth: 0,
   },
+  side: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+    maxWidth: '36%',
+  },
   typeEyebrow: {
     ...sora('extrabold'),
     letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 4,
-  },
   name: {
     ...sora('bold'),
     color: lumen.fg,
-    flex: 1,
-    lineHeight: 18,
-  },
-  dist: {
-    ...sora('extrabold'),
-    color: lumen.fg,
-    fontVariant: ['tabular-nums'],
-    flexShrink: 0,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 10,
     marginTop: 4,
   },
   meta: {
     ...sora('semibold'),
     color: lumen.fgMuted,
-    flex: 1,
+    marginTop: 2,
   },
   reason: {
     color: lumen.coral,
+  },
+  dist: {
+    ...sora('extrabold'),
+    color: lumen.fg,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
   },
   metrics: {
     ...sora('semibold'),
     color: lumen.fgMuted,
     fontVariant: ['tabular-nums'],
     textAlign: 'right',
-    flexShrink: 0,
+    marginTop: 2,
   },
   learnMore: {
     marginTop: 14,

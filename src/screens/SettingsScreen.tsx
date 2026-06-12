@@ -1,11 +1,10 @@
 // Design: kale-mobile-design — lum-20 KaleSettingsLumen (screens/KaleLumenApp2.jsx)
 
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
-import { resetToWelcome, signOutUser } from '../services/auth/session';
-import { LumenBackground } from '../components/lumen/LumenBackground';
+import { logoutAndReturnToWelcome } from '../services/auth/session';
 import { LumenCard } from '../components/lumen/LumenCard';
 import { LumenHeader } from '../components/lumen/LumenHeader';
 import { SectionLabel } from '../components/lumen/SectionLabel';
@@ -14,19 +13,14 @@ import { SettingsToggle } from '../components/lumen/SettingsToggle';
 import { lumen, lumenPillar, sora, typography } from '../theme';
 
 export function SettingsScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
 
-  const handleLogout = async () => {
-    try {
-      await signOutUser();
-    } finally {
-      resetToWelcome(navigation);
-    }
+  const handleLogout = () => {
+    logoutAndReturnToWelcome(navigation);
   };
 
   return (
     <View style={styles.screen}>
-      <LumenBackground />
       <View style={styles.content}>
         <LumenHeader />
         <ScreenScroll contentContainerStyle={styles.scrollContent}>
@@ -103,7 +97,7 @@ export function SettingsScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDark,
+    backgroundColor: 'transparent',
     overflow: 'hidden',
     width: '100%',
   },

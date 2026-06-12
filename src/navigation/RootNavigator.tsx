@@ -22,6 +22,8 @@ import { KnowledgeResultScreen } from '../screens/result/KnowledgeResultScreen';
 import { CardioResultScreen } from '../screens/result/CardioResultScreen';
 import { StrengthResultScreen } from '../screens/result/StrengthResultScreen';
 import { lumen } from '../theme';
+import { APP_INITIAL_STATE } from './rootInitialState';
+import { rootStackScreenOptions } from './stackScreenOptions';
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -34,13 +36,8 @@ export function RootNavigator() {
     <View style={styles.root}>
       <LumenWelcomeBackground animated={backdropAnimated} />
       <Stack.Navigator
-        initialRouteName="Main"
-        screenOptions={{
-          headerShown: false,
-          animation: 'fade',
-          freezeOnBlur: true,
-          contentStyle: styles.transparentScreen,
-        }}
+        initialState={APP_INITIAL_STATE}
+        screenOptions={rootStackScreenOptions}
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
@@ -60,7 +57,15 @@ export function RootNavigator() {
         <Stack.Screen name="LevelReveal" component={LevelRevealScreen} />
         <Stack.Screen name="HealthYears" component={HealthYearsScreen} />
         <Stack.Screen name="FirstCycleRewards" component={FirstCycleRewardsScreen} />
-        <Stack.Screen name="Main" component={TabNavigator} />
+        <Stack.Screen
+          name="Main"
+          component={TabNavigator}
+          options={{
+            contentStyle: styles.transparentScreen,
+            animation: 'none',
+            gestureEnabled: false,
+          }}
+        />
       </Stack.Navigator>
     </View>
   );

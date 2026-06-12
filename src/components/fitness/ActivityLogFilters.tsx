@@ -27,8 +27,9 @@ export function ActivityLogFilters({
   onSportFilterChange,
   onCountFilterChange,
 }: ActivityLogFiltersProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
   const pillSize = type(12);
+  const pillLine = leading(pillSize);
 
   return (
     <View style={styles.wrap}>
@@ -48,7 +49,14 @@ export function ActivityLogFilters({
                   color={active ? lumen.bgDark : lumen.fg}
                 />
               ) : null}
-              <Text style={[styles.sportLabel, { fontSize: pillSize }, active && styles.sportLabelActive]}>
+              <Text
+                style={[
+                  styles.sportLabel,
+                  { fontSize: pillSize, lineHeight: pillLine },
+                  active && styles.sportLabelActive,
+                ]}
+                numberOfLines={1}
+              >
                 {option.id}
               </Text>
             </Pressable>
@@ -66,14 +74,20 @@ export function ActivityLogFilters({
                 onPress={() => onCountFilterChange(option)}
                 style={[styles.countPill, active && styles.countPillActive]}
               >
-                <Text style={[styles.countLabel, { fontSize: pillSize }, active && styles.countLabelActive]}>
+                <Text
+                  style={[
+                    styles.countLabel,
+                    { fontSize: pillSize, lineHeight: pillLine },
+                    active && styles.countLabelActive,
+                  ]}
+                >
                   {option}
                 </Text>
               </Pressable>
             );
           })}
         </View>
-        <Text style={[styles.periodLabel, { fontSize: pillSize }]}>Last 12 weeks</Text>
+        <Text style={[styles.periodLabel, { fontSize: pillSize, lineHeight: pillLine }]}>Last 12 weeks</Text>
       </View>
     </View>
   );

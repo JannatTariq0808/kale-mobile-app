@@ -1,6 +1,7 @@
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
-import { lumen, sora } from '../../theme';
+import { lumen } from '../../theme';
+import { RingCenterValue } from './RingCenterValue';
 
 type LumRingProps = {
   value: string | number;
@@ -27,19 +28,12 @@ export function LumRing({
   const circumference = 2 * Math.PI * radius;
   const cx = size / 2;
   const arc = (pct / 100) * circumference;
-  const valueSize = size * 0.42;
+  const valueSize = Math.round(size * 0.42);
 
   return (
-    <View style={{ width: size, height: size }}>
-      <Svg width={size} height={size}>
-        <Circle
-          cx={cx}
-          cy={cx}
-          r={radius}
-          stroke={lumen.track}
-          strokeWidth={stroke}
-          fill="none"
-        />
+    <View style={[styles.root, { width: size, height: size }]}>
+      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+        <Circle cx={cx} cy={cx} r={radius} stroke={lumen.track} strokeWidth={stroke} fill="none" />
         <G rotation={-90} origin={`${cx}, ${cx}`}>
           <Circle
             cx={cx}
@@ -53,49 +47,50 @@ export function LumRing({
           />
         </G>
       </Svg>
-      <View style={[styles.center, suffix ? styles.centerRow : null]}>
-        <Text
-          style={[
-            styles.value,
-            {
-              fontSize: valueSize,
-              lineHeight: valueSize,
-              color: numColor ?? lumen.lime,
-            },
-          ]}
-        >
-          {value}
-        </Text>
+      <View style={[styles.center, { width: size, height: size }]}>
         {suffix ? (
-          <Text style={[styles.suffix, { fontSize: size * 0.13, marginBottom: size * 0.06 }]}>
-            {suffix}
-          </Text>
-        ) : null}
+          <View style={styles.suffixRow}>
+            <RingCenterValue fontSize={valueSize} color={numColor ?? lumen.lime}>
+              {value}
+            </RingCenterValue>
+            <View style={[styles.suffixWrap, { marginBottom: Math.round(size * 0.06) }]}>
+              <RingCenterValue
+                fontSize={Math.round(size * 0.13)}
+                color={lumen.fgMuted}
+                letterSpacing={0}
+              >
+                {suffix}
+              </RingCenterValue>
+            </View>
+          </View>
+        ) : (
+          <RingCenterValue fontSize={valueSize} color={numColor ?? lumen.lime}>
+            {value}
+          </RingCenterValue>
+        )}
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    position: 'relative',
+    flexShrink: 0,
+    overflow: 'visible',
+  },
   center: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
-  centerRow: {
+  suffixRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  value: {
-    ...sora('semibold'),
-    letterSpacing: -0.5,
-    textAlign: 'center',
-    ...(Platform.OS === 'android' ? { includeFontPadding: false } : null),
-  },
-  suffix: {
-    ...sora('semibold'),
-    color: lumen.fgMuted,
-    alignSelf: 'center',
+  suffixWrap: {
+    marginLeft: 1,
   },
 });

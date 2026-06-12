@@ -11,6 +11,7 @@ import { LumenButton } from './LumenButton';
 import { LumenHistogram } from './LumenHistogram';
 import { LumenRuleCaption } from './LumenRuleCaption';
 import { LumenStat } from './LumenStat';
+import { bodyTextStyle, displayTextStyle } from '../../theme/textMetrics';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type PillarKey = keyof typeof lumenPillar;
@@ -93,6 +94,9 @@ export const LumenResultView = memo(function LumenResultView({
 }: LumenResultViewProps) {
   const accent = lumenPillar[config.pillar];
   const { horizontalPadding, pad } = useResponsiveLayout();
+  const levelTitleSize = 40;
+  const levelNoteSize = 12.5;
+  const heroValueSize = 64;
 
   return (
     <View style={styles.screen}>
@@ -122,10 +126,14 @@ export const LumenResultView = memo(function LumenResultView({
                 Longevity Level · {config.pillarLabel}
               </Text>
               <View style={styles.levelTitleRow}>
-                <Text style={styles.levelTitle}>Level {config.level}</Text>
+                <Text style={[styles.levelTitle, displayTextStyle(levelTitleSize, lumen.fg)]}>
+                  Level {config.level}
+                </Text>
                 <TrendChip trend={config.trend} delta={config.trendDelta} />
               </View>
-              <Text style={styles.levelNote}>{config.levelNote}</Text>
+              <Text style={[styles.levelNote, bodyTextStyle(levelNoteSize, lumen.fgMuted)]}>
+                {config.levelNote}
+              </Text>
             </View>
           </View>
 
@@ -133,7 +141,7 @@ export const LumenResultView = memo(function LumenResultView({
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionLabel}>Relative performance</Text>
               <View style={styles.percentileRow}>
-                <Text style={styles.percentileValue}>{config.percentile}</Text>
+                <Text style={displayTextStyle(30, lumen.lime)}>{config.percentile}</Text>
                 <Text style={styles.percentileSuffix}>{ordinal(config.percentile)}</Text>
               </View>
             </View>
@@ -148,12 +156,16 @@ export const LumenResultView = memo(function LumenResultView({
           <View style={styles.sectionLast}>
             <Text style={styles.sectionLabel}>Your result</Text>
             <View style={styles.heroRow}>
-              <Text style={styles.heroValue}>{config.resultHero}</Text>
+              <Text style={[styles.heroValue, displayTextStyle(heroValueSize, lumen.lime)]}>
+                {config.resultHero}
+              </Text>
               {config.resultUnit ? (
                 <Text style={styles.heroUnit}>{config.resultUnit}</Text>
               ) : null}
             </View>
-            <Text style={styles.resultLabel}>{config.resultLabel}</Text>
+            <Text style={[styles.resultLabel, bodyTextStyle(13, lumen.fgMuted)]}>
+              {config.resultLabel}
+            </Text>
             <View style={styles.tiles}>
               {config.tiles.map((tile, index) => (
                 <Fragment key={tile.label}>
@@ -181,7 +193,7 @@ export const LumenResultView = memo(function LumenResultView({
                 <View style={[styles.nextIcon, { borderColor: accent }]}>
                   <Ionicons name="arrow-forward" size={11} color={accent} />
                 </View>
-                <Text style={styles.nextAction}>{action}</Text>
+                <Text style={[styles.nextAction, bodyTextStyle(14.5, lumen.fg)]}>{action}</Text>
               </View>
             ))}
           </View>
@@ -234,9 +246,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 22,
+    minHeight: 100,
     paddingBottom: 22,
     borderBottomWidth: 1,
     borderBottomColor: lumen.hairline,
+    overflow: 'visible',
   },
   levelCopy: {
     flex: 1,
@@ -256,11 +270,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   levelTitle: {
-    ...sora('semibold'),
-    fontSize: 40,
-    lineHeight: 40,
     letterSpacing: -1.2,
-    color: lumen.fg,
     flexShrink: 0,
   },
   trendChipUp: {
@@ -307,10 +317,6 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
   },
   levelNote: {
-    ...sora('semibold'),
-    fontSize: 12.5,
-    lineHeight: 17.5,
-    color: lumen.fgMuted,
     marginTop: 6,
   },
   section: {
@@ -339,12 +345,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
   },
-  percentileValue: {
-    ...sora('semibold'),
-    fontSize: 30,
-    letterSpacing: -0.9,
-    color: lumen.lime,
-  },
   percentileSuffix: {
     ...sora('semibold'),
     fontSize: 14,
@@ -356,27 +356,22 @@ const styles = StyleSheet.create({
   },
   heroRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     gap: 8,
     marginTop: 10,
+    overflow: 'visible',
   },
   heroValue: {
-    ...sora('semibold'),
-    fontSize: 64,
-    lineHeight: 58,
     letterSpacing: -2.56,
-    color: lumen.lime,
   },
   heroUnit: {
     ...sora('semibold'),
     fontSize: 14,
+    lineHeight: 18,
     color: lumen.fgMuted,
+    paddingBottom: 8,
   },
   resultLabel: {
-    ...sora('semibold'),
-    fontSize: 13,
-    lineHeight: 19,
-    color: lumen.fgMuted,
     marginTop: 8,
   },
   tiles: {
@@ -436,11 +431,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nextAction: {
-    ...sora('semibold'),
     flex: 1,
-    fontSize: 14.5,
-    lineHeight: 20,
-    color: lumen.fg,
   },
   footer: {
     paddingTop: 18,

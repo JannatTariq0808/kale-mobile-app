@@ -90,3 +90,57 @@ node scripts/seed-knowledgeQuestions.mjs production
 Or: `npm run seed:knowledge-questions -- staging`
 
 Fallback: `src/data/knowledgeQuestionsFallback.ts`
+
+---
+
+## Collection: `kalettesQuestions`
+
+Same schema. FAQ copy from **lum-16 / nu-5 · Rewards · Balance**.
+
+```
+match /kalettesQuestions/{id} {
+  allow read: if true;
+  allow write: if false;
+}
+```
+
+```bash
+npm run seed:kalettes-questions -- staging
+npm run seed:kalettes-questions -- production
+```
+
+Fallback: `src/data/kalettesQuestionsFallback.ts`
+
+---
+
+## Collection: `rewardsProducts`
+
+Marketplace product cards on **lum-17 · Rewards · Marketplace**.
+
+| Field        | Type    | Required | Description                              |
+|-------------|---------|----------|------------------------------------------|
+| `title`     | string  | yes      | Product name                             |
+| `brand`     | string  | yes      | Brand label                              |
+| `pts`       | number  | yes      | Kalettes price                           |
+| `topup`     | number \| null | no  | GBP top-up if partial points redemption |
+| `category`  | string  | yes      | `Gear`, `Partner offers`, etc.           |
+| `tag`       | string  | yes      | `GEAR`, `OFFER`, `ASSESSMENT`, `COACHING` |
+| `discount`  | string  | no       | e.g. `25%` for offer cards               |
+| `productUrl`| string  | yes      | Deep link opened when card is tapped      |
+| `sortOrder` | number  | yes      | Display order (ascending)                |
+| `active`    | boolean | no       | Hide when `false`                        |
+| `updatedAt` | timestamp | no     | Set by seed script                       |
+
+```
+match /rewardsProducts/{id} {
+  allow read: if true;
+  allow write: if false;
+}
+```
+
+```bash
+npm run seed:rewards-products -- staging
+npm run seed:rewards-products -- production
+```
+
+Fallback: `src/data/rewardsProductsFallback.ts`

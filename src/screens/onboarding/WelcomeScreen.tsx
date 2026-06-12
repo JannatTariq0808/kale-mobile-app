@@ -1,14 +1,20 @@
 // Design: kale-mobile-design — lum-01 KaleWelcomeLumen (screens/KaleLumen.jsx)
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { InteractionManager, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { StepGlowDot } from '../../components/lumen/StepGlowDot';
 import { LumenLogotype } from '../../components/lumen/LumenLogotype';
+import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import { WelcomeHeroLoader } from '../../components/lumen/WelcomeHeroLoader';
 import type { RootStackParamList } from '../../navigation/types';
+import {
+  markWelcomeSurfaceReady,
+  welcomeSurfaceReady,
+} from '../../navigation/welcomeSurface';
 import { lumen, lumenPillar, sora, typography } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
@@ -37,17 +43,44 @@ const STEPS = [
   },
 ] as const;
 
+function WelcomeHeroPlaceholder({ size }: { size: number }) {
+  return (
+    <View style={[styles.heroPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
+      <LumenGlyph color={lumen.green} height={size * 0.44} />
+    </View>
+  );
+}
+
 export function WelcomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { pad } = useResponsiveLayout();
   const widePad = pad(30);
+  const [heroReady, setHeroReady] = useState(welcomeSurfaceReady);
+
+  useEffect(() => {
+    if (welcomeSurfaceReady) {
+      setHeroReady(true);
+      return;
+    }
+
+    const task = InteractionManager.runAfterInteractions(() => {
+      markWelcomeSurfaceReady();
+      setHeroReady(true);
+    });
+
+    return () => task.cancel();
+  }, []);
 
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
       <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 12 }]}>
         <View style={[styles.hero, { paddingHorizontal: widePad }]}>
-          <WelcomeHeroLoader size={HERO_SIZE} glyphColor={lumen.green} />
+          {heroReady ? (
+            <WelcomeHeroLoader size={HERO_SIZE} glyphColor={lumen.green} />
+          ) : (
+            <WelcomeHeroPlaceholder size={HERO_SIZE} />
+          )}
 
           <View style={styles.headlineRow}>
             <Text style={styles.headline}>Welcome to </Text>
@@ -107,6 +140,12 @@ const styles = StyleSheet.create({
   hero: {
     paddingTop: 20,
     alignItems: 'center',
+  },
+  heroPlaceholder: {
+    borderWidth: 8,
+    borderColor: 'rgba(234,243,228,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headlineRow: {
     flexDirection: 'row',

@@ -7,12 +7,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import type { RootStackParamList } from '../../navigation/types';
+import { enterMainApp } from '../../services/auth/session';
+import {
+  bodyTextStyle,
+  displayTextStyle,
+  headlineTextStyle,
+} from '../../theme/textMetrics';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FirstCycleRewards'>;
 
 export function FirstCycleRewardsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const headlineSize = 32;
+  const heroValueSize = 92;
 
   return (
     <View style={styles.screen}>
@@ -29,18 +37,20 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
         >
           <LumEyebrow pillar="knowledge" label="Your first cycle" />
 
-          <Text style={styles.headline}>Here's what you'll earn.</Text>
+          <Text style={[styles.headline, headlineTextStyle(headlineSize, lumen.fg)]}>
+            Here's what you'll earn.
+          </Text>
 
           <View style={styles.heroBlock}>
             <Text style={styles.heroLabel}>Bank at your next assessment</Text>
             <View style={styles.heroValueRow}>
-              <Text style={styles.heroValue}>486</Text>
+              <Text style={displayTextStyle(heroValueSize, lumen.lime)}>486</Text>
               <Text style={styles.heroUnit}>Kalettes</Text>
             </View>
           </View>
 
           <View style={styles.storeSection}>
-            <Text style={styles.storeCopy}>
+            <Text style={[styles.storeCopy, bodyTextStyle(15, lumen.fg)]}>
               Spend Kalettes in the <Text style={styles.storeAccent}>Kale Store</Text> — on training
               gear, health screening and more.
             </Text>
@@ -50,7 +60,7 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
             <View style={styles.earnMoreIcon}>
               <Ionicons name="arrow-up" size={16} color={lumen.lime} />
             </View>
-            <Text style={styles.earnMoreCopy}>
+            <Text style={[styles.earnMoreCopy, bodyTextStyle(14, lumen.fg)]}>
               Reach higher levels to earn <Text style={styles.earnMoreAccent}>more back</Text> each
               cycle.
             </Text>
@@ -77,7 +87,7 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
             <View style={styles.importantRule} />
             <View style={styles.importantCopy}>
               <Text style={styles.importantLabel}>Important</Text>
-              <Text style={styles.importantBody}>
+              <Text style={[styles.importantBody, bodyTextStyle(13.5, lumen.fg)]}>
                 Complete your next assessment to bank these points. Miss it and they reset — make it
                 and you could level up.
               </Text>
@@ -86,7 +96,7 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
-          <LumenButton onPress={() => navigation.replace('Main')}>
+          <LumenButton onPress={() => enterMainApp(navigation)}>
             Go to my home screen
           </LumenButton>
         </View>
@@ -99,13 +109,16 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+    overflow: 'visible',
   },
   flex: {
     flex: 1,
+    overflow: 'visible',
   },
   content: {
     flex: 1,
     zIndex: 2,
+    overflow: 'visible',
   },
   scrollContent: {
     paddingHorizontal: 28,
@@ -114,19 +127,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   headline: {
-    ...sora('extrabold'),
     marginTop: 14,
-    fontSize: 32,
-    lineHeight: 35.2,
     letterSpacing: -0.8,
-    color: lumen.fg,
   },
   heroBlock: {
     marginTop: 26,
+    overflow: 'visible',
   },
   heroLabel: {
     ...sora('bold'),
     fontSize: 11,
+    lineHeight: 15,
     letterSpacing: 1.98,
     textTransform: 'uppercase',
     color: lumenPillar.knowledge,
@@ -134,20 +145,16 @@ const styles = StyleSheet.create({
   },
   heroValueRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     gap: 12,
-  },
-  heroValue: {
-    ...sora('semibold'),
-    fontSize: 92,
-    lineHeight: 78,
-    letterSpacing: -3.68,
-    color: lumen.lime,
+    overflow: 'visible',
   },
   heroUnit: {
     ...sora('bold'),
     fontSize: 18,
+    lineHeight: 24,
     color: lumen.fgMuted,
+    paddingBottom: 12,
   },
   storeSection: {
     marginTop: 24,
@@ -155,12 +162,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: lumen.hairline,
   },
-  storeCopy: {
-    ...sora('semibold'),
-    fontSize: 15,
-    lineHeight: 23.25,
-    color: lumen.fg,
-  },
+  storeCopy: {},
   storeAccent: {
     ...sora('extrabold'),
     color: lumen.lime,
@@ -187,11 +189,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   earnMoreCopy: {
-    ...sora('semibold'),
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20.3,
-    color: lumen.fg,
   },
   earnMoreAccent: {
     ...sora('extrabold'),
@@ -209,6 +207,7 @@ const styles = StyleSheet.create({
   timelineLabel: {
     ...sora('bold'),
     fontSize: 11,
+    lineHeight: 15,
     letterSpacing: 1.76,
     textTransform: 'uppercase',
     color: lumen.fgMuted,
@@ -216,6 +215,7 @@ const styles = StyleSheet.create({
   timelineWeeks: {
     ...sora('bold'),
     fontSize: 13,
+    lineHeight: 17,
     color: lumen.fg,
   },
   timelineTrackWrap: {
@@ -267,6 +267,7 @@ const styles = StyleSheet.create({
   timelineFootLabel: {
     ...sora('semibold'),
     fontSize: 11,
+    lineHeight: 15,
     color: lumen.fgMuted,
   },
   timelineFootEnd: {
@@ -289,17 +290,13 @@ const styles = StyleSheet.create({
   importantLabel: {
     ...sora('bold'),
     fontSize: 11,
+    lineHeight: 15,
     letterSpacing: 1.76,
     textTransform: 'uppercase',
     color: lumenPillar.strength,
     marginBottom: 5,
   },
-  importantBody: {
-    ...sora('semibold'),
-    fontSize: 13.5,
-    lineHeight: 20.25,
-    color: lumen.fg,
-  },
+  importantBody: {},
   footer: {
     paddingHorizontal: 28,
     paddingTop: 8,

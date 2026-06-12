@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Platform, StyleSheet, View } from 'react-native';
+import { AppState, InteractionManager, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthDeepLink } from './src/hooks/useAuthDeepLink';
@@ -16,6 +16,7 @@ import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
 import { ResponsiveAppFrame } from './src/components/layout/ResponsiveAppFrame';
 import { SplashView } from './src/components/lumen/SplashView';
 import { BackdropAnimatedContext } from './src/navigation/backdropContext';
+import { welcomeSurfaceReady } from './src/navigation/welcomeSurface';
 import { lumen, navigationFonts } from './src/theme';
 import { applySoraFontGlobally } from './src/utils/applySoraFont';
 import { hideAndroidSystemNav } from './src/utils/hideAndroidSystemNav';
@@ -24,7 +25,7 @@ import { ensureFirebase } from './src/services/auth/firebaseApp';
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: lumen.bgDark,
+    backgroundColor: lumen.bgDeep,
   },
 });
 
@@ -41,9 +42,29 @@ export default function App() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [backdropAnimated, setBackdropAnimated] = useState(false);
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
+  const backdropTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(
+    null,
+  );
 
   const handleNavigationStateChange = useCallback((state: NavigationState | undefined) => {
-    setBackdropAnimated(isBackdropAnimated(state));
+    backdropTaskRef.current?.cancel();
+    backdropTaskRef.current = null;
+
+    if (!isBackdropAnimated(state)) {
+      setBackdropAnimated(false);
+      return;
+    }
+
+    if (welcomeSurfaceReady) {
+      setBackdropAnimated(true);
+      return;
+    }
+
+    // Static backdrop first — morphing animation starts after first Welcome mount.
+    setBackdropAnimated(false);
+    backdropTaskRef.current = InteractionManager.runAfterInteractions(() => {
+      setBackdropAnimated(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -92,7 +113,7 @@ export default function App() {
           ref={navigationRef}
           onStateChange={handleNavigationStateChange}
           onReady={() => {
-            setBackdropAnimated(isBackdropAnimated(navigationRef.current?.getRootState()));
+            handleNavigationStateChange(navigationRef.current?.getRootState());
           }}
           linking={{
             prefixes: AUTH_LINK_PREFIXES,
@@ -106,8 +127,8 @@ export default function App() {
             dark: true,
             colors: {
               primary: lumen.lime,
-              background: lumen.bgDark,
-              card: lumen.bgDark,
+              background: lumen.bgDeep,
+              card: lumen.bgDeep,
               text: lumen.fgMuted,
               border: lumen.hairline,
               notification: lumen.coral,

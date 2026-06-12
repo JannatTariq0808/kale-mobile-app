@@ -29,6 +29,8 @@ export type LayoutMetrics = {
   isTablet: boolean;
   scale: (size: number) => number;
   type: (size: number) => number;
+  /** iOS-safe line height for Sora — never clips below font size */
+  leading: (fontSize: number, ratio?: number) => number;
   cardPadding: number;
   pad: (size: number) => number;
 };
@@ -54,6 +56,8 @@ export function getLayoutMetrics(
   const isTablet = fullWindowWidth >= 600;
   const scale = (size: number) => Math.round(size * widthScale);
   const type = (size: number) => Math.max(9, Math.round(size * uiScale));
+  const leading = (fontSize: number, ratio = 1.35) =>
+    Math.max(Math.round(fontSize * ratio), fontSize + 6);
   const cardPadding = Math.max(12, Math.round(18 * uiScale));
   const pad = (size: number) => Math.round(size * widthScale);
 
@@ -75,6 +79,7 @@ export function getLayoutMetrics(
     isTablet,
     scale,
     type,
+    leading,
     cardPadding,
     pad,
   };

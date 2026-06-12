@@ -19,17 +19,20 @@ function AccuracyStars({ count }: { count: number }) {
 }
 
 function SourceRow({ row, isLast }: { row: Vo2SourceRow; isLast: boolean }) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
 
   return (
     <View style={[styles.dataRow, row.live && styles.dataRowLive, !isLast && styles.dataRowBorder]}>
-      <Text style={[styles.cellSource, { fontSize: type(13) }]} numberOfLines={2}>
+      <Text
+        style={[styles.cellSource, { fontSize: type(13), lineHeight: leading(type(13)) }]}
+        numberOfLines={2}
+      >
         {row.source}
       </Text>
       <Text
         style={[
           styles.cellEstimate,
-          { fontSize: type(14) },
+          { fontSize: type(14), lineHeight: leading(type(14), 1.1) },
           row.live && styles.cellEstimateLive,
         ]}
       >
@@ -41,7 +44,7 @@ function SourceRow({ row, isLast }: { row: Vo2SourceRow; isLast: boolean }) {
       <Text
         style={[
           styles.cellDate,
-          { fontSize: type(11) },
+          { fontSize: type(11), lineHeight: leading(type(11)) },
           row.live && styles.cellDateLive,
         ]}
       >
@@ -52,33 +55,63 @@ function SourceRow({ row, isLast }: { row: Vo2SourceRow; isLast: boolean }) {
 }
 
 export function Vo2MaxPanel() {
-  const { type, scale, isCompact } = useResponsiveLayout();
+  const { type, scale, leading, isCompact } = useResponsiveLayout();
   const heroSize = scale(isCompact ? 56 : 72);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.hero}>
-        <Text style={[styles.heroEyebrow, { fontSize: type(11) }]}>Your best estimate</Text>
+        <Text style={[styles.heroEyebrow, { fontSize: type(11), lineHeight: leading(type(11), 1.3) }]}>
+          Your best estimate
+        </Text>
         <View style={styles.heroValueRow}>
-          <Text style={[styles.heroValue, { fontSize: heroSize, lineHeight: heroSize * 0.92 }]}>
+          <Text style={[styles.heroValue, { fontSize: heroSize, lineHeight: leading(heroSize, 1.08) }]}>
             {fitnessVo2Max.bestEstimate}
           </Text>
-          <Text style={[styles.heroUnit, { fontSize: type(13) }]}>{fitnessVo2Max.unit}</Text>
+          <Text style={[styles.heroUnit, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
+            {fitnessVo2Max.unit}
+          </Text>
         </View>
-        <Text style={[styles.heroCopy, { fontSize: type(13), lineHeight: type(20) }]}>
+        <Text style={[styles.heroCopy, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
           {fitnessVo2Max.summary}{' '}
           <Text style={styles.heroAccent}>{fitnessVo2Max.ratingLabel}</Text> for your age group.
         </Text>
       </View>
 
-      <Text style={[styles.sectionLabel, { fontSize: type(11) }]}>Running VO₂max — by source</Text>
+      <Text style={[styles.sectionLabel, { fontSize: type(11), lineHeight: leading(type(11), 1.3) }]}>
+        Running VO₂max — by source
+      </Text>
 
       <LumenCard padding={0}>
         <View style={styles.headerRow}>
-          <Text style={[styles.headerCell, styles.headerSource, { fontSize: type(10) }]}>Source</Text>
-          <Text style={[styles.headerCell, styles.headerEstimate, { fontSize: type(10) }]}>Estimate</Text>
-          <Text style={[styles.headerCell, styles.headerAccuracy, { fontSize: type(10) }]}>Accuracy</Text>
-          <Text style={[styles.headerCell, styles.headerDate, { fontSize: type(10) }]}>Date</Text>
+          <Text
+            style={[styles.headerCell, styles.headerSource, { fontSize: type(10), lineHeight: leading(type(10), 1.3) }]}
+          >
+            Source
+          </Text>
+          <Text
+            style={[
+              styles.headerCell,
+              styles.headerEstimate,
+              { fontSize: type(10), lineHeight: leading(type(10), 1.3) },
+            ]}
+          >
+            Estimate
+          </Text>
+          <Text
+            style={[
+              styles.headerCell,
+              styles.headerAccuracy,
+              { fontSize: type(10), lineHeight: leading(type(10), 1.3) },
+            ]}
+          >
+            Accuracy
+          </Text>
+          <Text
+            style={[styles.headerCell, styles.headerDate, { fontSize: type(10), lineHeight: leading(type(10), 1.3) }]}
+          >
+            Date
+          </Text>
         </View>
         {fitnessVo2Max.sources.map((row, index) => (
           <SourceRow
@@ -91,11 +124,11 @@ export function Vo2MaxPanel() {
 
       <LumenCard style={styles.formulaCard}>
         <View style={styles.formulaBadge}>
-          <Text style={[styles.formulaText, { fontSize: type(17), lineHeight: type(22) }]}>
+          <Text style={[styles.formulaText, { fontSize: type(17), lineHeight: leading(type(17), 1.25) }]}>
             {fitnessVo2Max.formula}
           </Text>
         </View>
-        <Text style={[styles.formulaNote, { fontSize: type(13), lineHeight: type(20) }]}>
+        <Text style={[styles.formulaNote, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
           {fitnessVo2Max.formulaNote}
         </Text>
       </LumenCard>

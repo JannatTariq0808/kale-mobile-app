@@ -1,0 +1,78 @@
+{
+  "collection": "rewardsProducts",
+  "documents": [
+    {
+      "id": "running-tights",
+      "title": "Running tights",
+      "brand": "Tracksmith",
+      "pts": 400,
+      "topup": 8,
+      "category": "Gear",
+      "tag": "GEAR",
+      "productUrl": "https://www.kale.insure/rewards/gear/running-tights",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "id": "garmin-offer",
+      "title": "25% off Garmin",
+      "brand": "Garmin",
+      "pts": 100,
+      "topup": null,
+      "category": "Partner offers",
+      "tag": "OFFER",
+      "discount": "25%",
+      "productUrl": "https://www.kale.insure/rewards/offers/garmin-25",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "id": "blood-panel",
+      "title": "Full blood panel",
+      "brand": "Forth",
+      "pts": 800,
+      "topup": 30,
+      "category": "Health assessments",
+      "tag": "ASSESSMENT",
+      "productUrl": "https://www.kale.insure/rewards/assessments/blood-panel",
+      "sortOrder": 3,
+      "active": true
+    },
+    {
+      "id": "coach-anna-3-month-z2-plan",
+      "title": "3-month Z2 plan",
+      "brand": "Coach Anna",
+      "pts": 400,
+      "topup": 15,
+      "category": "Coaching",
+      "tag": "COACHING",
+      "productUrl": "https://www.kale.insure/rewards/product/coach-anna-3-month-z2-plan",
+      "sortOrder": 4,
+      "active": true
+    },
+    {
+      "id": "training-tee",
+      "title": "Training tee",
+      "brand": "Tracksmith",
+      "pts": 250,
+      "topup": null,
+      "category": "Gear",
+      "tag": "GEAR",
+      "productUrl": "https://www.kale.insure/rewards/gear/training-tee",
+      "sortOrder": 5,
+      "active": true
+    },
+    {
+      "id": "vo2-lab",
+      "title": "VO₂max lab test",
+      "brand": "PH Centre",
+      "pts": 600,
+      "topup": 45,
+      "category": "Health assessments",
+      "tag": "ASSESSMENT",
+      "productUrl": "https://www.kale.insure/rewards/assessments/vo2-lab",
+      "sortOrder": 6,
+      "active": true
+    }
+  ]
+}

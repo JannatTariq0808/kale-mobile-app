@@ -43,7 +43,7 @@ function TopicRow({
 }
 
 export function KnowledgePanel() {
-  const { type, scale, isCompact, contentWidth, cardPadding } = useResponsiveLayout();
+  const { type, scale, leading, isCompact, contentWidth, cardPadding } = useResponsiveLayout();
   const { items: faqItems, loading: faqLoading } = useKnowledgeQuestions();
   const ringSize = scale(isCompact ? 84 : 96);
   const scoreSize = type(42);
@@ -66,10 +66,10 @@ export function KnowledgePanel() {
         <View style={styles.heroCopy}>
           <Text style={[styles.heroEyebrow, { fontSize: type(11) }]}>Latest quiz</Text>
           <View style={styles.heroScoreRow}>
-            <Text style={[styles.heroScore, { fontSize: scoreSize, lineHeight: scoreSize * 0.95 }]}>
+            <Text style={[styles.heroScore, { fontSize: scoreSize, lineHeight: leading(scoreSize, 1.08) }]}>
               {fitnessKnowledge.latestScore}
             </Text>
-            <Text style={[styles.heroMax, { fontSize: type(16), lineHeight: type(20) }]}>
+            <Text style={[styles.heroMax, { fontSize: type(16), lineHeight: leading(type(16)) }]}>
               / {fitnessKnowledge.maxScore}
             </Text>
             <Text style={[styles.heroPct, { fontSize: type(13) }]}>{fitnessKnowledge.scorePct}%</Text>

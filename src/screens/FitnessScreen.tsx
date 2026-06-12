@@ -14,7 +14,6 @@ import {
   type FitnessPillar,
   type FitnessSubTab,
 } from '../components/fitness/FitnessShell';
-import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumenHeader } from '../components/lumen/LumenHeader';
 import {
   filterActivities,
@@ -71,7 +70,6 @@ export function FitnessScreen() {
 
   return (
     <View style={styles.screen}>
-      <LumenBackground />
       <LumenHeader />
 
       <ScreenScroll contentContainerStyle={styles.scrollContent}>
@@ -97,7 +95,7 @@ export function FitnessScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDark,
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingTop: 8,

@@ -11,7 +11,6 @@ import { HealthYearsTrendChart } from '../components/lumen/HealthYearsTrendChart
 import { LegendDot, QuickStatPillar } from '../components/lumen/HomeMetrics';
 import { LongevityLevelTrendChart } from '../components/lumen/LongevityLevelTrendChart';
 import { LumHeroRing } from '../components/lumen/LumHeroRing';
-import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumenCard } from '../components/lumen/LumenCard';
 import { LumenButton } from '../components/lumen/LumenButton';
 import { LumenHeader } from '../components/lumen/LumenHeader';
@@ -58,7 +57,8 @@ function SectionEyebrow({
 }
 
 export function LongevityScreen() {
-  const { scale, type, isCompact, isNarrow, isTight, cardPadding, contentWidth } = useResponsiveLayout();
+  const { scale, type, leading, isCompact, isNarrow, isTight, cardPadding, contentWidth } =
+    useResponsiveLayout();
   const isFirstAssessment = homeDemo.assessmentCount <= 1;
   const chartSeries = getHomeChartSeries();
   const assessmentCycle = useAssessmentCycle();
@@ -70,11 +70,10 @@ export function LongevityScreen() {
 
   return (
     <View style={styles.screen}>
-      <LumenBackground />
       <LumenHeader />
 
       <ScreenScroll contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.greeting, { fontSize: type(21), lineHeight: type(26) }]}>
+        <Text style={[styles.greeting, { fontSize: type(21), lineHeight: leading(type(21)) }]}>
           {homeDemo.firstName}, training today is training for{' '}
           <Text style={styles.greetingAccent}>your future</Text>.
         </Text>
@@ -82,7 +81,7 @@ export function LongevityScreen() {
         <View style={[styles.levelRow, { gap: scale(isTight ? 14 : 22) }]}>
           <LumHeroRing value={homeDemo.level} pct={homeDemo.levelPct} size={heroRingSize} />
           <View style={styles.levelCopy}>
-            <Text style={[styles.levelTitle, { fontSize: type(30), lineHeight: type(30) }]}>
+            <Text style={[styles.levelTitle, { fontSize: type(30), lineHeight: leading(type(30), 1.12) }]}>
               Level <Text style={styles.levelTitleAccent}>{homeDemo.level}</Text>
             </Text>
             <Text style={[styles.levelSubtitle, { fontSize: type(13) }]}>Your Longevity Level</Text>
@@ -109,7 +108,12 @@ export function LongevityScreen() {
               </Text>
             </View>
             <View style={[styles.countdownRow, isTight && styles.countdownRowWrap]}>
-              <Text style={[styles.countdownNum, { fontSize: countdownSize, lineHeight: countdownSize }]}>
+              <Text
+                style={[
+                  styles.countdownNum,
+                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.08) },
+                ]}
+              >
                 {assessmentCycle.weeksToAssessment}
               </Text>
               <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>weeks</Text>
@@ -117,7 +121,7 @@ export function LongevityScreen() {
                 style={[
                   styles.countdownNum,
                   styles.countdownGap,
-                  { fontSize: countdownSize, lineHeight: countdownSize },
+                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.08) },
                 ]}
               >
                 {assessmentCycle.daysToAssessment}
@@ -227,7 +231,7 @@ export function LongevityScreen() {
                 <Text
                   style={[
                     styles.promoStatNum,
-                    { fontSize: promoStatSize, lineHeight: Math.round(promoStatSize * 0.9) },
+                    { fontSize: promoStatSize, lineHeight: leading(promoStatSize, 1.08) },
                   ]}
                 >
                   {homeDemo.runningYearsAhead}
@@ -246,7 +250,7 @@ export function LongevityScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: lumen.bgDeep,
+    backgroundColor: 'transparent',
     overflow: 'hidden',
     width: '100%',
   },

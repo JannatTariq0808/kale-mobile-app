@@ -11,23 +11,31 @@ type ActivityLogSummaryProps = {
 };
 
 export function ActivityLogSummary({ countedLabel, runCount, distanceKm }: ActivityLogSummaryProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
+  const statSize = type(40);
+  const statLine = leading(statSize, 1.08);
+  const eyebrowSize = type(10);
+  const unitSize = type(12);
 
   return (
     <View style={styles.wrap}>
       <View style={styles.col}>
-        <Text style={[styles.eyebrow, { fontSize: type(10) }]}>{countedLabel}</Text>
+        <Text style={[styles.eyebrow, { fontSize: eyebrowSize, lineHeight: leading(eyebrowSize, 1.3) }]}>
+          {countedLabel}
+        </Text>
         <View style={styles.statRow}>
-          <Text style={[styles.statNum, { fontSize: type(40) }]}>{runCount}</Text>
-          <Text style={[styles.statUnit, { fontSize: type(12) }]}>runs</Text>
+          <Text style={[styles.statNum, { fontSize: statSize, lineHeight: statLine }]}>{runCount}</Text>
+          <Text style={[styles.statUnit, { fontSize: unitSize, lineHeight: leading(unitSize) }]}>runs</Text>
         </View>
       </View>
       <View style={styles.divider} />
       <View style={styles.col}>
-        <Text style={[styles.eyebrow, { fontSize: type(10) }]}>Distance</Text>
+        <Text style={[styles.eyebrow, { fontSize: eyebrowSize, lineHeight: leading(eyebrowSize, 1.3) }]}>
+          Distance
+        </Text>
         <View style={styles.statRow}>
-          <Text style={[styles.statNum, { fontSize: type(40) }]}>{distanceKm}</Text>
-          <Text style={[styles.statUnit, { fontSize: type(12) }]}>km</Text>
+          <Text style={[styles.statNum, { fontSize: statSize, lineHeight: statLine }]}>{distanceKm}</Text>
+          <Text style={[styles.statUnit, { fontSize: unitSize, lineHeight: leading(unitSize) }]}>km</Text>
         </View>
       </View>
     </View>
@@ -67,7 +75,6 @@ const styles = StyleSheet.create({
     ...sora('semibold'),
     color: lumen.lime,
     letterSpacing: -1.2,
-    lineHeight: 40,
     fontVariant: ['tabular-nums'],
   },
   statUnit: {

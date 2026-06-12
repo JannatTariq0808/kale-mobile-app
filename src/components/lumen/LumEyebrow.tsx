@@ -34,6 +34,7 @@ const styles = StyleSheet.create({
   label: {
     ...sora('bold'),
     fontSize: 12,
+    lineHeight: 16,
     letterSpacing: 2.4,
     textTransform: 'uppercase',
   },

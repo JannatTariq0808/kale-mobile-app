@@ -62,6 +62,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         backgroundColor: '#082B25',
         image: './assets/splash.png',
         resizeMode: 'cover',
+        android: {
+          backgroundColor: '#082B25',
+          image: './assets/splash.png',
+        },
+        ios: {
+          backgroundColor: '#082B25',
+          image: './assets/splash.png',
+        },
       },
     ],
     [

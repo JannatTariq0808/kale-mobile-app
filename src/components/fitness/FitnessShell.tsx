@@ -36,12 +36,14 @@ export function FitnessShell({
   onSubTabChange,
   children,
 }: FitnessShellProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
   const pillarColor = lumenPillar[pillar];
   const subTabs = pillar === 'cardio' ? CARDIO_SUBTABS : [];
   const title = pillar.charAt(0).toUpperCase() + pillar.slice(1);
   const titleSize = type(32);
-  const titleLineHeight = Math.round(titleSize * 1.2);
+  const titleLineHeight = leading(titleSize, 1.15);
+  const pillSize = type(13);
+  const pillLine = leading(pillSize);
 
   return (
     <View style={styles.wrap}>
@@ -57,7 +59,7 @@ export function FitnessShell({
               <Text
                 style={[
                   styles.pillarLabel,
-                  { fontSize: type(13), lineHeight: type(17) },
+                  { fontSize: pillSize, lineHeight: pillLine },
                   active ? styles.pillarLabelActive : styles.pillarLabelIdle,
                 ]}
               >
@@ -70,7 +72,9 @@ export function FitnessShell({
 
       <View style={styles.titleRow}>
         <Text style={[styles.title, { fontSize: titleSize, lineHeight: titleLineHeight }]}>{title}</Text>
-        <Text style={[styles.level, { fontSize: type(12), color: pillarColor }]}>LEVEL {level}</Text>
+        <Text style={[styles.level, { fontSize: type(12), lineHeight: leading(type(12)), color: pillarColor }]}>
+          LEVEL {level}
+        </Text>
       </View>
 
       {subTabs.length > 0 ? (
@@ -82,7 +86,7 @@ export function FitnessShell({
                 <Text
                   style={[
                     styles.subTabLabel,
-                    { fontSize: type(13) },
+                    { fontSize: pillSize, lineHeight: pillLine },
                     active ? styles.subTabLabelActive : styles.subTabLabelIdle,
                     active && { borderBottomColor: pillarColor },
                   ]}

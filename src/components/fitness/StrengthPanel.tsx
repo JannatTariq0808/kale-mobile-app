@@ -13,7 +13,7 @@ import { RelativePerformanceGauge } from '../lumen/RelativePerformanceGauge';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 export function StrengthPanel() {
-  const { type, scale, isCompact, isTight, contentWidth, cardPadding } = useResponsiveLayout();
+  const { type, scale, leading, isCompact, isTight, contentWidth, cardPadding } = useResponsiveLayout();
   const { items: faqItems, loading: faqLoading } = useStrengthQuestions();
   const ringSize = scale(isCompact ? 84 : 96);
   const heroLevelSize = type(44);
@@ -38,7 +38,7 @@ export function StrengthPanel() {
         <View style={styles.heroCopy}>
           <Text style={[styles.heroEyebrow, { fontSize: type(11) }]}>Strength Level</Text>
           <View style={styles.heroLevelRow}>
-            <Text style={[styles.heroLevel, { fontSize: heroLevelSize, lineHeight: heroLevelSize * 0.95 }]}>
+            <Text style={[styles.heroLevel, { fontSize: heroLevelSize, lineHeight: leading(heroLevelSize, 1.08) }]}>
               {fitnessStrength.level}
             </Text>
             <View style={styles.trendChip}>
@@ -79,7 +79,7 @@ export function StrengthPanel() {
         <View style={styles.testHeader}>
           <View>
             <Text style={[styles.testEyebrow, { fontSize: type(11) }]}>This cycle&apos;s test</Text>
-            <Text style={[styles.testTitle, { fontSize: type(22), lineHeight: type(24) }]}>
+            <Text style={[styles.testTitle, { fontSize: type(22), lineHeight: leading(type(22), 1.2) }]}>
               {fitnessStrength.currentTest.name}
             </Text>
           </View>
@@ -92,7 +92,7 @@ export function StrengthPanel() {
           <View style={styles.testStatCol}>
             <Text style={[styles.testStatLabel, { fontSize: type(10) }]}>Today</Text>
             <Text
-              style={[styles.testStatValue, { fontSize: timeSize, lineHeight: timeSize * 0.95 }]}
+              style={[styles.testStatValue, { fontSize: timeSize, lineHeight: leading(timeSize, 1.08) }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.85}
@@ -106,7 +106,7 @@ export function StrengthPanel() {
             <Text
               style={[
                 styles.testStatValueMuted,
-                { fontSize: prevTimeSize, lineHeight: prevTimeSize * 0.95 },
+                { fontSize: prevTimeSize, lineHeight: leading(prevTimeSize, 1.08) },
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
