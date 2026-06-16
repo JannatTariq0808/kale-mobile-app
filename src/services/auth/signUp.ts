@@ -1,6 +1,10 @@
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  getFirebaseAuth,
+  updateProfile,
+} from './index';
 import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
-import { getFirebaseAuth, getFirebaseFirestore } from './firebaseApp';
+import { getFirebaseFirestore } from './firebaseApp';
 
 export type UserGender = 'female' | 'male';
 export type WeightUnit = 'kg' | 'lbs';

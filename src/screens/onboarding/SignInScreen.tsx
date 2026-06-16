@@ -22,6 +22,7 @@ import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import type { RootStackParamList } from '../../navigation/types';
 import { mapFirebaseAuthError, signInWithEmail } from '../../services/auth/passwordReset';
 import { lumen, sora, typography } from '../../theme';
+import { headlineTextStyle } from '../../theme/textMetrics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
@@ -220,11 +221,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   headline: {
-    ...sora('extrabold'),
-    fontSize: typography.hero,
-    lineHeight: typography.hero,
+    ...headlineTextStyle(typography.hero, lumen.fg),
     letterSpacing: -1.3,
-    color: lumen.fg,
+    overflow: 'visible',
   },
   headlineAccent: {
     color: lumen.lime,

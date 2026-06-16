@@ -2,11 +2,29 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ConnectionBrandIcon, type ConnectionBrand } from '../../components/lumen/ConnectionBrandIcon';
+import {
+  ConnectionBrandIcon,
+  type ConnectionBrand,
+} from '../../components/lumen/ConnectionBrandIcon';
+import { ConnectIssuePanel } from '../../components/lumen/ConnectIssuePanel';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
+import { useConnectTrackerFlow } from '../../hooks/useConnectTrackerFlow';
 import type { RootStackParamList } from '../../navigation/types';
+import { connectTracker } from '../../services/tracker/connect';
+import {
+  buildConnectIssue,
+  type ConnectIssueContent,
+} from '../../services/tracker/connectIssueCopy';
 import { lumen, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ConnectTracker'>;
@@ -29,21 +47,57 @@ const APPLE_HEALTH: TrackerOption = {
 };
 
 function getTrackerOptions(): TrackerOption[] {
-  /*if (Platform.OS === 'ios') {
-    return [...BASE_TRACKERS, APPLE_HEALTH];
-  }
-  return BASE_TRACKERS;*/
   return [...BASE_TRACKERS, APPLE_HEALTH];
 }
 
 export function ConnectTrackerScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const trackers = getTrackerOptions();
+  const [connecting, setConnecting] = useState<ConnectionBrand | null>(null);
+  const [connectIssue, setConnectIssue] = useState<ConnectIssueContent | null>(null);
 
-  const handleConnect = (_brand: ConnectionBrand) => {
-    // OAuth / HealthKit wiring comes later — continue onboarding for now.
-    navigation.replace('CardioAnalysing');
-  };
+  useConnectTrackerFlow({
+    setConnecting,
+    setConnectIssue,
+    onSuccess: () => navigation.replace('CardioAnalysing'),
+  });
+
+  const clearIssue = useCallback(() => {
+    setConnectIssue(null);
+  }, []);
+
+  const handleContinueLevel1 = useCallback(() => {
+    navigation.replace('CardioResult');
+  }, [navigation]);
+
+  const handleConnect = useCallback(
+    async (brand: ConnectionBrand) => {
+      if (connecting) return;
+
+      setConnectIssue(null);
+      setConnecting(brand);
+      try {
+        const result = await connectTracker(brand);
+        if (!result.ok) {
+          if (result.cancelled) return;
+          setConnectIssue(
+            buildConnectIssue(result.message, result.provider, result.oauthReason),
+          );
+          return;
+        }
+        navigation.replace('CardioAnalysing');
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+        setConnectIssue(buildConnectIssue(message));
+      } finally {
+        setConnecting(null);
+      }
+    },
+    [connecting, navigation],
+  );
+
+  const showPicker = !connectIssue;
 
   return (
     <View style={styles.screen}>
@@ -54,48 +108,89 @@ export function ConnectTrackerScreen({ navigation }: Props) {
         ]}
       >
         <Pressable
-          onPress={() => navigation.goBack()}
+          onPress={() => (connectIssue ? clearIssue() : navigation.goBack())}
           style={styles.backButton}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={connectIssue ? 'Back to connections' : 'Go back'}
+          disabled={connecting != null}
         >
           <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
         </Pressable>
 
         <ScrollView
           style={styles.flex}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            connectIssue ? styles.scrollContentIssue : null,
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          <LumEyebrow pillar="cardio" label="Cardio" step="Test 1 of 3" />
+          {connectIssue ? (
+            <ConnectIssuePanel
+              headline={connectIssue.headline}
+              message={connectIssue.message}
+              showActivityRequirements={connectIssue.showActivityRequirements}
+              onTryAgain={clearIssue}
+              onContinueLevel1={handleContinueLevel1}
+            />
+          ) : (
+            <>
+              <LumEyebrow pillar="cardio" label="Cardio" step="Test 1 of 3" />
 
-          <Text style={styles.headline}>
-            Connect your <Text style={styles.headlineAccent}>apps</Text>.
-          </Text>
-          <Text style={styles.subhead}>
-            We read runs and rides from the last 12 weeks to estimate your cardio fitness. We never
-            read your private messages or contacts.
-          </Text>
+              <Text style={styles.headline}>
+                Connect your <Text style={styles.headlineAccent}>apps</Text>.
+              </Text>
+              <Text style={styles.subhead}>
+                We read runs and rides from the last 12 weeks to estimate your cardio fitness. We
+                never read your private messages or contacts.
+              </Text>
 
-          <View style={styles.options}>
-            {trackers.map((tracker) => (
-              <Pressable
-                key={tracker.id}
-                onPress={() => handleConnect(tracker.id)}
-                style={styles.optionRow}
-                accessibilityRole="button"
-                accessibilityLabel={`Connect ${tracker.name}`}
-              >
-                <ConnectionBrandIcon brand={tracker.id} />
-                <View style={styles.optionCopy}>
-                  <Text style={styles.optionName}>{tracker.name}</Text>
-                  <Text style={styles.optionSubtitle}>{tracker.subtitle}</Text>
+              {connecting ? (
+                <View style={styles.connectingBanner}>
+                  <ActivityIndicator color={lumen.lime} />
+                  <Text style={styles.connectingText}>
+                    {connecting === 'garmin'
+                      ? 'Connecting Garmin — this can take a minute while activities sync…'
+                      : `Connecting ${connecting === 'strava' ? 'Strava' : 'Apple Health'}…`}
+                  </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={lumen.fgMuted} />
-              </Pressable>
-            ))}
-          </View>
+              ) : null}
 
+              {showPicker ? (
+                <View style={styles.options}>
+                  {trackers.map((tracker) => {
+                    const isBusy = connecting != null;
+                    const isActive = connecting === tracker.id;
+
+                    return (
+                      <Pressable
+                        key={tracker.id}
+                        onPress={() => handleConnect(tracker.id)}
+                        style={[
+                          styles.optionRow,
+                          isBusy && !isActive ? styles.optionRowDisabled : null,
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Connect ${tracker.name}`}
+                        disabled={isBusy}
+                      >
+                        <ConnectionBrandIcon brand={tracker.id} />
+                        <View style={styles.optionCopy}>
+                          <Text style={styles.optionName}>{tracker.name}</Text>
+                          <Text style={styles.optionSubtitle}>{tracker.subtitle}</Text>
+                        </View>
+                        {isActive ? (
+                          <ActivityIndicator color={lumen.fgMuted} />
+                        ) : (
+                          <Ionicons name="chevron-forward" size={18} color={lumen.fgMuted} />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -128,6 +223,10 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 24,
   },
+  scrollContentIssue: {
+    flexGrow: 1,
+    paddingTop: 24,
+  },
   headline: {
     ...sora('extrabold'),
     fontSize: 40,
@@ -147,6 +246,24 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
     maxWidth: 310,
   },
+  connectingBanner: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: lumen.hairline,
+    backgroundColor: 'rgba(234,243,228,0.05)',
+  },
+  connectingText: {
+    ...sora('semibold'),
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: lumen.fgMuted,
+  },
   options: {
     marginTop: 28,
     gap: 10,
@@ -162,6 +279,9 @@ const styles = StyleSheet.create({
     borderColor: lumen.hairline,
     backgroundColor: 'rgba(234,243,228,0.05)',
   },
+  optionRowDisabled: {
+    opacity: 0.55,
+  },
   optionCopy: {
     flex: 1,
   },
@@ -175,16 +295,5 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 12,
     color: lumen.fgMuted,
-  },
-  skipLink: {
-    alignSelf: 'flex-start',
-    marginTop: 18,
-    paddingVertical: 4,
-  },
-  skipText: {
-    ...sora('semibold'),
-    fontSize: 14,
-    color: lumen.fgMuted,
-    textDecorationLine: 'underline',
   },
 });

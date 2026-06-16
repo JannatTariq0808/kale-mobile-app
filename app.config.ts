@@ -10,6 +10,39 @@ const BUNDLE_ID = PACKAGE_NAME;
 const APP_NAME = IS_STAGING ? 'Kale Staging' : 'Kale';
 
 const AUTH_HOST = 'www.kale.insure';
+const DEFAULT_KALE_API_BASE = 'https://www.kale.insure';
+
+function resolveKaleApiBase(): string {
+  const fromEnv =
+    process.env.EXPO_PUBLIC_KALE_API_BASE ?? process.env.EXPO_PUBLIC_KALE_API_BASE_URL;
+  if (fromEnv?.trim()) {
+    return fromEnv.trim().replace(/\/$/, '');
+  }
+  return DEFAULT_KALE_API_BASE;
+}
+
+const KALE_API_BASE = resolveKaleApiBase();
+
+/** Set IOS_ASSOCIATED_DOMAINS=0 for local device builds without Associated Domains on your App ID. */
+const IOS_ASSOCIATED_DOMAINS_ENABLED = process.env.IOS_ASSOCIATED_DOMAINS !== '0';
+
+const iosInfoPlist = {
+  NSLocalNetworkUsageDescription:
+    'Kale connects to your development machine to load the app while testing.',
+};
+
+const iosConfig: ExpoConfig['ios'] = IOS_ASSOCIATED_DOMAINS_ENABLED
+  ? {
+      supportsTablet: true,
+      bundleIdentifier: BUNDLE_ID,
+      associatedDomains: [`applinks:${AUTH_HOST}`, 'applinks:kale.insure'],
+      infoPlist: iosInfoPlist,
+    }
+  : {
+      supportsTablet: true,
+      bundleIdentifier: BUNDLE_ID,
+      infoPlist: iosInfoPlist,
+    };
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -26,19 +59,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     resizeMode: 'cover',
     backgroundColor: '#004C4C',
   },
-  ios: {
-    supportsTablet: true,
-    bundleIdentifier: BUNDLE_ID,
-    associatedDomains: [`applinks:${AUTH_HOST}`, 'applinks:kale.insure'],
-  },
+  ios: iosConfig,
   android: {
     backgroundColor: '#004C4C',
     softwareKeyboardLayoutMode: 'pan',
     package: PACKAGE_NAME,
     adaptiveIcon: {
-      backgroundColor: '#082B25',
-      foregroundImage: './assets/android-icon-foreground.png',
-      monochromeImage: './assets/android-icon-monochrome.png',
+      backgroundColor: '#004C4C',
+      foregroundImage: './assets/android-launcher-icon.png',
     },
     predictiveBackGestureEnabled: false,
     intentFilters: [
@@ -46,6 +74,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         action: 'VIEW',
         autoVerify: true,
         data: [
+          { scheme: 'https', host: AUTH_HOST, pathPrefix: '/open-app/reset-password' },
+          { scheme: 'https', host: 'kale.insure', pathPrefix: '/open-app/reset-password' },
+          { scheme: 'https', host: AUTH_HOST, pathPrefix: '/open-app/connect' },
+          { scheme: 'https', host: 'kale.insure', pathPrefix: '/open-app/connect' },
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/reset-password' },
           { scheme: 'https', host: 'kale.insure', pathPrefix: '/reset-password' },
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/__/auth' },
@@ -92,6 +124,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     'expo-font',
     '@react-native-community/datetimepicker',
+    'expo-web-browser',
     [
       'expo-build-properties',
       {
@@ -109,7 +142,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: 'ceddc77d-354b-412f-beeb-01f57d1549fa',
     },
     appVariant: APP_VARIANT,
-    authContinueUrl: `https://${AUTH_HOST}/reset-password`,
+    authContinueUrl: `https://${AUTH_HOST}/open-app/reset-password`,
+    kaleApiBase: KALE_API_BASE,
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,

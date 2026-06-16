@@ -4,28 +4,56 @@ COPY THESE FILES INTO YOUR VERCEL WEBSITE PROJECT
 Your website repo is SEPARATE from kale-mobile-app.
 Open the kale.insure website project in Finder/VS Code.
 
-If the site uses Next.js / Vite / most frameworks, copy into the "public" folder
-at the ROOT of that website repo:
+IMPORTANT — why deep links were opening the website
+---------------------------------------------------
+www.kale.insure already has a Next.js page at /reset-password (web login flow).
+That page does NOT open the mobile app, so Firebase reset links landed on the
+website and stopped there.
+
+The mobile app now uses a dedicated path that must NOT be a Next.js route:
+  /open-app/reset-password
+
+Copy into the website repo "public" folder:
 
   YOUR-WEBSITE-REPO/
-    public/                          <-- copy INTO this folder
+    public/
       .well-known/
-        assetlinks.json              <-- from kale-mobile-app/hosting/public/.well-known/
-        apple-app-site-association   <-- from kale-mobile-app/hosting/public/.well-known/
-      apple-app-site-association     <-- from kale-mobile-app/hosting/public/
-      reset-password/
-        index.html                   <-- from kale-mobile-app/hosting/public/reset-password/
+        assetlinks.json
+        apple-app-site-association
+      apple-app-site-association
+      open-app/
+        reset-password/
+          index.html
+        connect/
+          strava/index.html
+          garmin/index.html
 
 Also merge the "headers" section from kale-mobile-app/hosting/vercel.json
-into YOUR website's vercel.json (at the root of the website repo).
+into YOUR website's vercel.json. This fixes iOS Universal Links — without
+Content-Type: application/json, iOS ignores the association file.
 
 Then git commit + push. Vercel redeploys automatically.
 
-After deploy, these URLs must work in a browser:
+After deploy, verify in a browser:
   https://www.kale.insure/.well-known/assetlinks.json
   https://www.kale.insure/.well-known/apple-app-site-association
-  https://www.kale.insure/reset-password
+    (must return Content-Type: application/json, not application/octet-stream)
+  https://www.kale.insure/open-app/reset-password?mode=resetPassword&oobCode=test
+    (should show "Open Kale app" button — NOT the website login page)
 
-Your Firebase email link already uses /reset-password — that matches now.
+Optional — redirect old /reset-password links from the website
+----------------------------------------------------------------
+If your Next.js app has app/reset-password/page.tsx, add at the top of the
+client component:
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('mode') === 'resetPassword' && p.get('oobCode')) {
+      window.location.replace('/open-app/reset-password' + window.location.search);
+    }
+  }, []);
+
+Then rebuild the mobile app (native rebuild required for intent filters /
+associated domains changes).
 
 DO NOT copy into kale-mobile-app. Copy into the WEBSITE repo only.

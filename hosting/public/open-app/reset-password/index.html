@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kale — Open app to reset password</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#004C4C" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #004c4c;
+        --bg-card: rgba(8, 43, 37, 0.72);
+        --fg: #eaf3e4;
+        --fg-muted: rgba(234, 243, 228, 0.58);
+        --lime: #ccfa7d;
+        --green: #14c088;
+        --coral: #e8826e;
+        --hairline: rgba(234, 243, 228, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        font-family: 'Sora', system-ui, sans-serif;
+        background: radial-gradient(ellipse 120% 80% at 50% -10%, #0a6b61 0%, var(--bg) 55%);
+        color: var(--fg);
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem 1.5rem 0;
+      }
+
+      .nav img {
+        height: 2rem;
+        width: auto;
+        display: block;
+      }
+
+      main {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.25rem 2.5rem;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 22rem;
+        text-align: center;
+        padding: 2rem 1.5rem 1.75rem;
+        border-radius: 1.5rem;
+        background: var(--bg-card);
+        border: 1px solid var(--hairline);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.22);
+      }
+
+      .glyph {
+        width: 3.25rem;
+        height: 3.25rem;
+        margin: 0 auto 1.25rem;
+        border-radius: 1rem;
+        background: rgba(234, 243, 228, 0.06);
+        border: 1px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .glyph svg {
+        width: 1.5rem;
+        height: 1.5rem;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.2;
+      }
+
+      h1 span {
+        color: var(--lime);
+      }
+
+      .lead {
+        margin: 0.75rem 0 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        line-height: 1.55;
+        color: var(--fg-muted);
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        margin-top: 1.5rem;
+        padding: 0.95rem 1.25rem;
+        border: none;
+        border-radius: 999px;
+        background: var(--lime);
+        color: #04413e;
+        font-family: inherit;
+        font-size: 0.9375rem;
+        font-weight: 800;
+        text-decoration: none;
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        box-shadow: 0 8px 24px rgba(204, 250, 125, 0.22);
+      }
+
+      .button:active {
+        transform: scale(0.98);
+      }
+
+      .hint {
+        margin: 1rem 0 0;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: var(--fg-muted);
+      }
+
+      .invalid .glyph {
+        border-color: rgba(232, 130, 110, 0.35);
+        background: rgba(232, 130, 110, 0.1);
+      }
+
+      .invalid h1 span {
+        color: var(--coral);
+      }
+
+      footer {
+        padding: 1rem 1.5rem 1.5rem;
+        text-align: center;
+        font-size: 0.6875rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: rgba(234, 243, 228, 0.38);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="nav">
+      <img src="/Kale.svg" alt="Kale" width="120" height="32" />
+    </header>
+
+    <main>
+      <section class="card" id="valid-card">
+        <div class="glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 3C7.03 3 3 7.03 3 12s4.03 9 9 9 9-4.03 9-9-4.03-9-9-9Zm0 2.2a6.8 6.8 0 1 1 0 13.6 6.8 6.8 0 0 1 0-13.6Z"
+              fill="#14C088"
+            />
+            <path
+              d="M11.1 7.4h1.8v5.4l3.4 2-0.9 1.5-4.3-2.6V7.4Z"
+              fill="#CCFA7D"
+            />
+          </svg>
+        </div>
+        <h1>Open <span>Kale</span></h1>
+        <p class="lead" id="status">
+          Tap below to finish resetting your password in the app.
+        </p>
+        <a id="open-app" class="button" href="#">Open Kale app</a>
+        <p class="hint">If nothing happens, make sure Kale is installed, then tap the button again.</p>
+      </section>
+
+      <section class="card invalid" id="invalid-card" hidden>
+        <div class="glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z"
+              fill="#E8826E"
+            />
+          </svg>
+        </div>
+        <h1>Link <span>expired</span></h1>
+        <p class="lead">
+          This reset link is invalid or has expired. Request a new one from the Kale app or website.
+        </p>
+        <a class="button" href="https://www.kale.insure/login">Back to log in</a>
+      </section>
+    </main>
+
+    <footer>
+      Athlete Life Ltd, trading as Kale, acts as an Introducer Appointed Representative of Best Insurance.
+    </footer>
+
+    <script>
+      (function () {
+        var search = window.location.search || '';
+        var params = new URLSearchParams(search);
+        var mode = params.get('mode');
+        var oobCode = params.get('oobCode');
+
+        if (mode !== 'resetPassword' || !oobCode) {
+          document.getElementById('valid-card').hidden = true;
+          document.getElementById('invalid-card').hidden = false;
+          return;
+        }
+
+        var path = 'open-app/reset-password' + search;
+        var appUrl = 'kale://' + path;
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var href = appUrl;
+
+        if (isAndroid) {
+          href =
+            'intent://' +
+            path +
+            '#Intent;scheme=kale;package=insure.kale.mobile;S.browser_fallback_url=' +
+            encodeURIComponent(window.location.href) +
+            ';end';
+        }
+
+        var link = document.getElementById('open-app');
+        link.href = href;
+
+        if (!isAndroid) return;
+
+        window.location.replace(href);
+      })();
+    </script>
+  </body>
+</html>

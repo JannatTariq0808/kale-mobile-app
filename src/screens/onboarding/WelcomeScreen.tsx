@@ -2,12 +2,11 @@
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { InteractionManager, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { InteractionManager, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { StepGlowDot } from '../../components/lumen/StepGlowDot';
-import { LumenLogotype } from '../../components/lumen/LumenLogotype';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import { WelcomeHeroLoader } from '../../components/lumen/WelcomeHeroLoader';
 import type { RootStackParamList } from '../../navigation/types';
@@ -16,13 +15,39 @@ import {
   welcomeSurfaceReady,
 } from '../../navigation/welcomeSurface';
 import { lumen, lumenPillar, sora, typography } from '../../theme';
+import { headlineLineHeight } from '../../theme/textMetrics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 const HERO_SIZE = 152;
 const HEADLINE_SIZE = typography.hero;
-/** Design: LumenLogotype height 0.72em (KaleLumen.jsx) */
-const LOGOTYPE_HEIGHT = HEADLINE_SIZE * 0.72;
+const kaleLogotype = require('../../../assets/kale-logotype-lime.png');
+
+/** Shrink headline on narrow screens so "Welcome to Kale" stays on one row. */
+function getWelcomeHeadlineMetrics(
+  contentWidth: number,
+  type: (size: number) => number,
+) {
+  let fontSize = type(HEADLINE_SIZE);
+  const minSize = 28;
+
+  while (fontSize >= minSize) {
+    const logotypeHeight = fontSize * 0.72;
+    const logotypeWidth = (91 / 37) * logotypeHeight;
+    const textWidth = fontSize * 5.65;
+    if (textWidth + logotypeWidth <= contentWidth) {
+      return { fontSize, logotypeHeight, logotypeWidth };
+    }
+    fontSize -= 1;
+  }
+
+  const logotypeHeight = minSize * 0.72;
+  return {
+    fontSize: minSize,
+    logotypeHeight,
+    logotypeWidth: (91 / 37) * logotypeHeight,
+  };
+}
 
 const STEPS = [
   {
@@ -52,8 +77,9 @@ function WelcomeHeroPlaceholder({ size }: { size: number }) {
 
 export function WelcomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { pad } = useResponsiveLayout();
+  const { pad, usableWidth, type } = useResponsiveLayout();
   const widePad = pad(30);
+  const headline = getWelcomeHeadlineMetrics(usableWidth - widePad * 2, type);
   const [heroReady, setHeroReady] = useState(welcomeSurfaceReady);
 
   useEffect(() => {
@@ -73,18 +99,56 @@ export function WelcomeScreen({ navigation }: Props) {
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safe} edges={['left', 'right', 'bottom']}>
-      <View style={[styles.content, { paddingTop: insets.top, paddingBottom: insets.bottom + 12 }]}>
-        <View style={[styles.hero, { paddingHorizontal: widePad }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top, paddingBottom: insets.bottom + 12 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={[styles.hero, { paddingHorizontal: widePad }]}>
           {heroReady ? (
             <WelcomeHeroLoader size={HERO_SIZE} glyphColor={lumen.green} />
           ) : (
             <WelcomeHeroPlaceholder size={HERO_SIZE} />
           )}
 
-          <View style={styles.headlineRow}>
-            <Text style={styles.headline}>Welcome to </Text>
-            <View style={styles.logotypeWrap}>
-              <LumenLogotype color={lumen.lime} height={LOGOTYPE_HEIGHT} />
+          <View
+            style={styles.headlineRow}
+            accessible
+            accessibilityRole="header"
+            accessibilityLabel="Welcome to Kale"
+          >
+            <Text
+              style={[
+                styles.headline,
+                {
+                  fontSize: headline.fontSize,
+                  lineHeight: headlineLineHeight(headline.fontSize),
+                },
+              ]}
+            >
+              Welcome to{' '}
+            </Text>
+            <View
+              style={[
+                styles.logotypeWrap,
+                { height: headlineLineHeight(headline.fontSize) },
+              ]}
+            >
+              <Image
+                source={kaleLogotype}
+                style={{
+                  width: headline.logotypeWidth,
+                  height: headline.logotypeHeight,
+                  marginTop: Platform.OS === 'ios' ? headline.fontSize * 0.06 : 0,
+                }}
+                resizeMode="contain"
+                accessible={false}
+                importantForAccessibility="no"
+              />
             </View>
           </View>
           <Text style={styles.subhead}>The longevity programme inside your Kale policy.</Text>
@@ -115,7 +179,7 @@ export function WelcomeScreen({ navigation }: Props) {
             <Text style={styles.resetText}>Reset password</Text>
           </Pressable>
         </View>
-      </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -131,9 +195,11 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
   },
-  content: {
+  scroll: {
     flex: 1,
-    zIndex: 2,
+  },
+  scrollContent: {
+    flexGrow: 1,
     width: '100%',
   },
   hero: {
@@ -148,21 +214,22 @@ const styles = StyleSheet.create({
   },
   headlineRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'center',
     flexWrap: 'nowrap',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    alignSelf: 'center',
     marginTop: 26,
+    overflow: 'visible',
+  },
+  logotypeWrap: {
+    justifyContent: 'center',
   },
   headline: {
     ...sora('extrabold'),
-    fontSize: HEADLINE_SIZE,
-    lineHeight: HEADLINE_SIZE,
     letterSpacing: -1.3,
     color: lumen.fg,
     includeFontPadding: false,
-  },
-  logotypeWrap: {
-    transform: [{ translateY: Platform.OS === 'android' ? -2 : -1 }],
+    flexShrink: 0,
   },
   subhead: {
     ...sora('semibold'),
@@ -174,8 +241,8 @@ const styles = StyleSheet.create({
     maxWidth: 300,
   },
   steps: {
-    flex: 1,
-    justifyContent: 'center',
+    marginTop: 8,
+    marginBottom: 8,
   },
   stepRow: {
     flexDirection: 'row',
@@ -204,6 +271,7 @@ const styles = StyleSheet.create({
     color: 'rgba(234,243,228,0.55)',
   },
   cta: {
+    paddingTop: 8,
     paddingBottom: 14,
     gap: 14,
   },

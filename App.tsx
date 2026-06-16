@@ -4,27 +4,36 @@ import {
   type NavigationState,
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, InteractionManager, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthDeepLink } from './src/hooks/useAuthDeepLink';
+import { useAuthNavigationSync } from './src/hooks/useAuthNavigationSync';
+import { useAuthSession } from './src/hooks/useAuthSession';
 import { useSoraFonts } from './src/hooks/useSoraFonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
 import { ResponsiveAppFrame } from './src/components/layout/ResponsiveAppFrame';
+import { SplashView } from './src/components/lumen/SplashView';
 import { BackdropAnimatedContext } from './src/navigation/backdropContext';
 import { welcomeSurfaceReady } from './src/navigation/welcomeSurface';
 import { lumen, navigationFonts } from './src/theme';
 import { applySoraFontGlobally } from './src/utils/applySoraFont';
 import { hideAndroidSystemNav } from './src/utils/hideAndroidSystemNav';
-import { ensureFirebase } from './src/services/auth/firebaseApp';
+import { useGlobalTrackerDeepLink } from './src/hooks/useGlobalTrackerDeepLink';
+import { useInitialAuthRoute } from './src/hooks/useInitialAuthRoute';
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: lumen.bgDeep,
+  },
+  splashOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
   },
 });
 
@@ -38,6 +47,13 @@ function isBackdropAnimated(state: NavigationState | undefined) {
 
 export default function App() {
   const fontsReady = useSoraFonts();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuthSession();
+  const sessionReady = !authLoading;
+  const initialAuthRoute = useInitialAuthRoute(user, sessionReady);
+  const [navigationReady, setNavigationReady] = useState(false);
+  const canMountNav =
+    fontsReady && sessionReady && (!isAuthenticated || initialAuthRoute != null);
+  const appReady = canMountNav && navigationReady;
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [backdropAnimated, setBackdropAnimated] = useState(false);
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
@@ -67,6 +83,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (appReady) {
+      void SplashScreen.hideAsync();
+    }
+  }, [appReady]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
       setAppActive(nextState === 'active');
     });
@@ -74,11 +96,14 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
-  useAuthDeepLink(navigationRef);
-
   useEffect(() => {
-    ensureFirebase();
-  }, []);
+    if (!canMountNav) {
+      setNavigationReady(false);
+    }
+  }, [canMountNav]);
+  useAuthDeepLink(navigationRef);
+  useGlobalTrackerDeepLink(navigationRef, isAuthenticated, navigationReady);
+  useAuthNavigationSync(navigationRef, user, sessionReady, navigationReady);
 
   useEffect(() => {
     if (fontsReady) applySoraFontGlobally();
@@ -100,28 +125,32 @@ export default function App() {
     return () => subscription.remove();
   }, []);
 
-  if (!fontsReady) {
-    return null;
-  }
+  const authLinking = useMemo(
+    () => ({
+      prefixes: AUTH_LINK_PREFIXES,
+      config: {
+        screens: {
+          NewPassword: 'open-app/reset-password',
+        },
+      },
+    }),
+    [],
+  );
 
   return (
     <GestureHandlerRootView style={styles.root}>
     <SafeAreaProvider style={styles.root}>
       <View style={styles.root}>
+        {canMountNav ? (
         <NavigationContainer
+          key={isAuthenticated ? 'authed' : 'guest'}
           ref={navigationRef}
           onStateChange={handleNavigationStateChange}
           onReady={() => {
+            setNavigationReady(true);
             handleNavigationStateChange(navigationRef.current?.getRootState());
           }}
-          linking={{
-            prefixes: AUTH_LINK_PREFIXES,
-            config: {
-              screens: {
-                NewPassword: 'reset-password',
-              },
-            },
-          }}
+          linking={isAuthenticated ? undefined : authLinking}
           theme={{
             dark: true,
             colors: {
@@ -137,11 +166,20 @@ export default function App() {
         >
           <BackdropAnimatedContext.Provider value={backdropAnimated && appActive}>
             <ResponsiveAppFrame>
-              <RootNavigator />
+              <RootNavigator
+                isAuthenticated={isAuthenticated}
+                initialAuthRoute={initialAuthRoute}
+              />
             </ResponsiveAppFrame>
           </BackdropAnimatedContext.Provider>
           <StatusBar style="light" backgroundColor={lumen.bgDeep} />
         </NavigationContainer>
+        ) : null}
+        {!appReady ? (
+          <View style={styles.splashOverlay} pointerEvents="none">
+            <SplashView />
+          </View>
+        ) : null}
       </View>
     </SafeAreaProvider>
     </GestureHandlerRootView>

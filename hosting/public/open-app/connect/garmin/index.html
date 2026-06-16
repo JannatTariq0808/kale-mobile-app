@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Kale — Open app to connect Garmin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#004C4C" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, sans-serif;
+        background: #004c4c;
+        color: #eaf3e4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.25rem;
+        text-align: center;
+      }
+      .card {
+        max-width: 22rem;
+        width: 100%;
+      }
+      a.button {
+        display: inline-block;
+        margin-top: 1.25rem;
+        padding: 0.85rem 1.5rem;
+        border-radius: 999px;
+        background: #ccfa7d;
+        color: #004c4c;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      p {
+        color: rgba(234, 243, 228, 0.7);
+        line-height: 1.5;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card" id="ok-card">
+      <h1>Garmin connected</h1>
+      <p id="status">Return to the Kale app to finish linking your account.</p>
+      <a id="open-app" class="button" href="#">Open Kale app</a>
+    </div>
+    <div class="card" id="error-card" hidden>
+      <h1>Connection failed</h1>
+      <p id="error-text">Something went wrong connecting Garmin. Try again from the Kale app.</p>
+      <a id="open-app-error" class="button" href="#">Back to Kale app</a>
+    </div>
+    <script>
+      (function () {
+        var provider = 'garmin';
+        var search = window.location.search || '';
+        var params = new URLSearchParams(search);
+        var status = params.get(provider);
+        var ok = status === 'connected';
+        var path = 'open-app/connect/' + provider + search;
+
+        if (!ok) {
+          document.getElementById('ok-card').hidden = true;
+          document.getElementById('error-card').hidden = false;
+          var reason = params.get('reason');
+          if (reason) {
+            document.getElementById('error-text').textContent =
+              'Garmin connection failed (' + reason + '). Try again from the Kale app.';
+          }
+        }
+
+        var appUrl = 'kale://' + path;
+        var isAndroid = /Android/i.test(navigator.userAgent);
+        var href = appUrl;
+        var pkg = params.get('package') || 'insure.kale.mobile';
+
+        if (isAndroid) {
+          href =
+            'intent://' +
+            path +
+            '#Intent;scheme=kale;package=' +
+            pkg +
+            ';S.browser_fallback_url=' +
+            encodeURIComponent(window.location.href) +
+            ';end';
+        }
+
+        var link = document.getElementById(ok ? 'open-app' : 'open-app-error');
+        link.href = href;
+      })();
+    </script>
+  </body>
+</html>

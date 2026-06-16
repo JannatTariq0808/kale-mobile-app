@@ -1,14 +1,22 @@
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, initializeAuth, type Auth, type Persistence } from 'firebase/auth';
+import { Platform } from 'react-native';
+import type { Auth, Persistence } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
 import { getFirebaseConfig, isFirebaseConfigured } from '../../config/firebase';
 
-function getReactNativePersistence(storage: typeof ReactNativeAsyncStorage): Persistence {
-  const { getReactNativePersistence: getPersistence } = require('firebase/auth') as {
-    getReactNativePersistence: (value: typeof ReactNativeAsyncStorage) => Persistence;
-  };
-  return getPersistence(storage);
+type AuthModule = typeof import('firebase/auth') & {
+  getReactNativePersistence: (storage: typeof ReactNativeAsyncStorage) => Persistence;
+};
+
+/** Metro must resolve firebase/auth to the RN bundle — see metro.config.js. */
+/** Used by auth/index.ts and hooks — same RN/browser bundle as getFirebaseAuth(). */
+export function loadAuthModule(): AuthModule {
+  if (Platform.OS === 'web') {
+    return require('firebase/auth') as AuthModule;
+  }
+
+  return require('@firebase/auth/dist/rn/index.js') as AuthModule;
 }
 
 let app: FirebaseApp | undefined;
@@ -31,6 +39,14 @@ export function getFirebaseApp(): FirebaseApp {
 }
 
 function createFirebaseAuth(app: FirebaseApp): Auth {
+  const authModule = loadAuthModule();
+  const { initializeAuth, getReactNativePersistence } = authModule;
+
+  if (Platform.OS === 'web') {
+    return initializeAuth(app, { persistence: authModule.browserLocalPersistence });
+  }
+
+  // AsyncStorage ≈ Flutter SharedPreferences — keeps the auth session across app restarts.
   return initializeAuth(app, {
     persistence: getReactNativePersistence(ReactNativeAsyncStorage),
   });
@@ -38,11 +54,17 @@ function createFirebaseAuth(app: FirebaseApp): Auth {
 
 export function getFirebaseAuth(): Auth {
   if (!auth) {
-    const app = getFirebaseApp();
+    const firebaseApp = getFirebaseApp();
+    const { getAuth } = loadAuthModule();
+
     try {
-      auth = createFirebaseAuth(app);
-    } catch {
-      auth = getAuth(app);
+      auth = createFirebaseAuth(firebaseApp);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes('already been initialized')) {
+        throw error;
+      }
+      auth = getAuth(firebaseApp);
     }
   }
 

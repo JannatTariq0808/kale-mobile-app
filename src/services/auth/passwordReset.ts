@@ -1,16 +1,16 @@
 import {
   confirmPasswordReset,
   createUserWithEmailAndPassword,
+  getFirebaseAuth,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
-  type ActionCodeSettings,
-} from 'firebase/auth';
+} from './index';
+import type { ActionCodeSettings } from 'firebase/auth';
 import {
   getAndroidPackageName,
   getAuthContinueUrl,
   getIosBundleId,
 } from '../../config/appVariant';
-import { getFirebaseAuth } from './firebaseApp';
 
 function passwordResetActionSettings(): ActionCodeSettings {
   return {

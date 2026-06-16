@@ -5,6 +5,10 @@
       {
         "appID": "DKQRH8FY75.insure.kale.mobile",
         "paths": [
+          "/open-app/reset-password",
+          "/open-app/reset-password/*",
+          "/open-app/connect",
+          "/open-app/connect/*",
           "/reset-password",
           "/reset-password/*",
           "/__/auth/*"
@@ -13,6 +17,10 @@
       {
         "appID": "DKQRH8FY75.insure.kale.mobile.staging",
         "paths": [
+          "/open-app/reset-password",
+          "/open-app/reset-password/*",
+          "/open-app/connect",
+          "/open-app/connect/*",
           "/reset-password",
           "/reset-password/*",
           "/__/auth/*"

@@ -5,9 +5,9 @@ import {
   type ParamListBase,
 } from '@react-navigation/native';
 import { InteractionManager } from 'react-native';
-import { signOut } from 'firebase/auth';
 import { isFirebaseConfigured } from '../../config/firebase';
-import { getFirebaseAuth } from './firebaseApp';
+import { markOnboardingComplete } from '../onboarding/onboardingState';
+import { getFirebaseAuth, signOut } from './index';
 
 /** Any navigation object from `useNavigation()` / screen props. */
 export type SessionNavigation = NavigationProp<ParamListBase>;
@@ -43,6 +43,11 @@ export function resetToWelcome(navigation: SessionNavigation): void {
 
 /** Enter the main app home screen after onboarding. */
 export function enterMainApp(navigation: SessionNavigation): void {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (uid) {
+    void markOnboardingComplete(uid);
+  }
+
   getRootNavigation(navigation).dispatch(
     CommonActions.reset({
       index: 0,

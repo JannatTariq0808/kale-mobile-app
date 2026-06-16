@@ -13,7 +13,7 @@ export function isStaging(): boolean {
 
 export function getAuthContinueUrl(): string {
   const fromConfig = Constants.expoConfig?.extra?.authContinueUrl as string | undefined;
-  return fromConfig ?? 'https://www.kale.insure/reset-password';
+  return fromConfig ?? 'https://www.kale.insure/open-app/reset-password';
 }
 
 export function getAndroidPackageName(): string {

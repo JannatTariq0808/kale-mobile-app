@@ -1,10 +1,15 @@
 import type { RootStackParamList } from './types';
 
-/** Cold start — main app (Longevity tab is the default home). */
-export const APP_INITIAL_STATE = {
-  index: 0,
-  routes: [{ name: 'Main' as const }],
-} satisfies {
+type RootNavState = {
   index: number;
   routes: { name: keyof RootStackParamList }[];
 };
+
+/** Pick the cold-start screen from the restored auth session. */
+export function getAppInitialState(isAuthenticated: boolean): RootNavState {
+  if (isAuthenticated) {
+    return { index: 0, routes: [{ name: 'Main' }] };
+  }
+
+  return { index: 0, routes: [{ name: 'Welcome' }] };
+}

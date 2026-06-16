@@ -22,28 +22,40 @@ import { KnowledgeResultScreen } from '../screens/result/KnowledgeResultScreen';
 import { CardioResultScreen } from '../screens/result/CardioResultScreen';
 import { StrengthResultScreen } from '../screens/result/StrengthResultScreen';
 import { lumen } from '../theme';
-import { APP_INITIAL_STATE } from './rootInitialState';
 import { rootStackScreenOptions } from './stackScreenOptions';
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export function RootNavigator() {
+type RootNavigatorProps = {
+  isAuthenticated: boolean;
+  initialAuthRoute: keyof RootStackParamList | null;
+};
+
+export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigatorProps) {
   const backdropAnimated = useContext(BackdropAnimatedContext);
+
+  const initialRouteName = isAuthenticated
+    ? (initialAuthRoute ?? 'ConnectTracker')
+    : 'Welcome';
 
   return (
     <View style={styles.root}>
       <LumenWelcomeBackground animated={backdropAnimated} />
       <Stack.Navigator
-        initialState={APP_INITIAL_STATE}
+        initialRouteName={initialRouteName}
         screenOptions={rootStackScreenOptions}
       >
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SignIn" component={SignInScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-        <Stack.Screen name="NewPassword" component={NewPasswordScreen} />
+        <Stack.Screen
+          name="NewPassword"
+          component={NewPasswordScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="ConnectTracker" component={ConnectTrackerScreen} />
         <Stack.Screen name="CardioAnalysing" component={CardioAnalysingScreen} />
         <Stack.Screen name="CardioResult" component={CardioResultScreen} />

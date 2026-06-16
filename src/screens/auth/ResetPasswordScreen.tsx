@@ -6,13 +6,13 @@ import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isFirebaseConfigured } from '../../config/firebase';
+import { LumenAuthScrollView } from '../../components/lumen/LumenAuthScrollView';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
@@ -22,6 +22,7 @@ import {
   requestPasswordResetEmail,
 } from '../../services/auth/passwordReset';
 import { lumen, sora, typography } from '../../theme';
+import { headlineTextStyle } from '../../theme/textMetrics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ResetPassword'>;
 
@@ -79,10 +80,9 @@ export function ResetPasswordScreen({ navigation }: Props) {
           <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
         </Pressable>
 
-        <ScrollView
+        <LumenAuthScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="always"
-          showsVerticalScrollIndicator={false}
+          bottomInset={insets.bottom}
         >
           <View style={styles.glyphMark}>
             <LumenGlyph color={lumen.green} height={26} />
@@ -125,7 +125,7 @@ export function ResetPasswordScreen({ navigation }: Props) {
           </LumenButton>
 
           {busy ? <ActivityIndicator color={lumen.lime} style={styles.loader} /> : null}
-        </ScrollView>
+        </LumenAuthScrollView>
       </View>
     </View>
   );
@@ -151,9 +151,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 6,
-    paddingBottom: 24,
+    paddingTop: 4,
   },
   glyphMark: {
     width: 52,
@@ -167,11 +165,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   headline: {
-    ...sora('extrabold'),
-    fontSize: typography.hero,
-    lineHeight: typography.hero,
+    ...headlineTextStyle(typography.hero, lumen.fg),
     letterSpacing: -1.3,
-    color: lumen.fg,
+    overflow: 'visible',
   },
   headlineAccent: {
     color: lumen.lime,

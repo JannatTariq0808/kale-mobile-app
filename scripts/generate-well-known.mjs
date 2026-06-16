@@ -74,7 +74,7 @@ function buildAppleAssociation(config) {
   for (const suffix of ['insure.kale.mobile', 'insure.kale.mobile.staging']) {
     details.push({
       appID: `${teamId}.${suffix}`,
-      paths: ['/reset-password', '/reset-password/*', '/__/auth/*'],
+      paths: ['/open-app/reset-password', '/open-app/reset-password/*', '/reset-password', '/reset-password/*', '/__/auth/*'],
     });
   }
 

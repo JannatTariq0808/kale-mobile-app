@@ -4,7 +4,16 @@ export type RootStackParamList = {
   SignUp: undefined;
   ResetPassword: undefined;
   NewPassword: { oobCode: string };
-  ConnectTracker: undefined;
+  ConnectTracker:
+    | {
+        errorMessage?: string;
+        errorReason?: string;
+        errorProvider?: 'strava' | 'garmin';
+        pendingToken?: string;
+        oauthProvider?: 'strava' | 'garmin';
+        oauthStatus?: 'connected' | 'error';
+      }
+    | undefined;
   CardioAnalysing: undefined;
   CardioResult: undefined;
   StrengthIntro: undefined;

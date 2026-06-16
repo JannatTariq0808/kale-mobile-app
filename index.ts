@@ -5,6 +5,7 @@ import { registerRootComponent } from 'expo';
 enableScreens(true);
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
+import './src/bootstrap/firebaseBootstrap';
 
 import App from './App';
 

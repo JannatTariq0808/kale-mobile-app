@@ -1,12 +1,9 @@
 // Design: kale-mobile-design — AuthPassword + in-app Firebase reset handler
 
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isFirebaseConfigured } from '../../config/firebase';
+import { LumenAuthScrollView } from '../../components/lumen/LumenAuthScrollView';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
@@ -23,6 +21,7 @@ import {
   mapFirebaseAuthError,
 } from '../../services/auth/passwordReset';
 import { lumen, sora, typography } from '../../theme';
+import { headlineTextStyle } from '../../theme/textMetrics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'NewPassword'>;
 
@@ -75,22 +74,12 @@ export function NewPasswordScreen({ navigation, route }: Props) {
       <View
         style={[
           styles.content,
-          { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 },
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 12 },
         ]}
       >
-        <Pressable
-          onPress={() => navigation.navigate('ResetPassword')}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
-        </Pressable>
-
-        <ScrollView
+        <LumenAuthScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="always"
-          showsVerticalScrollIndicator={false}
+          bottomInset={insets.bottom}
         >
           <View style={styles.glyphMark}>
             <LumenGlyph color={lumen.green} height={26} />
@@ -131,7 +120,7 @@ export function NewPasswordScreen({ navigation, route }: Props) {
           </LumenButton>
 
           {busy ? <ActivityIndicator color={lumen.lime} style={styles.loader} /> : null}
-        </ScrollView>
+        </LumenAuthScrollView>
       </View>
     </View>
   );
@@ -146,20 +135,9 @@ const styles = StyleSheet.create({
     flex: 1,
     zIndex: 2,
   },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 22,
-    marginLeft: -6,
-  },
-  backIcon: {
-    opacity: 0.85,
-  },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 30,
-    paddingTop: 6,
-    paddingBottom: 24,
+    paddingTop: 4,
   },
   glyphMark: {
     width: 52,
@@ -173,11 +151,9 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   headline: {
-    ...sora('extrabold'),
-    fontSize: typography.hero,
-    lineHeight: typography.hero,
+    ...headlineTextStyle(typography.hero, lumen.fg),
     letterSpacing: -1.3,
-    color: lumen.fg,
+    overflow: 'visible',
   },
   headlineAccent: {
     color: lumen.lime,

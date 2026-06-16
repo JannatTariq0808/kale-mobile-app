@@ -27,8 +27,8 @@ export function parsePasswordResetLink(url: string): PasswordResetLink | null {
   return null;
 }
 
+/** Universal links + custom scheme only — do not include Linking.createURL('/') (matches Expo Go exp:// URLs and forces Welcome). */
 export const AUTH_LINK_PREFIXES = [
-  Linking.createURL('/'),
   'kale://',
   'https://www.kale.insure',
   'https://kale.insure',
