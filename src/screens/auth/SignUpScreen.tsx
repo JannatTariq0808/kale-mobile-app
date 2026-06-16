@@ -265,7 +265,7 @@ export function SignUpScreen({ navigation }: Props) {
         weight: parsePositiveNumber(weight),
         weightUnit,
       });
-      navigation.replace('ConnectTracker');
+      // Post-sign-up routing is handled by useInitialAuthRoute + useAuthNavigationSync.
     } catch (err) {
       Keyboard.dismiss();
       revealValidationErrors();

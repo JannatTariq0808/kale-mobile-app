@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import type { RootStackParamList } from '../navigation/types';
-import { isOnboardingCompleteForUser } from '../services/onboarding/onboardingState';
+import { resolvePostAuthRoute } from '../services/onboarding/resolvePostAuthRoute';
 import type { User } from 'firebase/auth';
 
 type InitialAuthRoute = keyof RootStackParamList | null;
 
 /**
- * Where authenticated users should land: Main (returning) or ConnectTracker (onboarding).
+ * Where authenticated users should land: Main (returning), CardioResult (assessed),
+ * or ConnectTracker (onboarding).
  */
 export function useInitialAuthRoute(
   user: User | null,
@@ -27,9 +28,12 @@ export function useInitialAuthRoute(
 
     let cancelled = false;
 
-    void isOnboardingCompleteForUser(user.uid).then((complete) => {
+    void resolvePostAuthRoute(user.uid).then((next) => {
       if (cancelled) return;
-      setRoute(complete ? 'Main' : 'ConnectTracker');
+      if (__DEV__) {
+        console.log('[auth] initial route:', next);
+      }
+      setRoute(next);
     });
 
     return () => {

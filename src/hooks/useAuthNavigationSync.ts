@@ -1,11 +1,25 @@
+import { CommonActions } from '@react-navigation/native';
 import { useEffect, type RefObject } from 'react';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
-import { isOnboardingCompleteForUser } from '../services/onboarding/onboardingState';
-import { enterMainApp } from '../services/auth/session';
+import { resolvePostAuthRoute } from '../services/onboarding/resolvePostAuthRoute';
 import type { User } from 'firebase/auth';
 
-/** If auth restores while still on Welcome, route to onboarding or Main. */
+const AUTH_ENTRY_SCREENS = new Set<keyof RootStackParamList>(['Welcome', 'SignIn', 'SignUp']);
+
+function resetToRoute(
+  nav: NavigationContainerRef<RootStackParamList>,
+  name: keyof RootStackParamList,
+) {
+  nav.dispatch(
+    CommonActions.reset({
+      index: 0,
+      routes: [{ name }],
+    }),
+  );
+}
+
+/** Route authenticated users off auth entry screens (Welcome, SignIn, SignUp). */
 export function useAuthNavigationSync(
   navigationRef: RefObject<NavigationContainerRef<RootStackParamList> | null>,
   user: User | null,
@@ -19,18 +33,17 @@ export function useAuthNavigationSync(
     if (!nav?.isReady()) return;
 
     const route = nav.getRootState()?.routes[nav.getRootState().index]?.name;
-    if (route !== 'Welcome') return;
+    if (!route || !AUTH_ENTRY_SCREENS.has(route)) return;
 
-    void isOnboardingCompleteForUser(user.uid).then((complete) => {
+    void resolvePostAuthRoute(user.uid).then((target) => {
       if (!nav.isReady()) return;
       const current = nav.getRootState()?.routes[nav.getRootState().index]?.name;
-      if (current !== 'Welcome') return;
+      if (!current || !AUTH_ENTRY_SCREENS.has(current)) return;
 
-      if (complete) {
-        enterMainApp(nav);
-      } else {
-        nav.navigate('ConnectTracker');
+      if (__DEV__) {
+        console.log('[auth] sync route:', current, '→', target);
       }
+      resetToRoute(nav, target);
     });
   }, [navigationReady, navigationRef, sessionReady, user?.uid]);
 }

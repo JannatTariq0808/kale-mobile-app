@@ -74,7 +74,8 @@ export function SignInScreen({ navigation }: Props) {
     setBusy(true);
     try {
       await signInWithEmail(email, password);
-      navigation.navigate('ConnectTracker');
+      // Post-login routing is handled by useInitialAuthRoute + useAuthNavigationSync
+      // when the authenticated NavigationContainer remounts.
     } catch (err) {
       Keyboard.dismiss();
       setAuthError(mapFirebaseAuthError(err));
