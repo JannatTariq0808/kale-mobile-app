@@ -1,3 +1,6 @@
+import type { KnowledgeAssessmentMeta, QuestionSetQuestion } from '../types/questionSet';
+import type { PlankAnalysisResult, PlankPoseSessionStats } from '../types/plankRecording';
+
 export type RootStackParamList = {
   Welcome: undefined;
   SignIn: undefined;
@@ -17,12 +20,39 @@ export type RootStackParamList = {
   CardioAnalysing: undefined;
   CardioResult: undefined;
   StrengthIntro: undefined;
-  StrengthAnalysing: { videoUri: string };
-  StrengthResult: undefined;
+  StrengthRecord: undefined;
+  StrengthAnalysing: {
+    videoUri: string;
+    recordedDurationSec: number;
+    poseStats?: PlankPoseSessionStats;
+  };
+  StrengthResult: {
+    analysis: PlankAnalysisResult;
+    videoUri: string;
+    strengthAssessmentId?: string;
+    elapsed_time: number;
+    level: number;
+  };
   KnowledgeIntro: undefined;
-  KnowledgeQuiz: undefined;
-  KnowledgeAnalysing: undefined;
-  KnowledgeResult: undefined;
+  KnowledgeQuiz: {
+    setId: string;
+    questions: QuestionSetQuestion[];
+    meta: KnowledgeAssessmentMeta;
+    assessmentId: string;
+    startIndex?: number;
+  };
+  KnowledgeAnalysing: {
+    assessmentId: string;
+    setId: string;
+    totalQuestions: number;
+    meta: KnowledgeAssessmentMeta;
+  };
+  KnowledgeResult: {
+    assessmentId: string;
+    setId: string;
+    totalQuestions: number;
+    meta: KnowledgeAssessmentMeta;
+  };
   LevelReveal: undefined;
   HealthYears: undefined;
   FirstCycleRewards: undefined;

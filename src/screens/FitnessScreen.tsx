@@ -1,7 +1,9 @@
 // Design: lum-13 KaleFitnessCardioLumen + nu-2 filter tabs (screens/KaleLumenApp.jsx, KaleApp.jsx)
 
 import { useMemo, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { ActivityLogFilters } from '../components/fitness/ActivityLogFilters';
 import { ActivityLogList } from '../components/fitness/ActivityLogList';
@@ -22,7 +24,8 @@ import {
   type SportFilter,
 } from '../data/fitnessDemo';
 import { homeDemo } from '../data/homeDemo';
-import { lumen } from '../theme';
+import type { RootStackParamList } from '../navigation/types';
+import { lumen, sora } from '../theme';
 
 function ActivityLogPanel() {
   const [sportFilter, setSportFilter] = useState<SportFilter>('All sports');
@@ -52,6 +55,7 @@ function ActivityLogPanel() {
 }
 
 export function FitnessScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [pillar, setPillar] = useState<FitnessPillar>('cardio');
   const [subTab, setSubTab] = useState<FitnessSubTab>('log');
 
@@ -73,6 +77,15 @@ export function FitnessScreen() {
       <LumenHeader />
 
       <ScreenScroll contentContainerStyle={styles.scrollContent}>
+        {__DEV__ ? (
+          <Pressable
+            style={styles.devLink}
+            onPress={() => navigation.navigate('KnowledgeIntro')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.devText}>Dev: Knowledge quiz</Text>
+          </Pressable>
+        ) : null}
         <FitnessShell
           pillar={pillar}
           subTab={subTab}
@@ -99,5 +112,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 8,
+  },
+  devLink: {
+    alignSelf: 'center',
+    marginBottom: 8,
+    padding: 4,
+  },
+  devText: {
+    ...sora('semibold'),
+    fontSize: 12,
+    color: 'rgba(234,243,228,0.35)',
   },
 });

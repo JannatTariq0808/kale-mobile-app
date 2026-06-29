@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Kale App — iPhone Setup (Expo Go)</title>
+<style>
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; font-size: 14pt; line-height: 1.4; max-width: 7in; margin: 0.75in 0.75in 0.75in 1.5in; padding-left: 0.4in; color: #111; }
+  h1 { font-size: 22pt; margin-bottom: 0.25in; }
+  h2 { font-size: 16pt; margin-top: 0.35in; margin-bottom: 0.1in; }
+  ol, ul { margin: 0.1in 0 0.2in 0; padding-left: 0.35in; }
+  li { margin-bottom: 0.08in; }
+  code { font-family: Menlo, Monaco, monospace; font-size: 12pt; background: #f4f4f4; padding: 1px 4px; }
+  pre { font-family: Menlo, Monaco, monospace; font-size: 11pt; background: #f4f4f4; padding: 10px; }
+  .note { font-size: 12pt; color: #444; }
+</style>
+</head>
+<body>
+
+<h1>Kale App — iPhone Setup (Expo Go)</h1>
+
+<h2>You need</h2>
+<ul>
+  <li>Mac + iPhone on the <strong>same Wi‑Fi</strong></li>
+  <li><strong>Expo Go</strong> from the App Store</li>
+  <li><strong>Node.js</strong> from <a href="https://nodejs.org">nodejs.org</a> (LTS)</li>
+  <li><strong>GitHub access</strong> to the Kale repo (Kale will invite you)</li>
+  <li>A <strong>.env.local</strong> file from Kale (do not share it)</li>
+</ul>
+
+<h2>One-time setup (Mac)</h2>
+<ol>
+  <li>Install Node.js from nodejs.org</li>
+  <li>Open <strong>Terminal</strong></li>
+  <li>Clone the repo from GitHub:<br>
+    <pre>cd ~/Downloads
+git clone https://github.com/JannatTariq0808/kale-mobile-app.git
+cd kale-mobile-app</pre>
+    <span class="note">If asked to sign in to GitHub, use your GitHub account.</span>
+  </li>
+  <li>Install dependencies:<br>
+    <pre>npm install</pre>
+  </li>
+  <li>Put <code>.env.local</code> in the <code>kale-mobile-app</code> folder (from Kale)</li>
+</ol>
+
+<h2>Run the app (each time)</h2>
+<ol>
+  <li>In Terminal:<br>
+    <pre>cd ~/Downloads/kale-mobile-app
+npm run start:go</pre>
+  </li>
+  <li>A QR code appears on your Mac</li>
+  <li>On iPhone: open <strong>Camera</strong> → scan QR → open in <strong>Expo Go</strong><br>
+    <span class="note">Or open Expo Go → Scan QR code</span>
+  </li>
+  <li>Keep Terminal open while testing</li>
+</ol>
+
+<h2>Get latest code (optional)</h2>
+<ol>
+  <li>In Terminal:<br>
+    <pre>cd ~/Downloads/kale-mobile-app
+git pull
+npm install</pre>
+  </li>
+</ol>
+
+<h2>If it won’t load</h2>
+<ol>
+  <li>Same Wi‑Fi on Mac and iPhone</li>
+  <li>Restart with cache clear:<br>
+    <pre>npm run start:go -- --clear</pre>
+  </li>
+  <li>Try tunnel mode:<br>
+    <pre>npx expo start --tunnel</pre>
+    Then scan the new QR code
+  </li>
+  <li>Update Expo Go in the App Store</li>
+</ol>
+
+<h2>Important</h2>
+<ul>
+  <li>Use <code>npm run start:go</code> — not <code>npm start</code></li>
+  <li>Do not share <code>.env.local</code></li>
+</ul>
+
+</body>
+</html>

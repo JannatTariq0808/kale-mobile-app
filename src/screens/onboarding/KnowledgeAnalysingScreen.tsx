@@ -7,24 +7,59 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { ResultLoaderRing } from '../../components/lumen/ResultLoaderRing';
 import type { RootStackParamList } from '../../navigation/types';
+import { resetToKnowledgeResult } from '../../navigation/knowledgeFlow';
+import { fetchKnowledgeAssessmentById } from '../../services/knowledge/knowledgeAssessmentSession';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
+import { calculateKnowledgeLevel, knowledgeAnalysingSubhead } from '../../utils/knowledgeLevel';
 import { lumen } from '../../theme';
 
 const ANALYSIS_DURATION_MS = 4500;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeAnalysing'>;
 
-export function KnowledgeAnalysingScreen({ navigation }: Props) {
+export function KnowledgeAnalysingScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
+  const { assessmentId, setId, totalQuestions, meta } = route.params;
   const headlineSize = 28;
   const subheadSize = 15;
+  const subhead = knowledgeAnalysingSubhead(meta);
 
   useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const assessment = await fetchKnowledgeAssessmentById(assessmentId);
+      if (cancelled || !assessment) return;
+
+      const level = calculateKnowledgeLevel(
+        assessment.correct_responses,
+        totalQuestions,
+      );
+
+      if (__DEV__) {
+        console.log('[knowledge] analysed', {
+          assessmentId,
+          correct: assessment.correct_responses,
+          total: totalQuestions,
+          level,
+        });
+      }
+    })();
+
     const timer = setTimeout(() => {
-      navigation.replace('KnowledgeResult');
+      resetToKnowledgeResult(navigation, {
+        assessmentId,
+        setId,
+        totalQuestions,
+        meta,
+      });
     }, ANALYSIS_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [navigation]);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [assessmentId, meta, navigation, setId, totalQuestions]);
 
   return (
     <View style={styles.screen}>
@@ -52,7 +87,7 @@ export function KnowledgeAnalysingScreen({ navigation }: Props) {
               { marginTop: 12, textAlign: 'center' },
             ]}
           >
-            Scoring your quiz across all five topics.
+            {subhead}
           </Text>
         </View>
         <View style={styles.footer}>

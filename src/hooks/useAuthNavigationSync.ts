@@ -3,6 +3,8 @@ import { useEffect, type RefObject } from 'react';
 import type { NavigationContainerRef } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/types';
 import { resolvePostAuthRoute } from '../services/onboarding/resolvePostAuthRoute';
+import { signOutUser } from '../services/auth/session';
+import { fetchUserProfile } from '../services/user/userProfile';
 import type { User } from 'firebase/auth';
 
 const AUTH_ENTRY_SCREENS = new Set<keyof RootStackParamList>(['Welcome', 'SignIn', 'SignUp']);
@@ -35,15 +37,26 @@ export function useAuthNavigationSync(
     const route = nav.getRootState()?.routes[nav.getRootState().index]?.name;
     if (!route || !AUTH_ENTRY_SCREENS.has(route)) return;
 
-    void resolvePostAuthRoute(user.uid).then((target) => {
+    void (async () => {
+      const profile = await fetchUserProfile(user.uid);
       if (!nav.isReady()) return;
       const current = nav.getRootState()?.routes[nav.getRootState().index]?.name;
       if (!current || !AUTH_ENTRY_SCREENS.has(current)) return;
+
+      if (!profile.policyHolder) {
+        await signOutUser();
+        return;
+      }
+
+      const target = await resolvePostAuthRoute(user.uid, profile);
+      if (!nav.isReady()) return;
+      const latest = nav.getRootState()?.routes[nav.getRootState().index]?.name;
+      if (!latest || !AUTH_ENTRY_SCREENS.has(latest)) return;
 
       if (__DEV__) {
         console.log('[auth] sync route:', current, '→', target);
       }
       resetToRoute(nav, target);
-    });
+    })();
   }, [navigationReady, navigationRef, sessionReady, user?.uid]);
 }

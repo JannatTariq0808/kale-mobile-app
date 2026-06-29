@@ -1,7 +1,9 @@
 import { doc, getDoc } from 'firebase/firestore';
 import type { RootStackParamList } from '../../navigation/types';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
-import { clearOnboardingComplete, isOnboardingCompleteForUser } from './onboardingState';
+import type { UserProfile } from '../user/userProfile';
+import { fetchUserProfile } from '../user/userProfile';
+import { isOnboardingCompleteForUser } from './onboardingState';
 
 type PostAuthRoute = keyof RootStackParamList;
 
@@ -19,24 +21,29 @@ async function fetchCardioAssessmentStatus(uid: string): Promise<string | null> 
   }
 }
 
-/** Where an authenticated user should land after login or cold start. */
-export async function resolvePostAuthRoute(uid: string): Promise<PostAuthRoute> {
-  const cardioStatus = await fetchCardioAssessmentStatus(uid);
+/**
+ * Where an authenticated policy holder should land after login or cold start.
+ * ConnectTracker is only for later assessments — not the first mobile login.
+ */
+export async function resolvePostAuthRoute(
+  uid: string,
+  profile?: UserProfile,
+): Promise<PostAuthRoute> {
+  const userProfile = profile ?? (await fetchUserProfile(uid));
 
-  // Cardio not finished — always start at connect (ignore stale local onboarding flag).
-  if (cardioStatus !== 'level_assigned') {
-    if (await isOnboardingCompleteForUser(uid)) {
-      await clearOnboardingComplete();
-      if (__DEV__) {
-        console.log('[auth] cleared stale onboarding flag — cardio not complete');
-      }
-    }
-    return 'ConnectTracker';
+  if (userProfile.firstTimeLogin) {
+    return 'CardioAnalysing';
   }
 
   if (await isOnboardingCompleteForUser(uid)) {
     return 'Main';
   }
 
-  return 'CardioResult';
+  const cardioStatus = await fetchCardioAssessmentStatus(uid);
+
+  if (cardioStatus === 'level_assigned') {
+    return 'CardioResult';
+  }
+
+  return 'ConnectTracker';
 }

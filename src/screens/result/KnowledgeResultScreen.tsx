@@ -1,40 +1,81 @@
 // Design: kale-mobile-design — lum-08 KaleKnowledgeResultLumen (screens/KaleLumenResults.jsx)
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { LumenResultView } from '../../components/lumen/LumenResultView';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { LumenResultView, type LumenResultConfig } from '../../components/lumen/LumenResultView';
 import type { RootStackParamList } from '../../navigation/types';
+import { useAuthSession } from '../../hooks/useAuthSession';
+import {
+  fetchKnowledgeAssessmentById,
+  fetchPreviousCompletedKnowledgeLevel,
+} from '../../services/knowledge/knowledgeAssessmentSession';
+import { buildKnowledgeResultConfig } from '../../utils/knowledgeLevel';
+import { lumen } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeResult'>;
 
-export function KnowledgeResultScreen({ navigation }: Props) {
+export function KnowledgeResultScreen({ navigation, route }: Props) {
+  const { user } = useAuthSession();
+  const { assessmentId, totalQuestions, meta } = route.params;
+  const [config, setConfig] = useState<LumenResultConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const assessment = await fetchKnowledgeAssessmentById(assessmentId);
+      if (cancelled || !assessment) return;
+
+      const previousLevel = user?.uid
+        ? await fetchPreviousCompletedKnowledgeLevel(user.uid, assessmentId)
+        : null;
+
+      if (cancelled) return;
+
+      setConfig(
+        buildKnowledgeResultConfig({
+          correctCount: assessment.correct_responses,
+          totalQuestions,
+          meta,
+          previousLevel,
+        }),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [assessmentId, meta, totalQuestions, user?.uid]);
+
+  if (!config) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={lumen.lime} size="large" />
+      </View>
+    );
+  }
+
   return (
     <LumenResultView
-      config={{
-        pillar: 'knowledge',
-        pillarLabel: 'Knowledge',
-        level: 7,
-        trend: 'down',
-        trendDelta: -1,
-        levelNote: 'Down from Level 8 last cycle.',
-        percentile: 68,
-        rpText: 'Ahead of 68% of Kale members.',
-        resultHero: '16/20',
-        resultLabel: 'Quiz score — General longevity.',
-        tiles: [
-          { label: 'Accuracy', value: '80', unit: '%' },
-          { label: 'Strongest', value: 'Exercise', unit: 'science' },
-          { label: 'Focus', value: 'Nutrition' },
-        ],
-        nextLevel: 8,
-        nextActions: [
-          'Score 18/20 next quarter',
-          'Brush up on nutrition basics',
-          'Read the weekly longevity briefs',
-        ],
-        nextBtn: 'See your Longevity Level',
+      config={config}
+      onBack={() => {
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+          return;
+        }
+        navigation.replace('LevelReveal');
       }}
-      onBack={() => navigation.goBack()}
       onNext={() => navigation.replace('LevelReveal')}
     />
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+});

@@ -2,11 +2,25 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
+import {
+  buildKnowledgeAssessmentMeta,
+  formatKnowledgeQuestionCount,
+  formatKnowledgeQuizDuration,
+  KNOWLEDGE_SECONDS_PER_QUESTION,
+  resolveKnowledgeSetId,
+} from '../../config/knowledgeAssessment';
+import { useAuthSession } from '../../hooks/useAuthSession';
+import { useKnowledgeSession } from '../../hooks/useKnowledgeSession';
+import { useQuestionSet } from '../../hooks/useQuestionSet';
 import type { RootStackParamList } from '../../navigation/types';
+import { resetToKnowledgeResult } from '../../navigation/knowledgeFlow';
+import { ensureKnowledgeAssessment } from '../../services/knowledge/knowledgeAssessmentSession';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeIntro'>;
@@ -30,10 +44,98 @@ function TopicMeta({ label }: { label: string }) {
 
 export function KnowledgeIntroScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
+  const [starting, setStarting] = useState(false);
+  const setId = useMemo(() => resolveKnowledgeSetId(), []);
+  const meta = useMemo(() => buildKnowledgeAssessmentMeta(setId), [setId]);
+  const { questions, loading, error } = useQuestionSet(setId);
+  const { assessment, loading: sessionLoading } = useKnowledgeSession(user?.uid, setId);
 
-  const handleStartQuiz = () => {
-    navigation.navigate('KnowledgeQuiz');
+  const questionCountLabel = formatKnowledgeQuestionCount(questions.length);
+  const durationLabel = formatKnowledgeQuizDuration(
+    questions.length,
+    KNOWLEDGE_SECONDS_PER_QUESTION,
+  );
+
+  const answeredCount = assessment?.responses.length ?? 0;
+  const canResume =
+    assessment != null &&
+    !assessment.is_completed &&
+    answeredCount > 0 &&
+    answeredCount < questions.length;
+  const isCompleted = assessment?.is_completed === true;
+
+  const openCompletedFlow = useCallback(() => {
+    if (!assessment || questions.length === 0) return;
+    resetToKnowledgeResult(navigation, {
+      assessmentId: assessment.id,
+      setId,
+      totalQuestions: questions.length,
+      meta,
+    });
+  }, [assessment, meta, navigation, questions.length, setId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (loading || sessionLoading || !isCompleted) return;
+      openCompletedFlow();
+    }, [isCompleted, loading, openCompletedFlow, sessionLoading]),
+  );
+
+  const openQuiz = async () => {
+    if (questions.length === 0 || starting) return;
+
+    if (!user?.uid) {
+      return;
+    }
+
+    setStarting(true);
+    try {
+      const assessmentId = await ensureKnowledgeAssessment(user.uid, setId, assessment?.id);
+
+      if (!assessmentId) {
+        if (__DEV__) {
+          console.warn('[knowledge] could not create assessment — check Firestore rules');
+        }
+        return;
+      }
+
+      const latest = assessment?.id === assessmentId ? assessment : null;
+
+      navigation.navigate('KnowledgeQuiz', {
+        setId,
+        questions,
+        meta,
+        assessmentId,
+        startIndex: latest && !latest.is_completed ? latest.responses.length : 0,
+      });
+    } finally {
+      setStarting(false);
+    }
   };
+
+  const handlePrimaryPress = () => {
+    if (isCompleted) {
+      openCompletedFlow();
+      return;
+    }
+    void openQuiz();
+  };
+
+  const primaryLabel = (() => {
+    if (starting) return 'Opening…';
+    if (isCompleted) return 'View results';
+    if (canResume) return `Resume quiz (${answeredCount}/${questions.length})`;
+    return questions.length === 0 ? 'No questions yet' : user?.uid ? 'Start quiz' : 'Log in to start quiz';
+  })();
+
+  if (isCompleted && assessment && questions.length > 0 && !loading && !sessionLoading) {
+    return (
+      <View style={[styles.screen, styles.redirecting]}>
+        <ActivityIndicator color={lumen.lime} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -63,33 +165,52 @@ export function KnowledgeIntroScreen({ navigation }: Props) {
             Quick <Text style={styles.headlineAccent}>knowledge</Text> check.
           </Text>
           <Text style={styles.subhead}>
-            One topic per quarter. Today we cover the basics — and build from there.
+            {meta.isOnboarding
+              ? 'One topic per quarter. Today we cover the basics — and build from there.'
+              : `This quarter covers ${meta.title.toLowerCase()} — answer every question within ${KNOWLEDGE_SECONDS_PER_QUESTION} seconds.`}
           </Text>
 
           <View style={styles.topicSection}>
-            <Text style={styles.topicEyebrow}>Onboarding</Text>
-            <Text style={styles.topicTitle}>General longevity</Text>
-            <Text style={styles.topicBody}>
-              Lifespan vs healthspan, the science of VO₂max, and why training fights ageing.
-            </Text>
+            <Text style={styles.topicEyebrow}>{meta.eyebrow}</Text>
+            <Text style={styles.topicTitle}>{meta.title}</Text>
+            <Text style={styles.topicBody}>{meta.body}</Text>
             <View style={styles.metaRow}>
-              <TopicMeta label="20 questions" />
-              <TopicMeta label="~5 min" />
+              <TopicMeta label={loading ? 'Loading…' : questionCountLabel} />
+              <TopicMeta label={loading ? '…' : durationLabel} />
             </View>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {canResume ? (
+              <Text style={styles.resumeNote}>Your progress is saved — pick up where you left off.</Text>
+            ) : null}
+            {isCompleted ? (
+              <Text style={styles.resumeNote}>
+                Quiz complete — {assessment?.correct_responses ?? 0} correct.
+              </Text>
+            ) : null}
           </View>
 
-          <Text style={styles.futureTitle}>Coming in future quarters</Text>
-          <View style={styles.futureTags}>
-            {FUTURE_TOPICS.map((topic) => (
-              <View key={topic} style={styles.futureTag}>
-                <Text style={styles.futureTagText}>{topic}</Text>
+          {meta.isOnboarding ? (
+            <>
+              <Text style={styles.futureTitle}>Coming in future quarters</Text>
+              <View style={styles.futureTags}>
+                {FUTURE_TOPICS.map((topic) => (
+                  <View key={topic} style={styles.futureTag}>
+                    <Text style={styles.futureTagText}>{topic}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          ) : null}
         </ScrollView>
 
         <View style={styles.footer}>
-          <LumenButton onPress={handleStartQuiz}>Start quiz</LumenButton>
+          {loading || sessionLoading ? (
+            <ActivityIndicator color={lumen.lime} />
+          ) : (
+            <LumenButton onPress={handlePrimaryPress}>
+              {primaryLabel}
+            </LumenButton>
+          )}
         </View>
       </View>
     </View>
@@ -100,6 +221,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  redirecting: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   flex: {
     flex: 1,
@@ -194,6 +319,20 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: lumen.fg,
   },
+  errorText: {
+    ...sora('semibold'),
+    marginTop: 12,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: lumen.coral,
+  },
+  resumeNote: {
+    ...sora('semibold'),
+    marginTop: 12,
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: lumenPillar.knowledge,
+  },
   futureTitle: {
     ...sora('bold'),
     marginTop: 22,
@@ -224,5 +363,8 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 28,
     paddingBottom: 24,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

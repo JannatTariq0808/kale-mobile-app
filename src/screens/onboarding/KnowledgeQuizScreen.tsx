@@ -2,13 +2,28 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QuizAdvanceBar } from '../../components/lumen/QuizAdvanceBar';
-import { KNOWLEDGE_QUIZ_QUESTIONS } from '../../data/knowledgeQuizQuestions';
+import { QuizQuestionTimer } from '../../components/lumen/QuizQuestionTimer';
+import { KNOWLEDGE_SECONDS_PER_QUESTION } from '../../config/knowledgeAssessment';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
+import { resetToKnowledgeAnalysing } from '../../navigation/knowledgeFlow';
+import {
+  appendKnowledgeResponse,
+  ensureKnowledgeAssessment,
+  fetchKnowledgeAssessmentById,
+} from '../../services/knowledge/knowledgeAssessmentSession';
+import type { KnowledgeResponse } from '../../types/knowledgeAssessment';
+import type { QuestionSetQuestion } from '../../types/questionSet';
 import { lumen, lumenPillar, sora } from '../../theme';
+import {
+  getExplanationCorrect,
+  getExplanationWrong,
+  toQuizOptions,
+} from '../../utils/questionSetQuiz';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeQuiz'>;
 
@@ -80,50 +95,171 @@ function OptionTile({ letter, text, highlight, disabled, onPress }: OptionTilePr
   );
 }
 
-export function KnowledgeQuizScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const total = KNOWLEDGE_QUIZ_QUESTIONS.length;
+function revealSelection(
+  question: QuestionSetQuestion,
+  index: number,
+): { selectedIndex: number; wasCorrect: boolean } {
+  return {
+    selectedIndex: index,
+    wasCorrect: index === question.correct,
+  };
+}
 
-  const [questionIndex, setQuestionIndex] = useState(0);
+export function KnowledgeQuizScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
+  const { questions, assessmentId: initialAssessmentId, setId, meta, startIndex = 0 } = route.params;
+  const total = questions.length;
+
+  const [activeAssessmentId, setActiveAssessmentId] = useState(initialAssessmentId);
+  const [responses, setResponses] = useState<KnowledgeResponse[]>([]);
+  const responsesRef = useRef<KnowledgeResponse[]>([]);
+  const [questionIndex, setQuestionIndex] = useState(startIndex);
   const [phase, setPhase] = useState<Phase>('answering');
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [wasCorrect, setWasCorrect] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const savingRef = useRef(false);
+  const assessmentIdRef = useRef(initialAssessmentId);
 
-  const question = KNOWLEDGE_QUIZ_QUESTIONS[questionIndex];
+  useEffect(() => {
+    responsesRef.current = responses;
+  }, [responses]);
+
+  useEffect(() => {
+    assessmentIdRef.current = activeAssessmentId;
+  }, [activeAssessmentId]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let cancelled = false;
+
+    void (async () => {
+      const ensuredId = await ensureKnowledgeAssessment(
+        user.uid,
+        setId,
+        assessmentIdRef.current,
+      );
+      if (cancelled || !ensuredId) return;
+
+      setActiveAssessmentId(ensuredId);
+      assessmentIdRef.current = ensuredId;
+
+      const assessment = await fetchKnowledgeAssessmentById(ensuredId);
+      if (cancelled || !assessment) return;
+
+      setResponses(assessment.responses);
+      responsesRef.current = assessment.responses;
+      setQuestionIndex(assessment.responses.length);
+
+      if (assessment.is_completed && total > 0) {
+        resetToKnowledgeAnalysing(navigation, {
+          assessmentId: ensuredId,
+          setId,
+          totalQuestions: total,
+          meta,
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [meta, navigation, setId, total, user?.uid]);
+
+  const question = questions[questionIndex];
+  const quizOptions = toQuizOptions(question.options);
   const progressPct = ((questionIndex + (phase === 'revealed' ? 1 : 0)) / total) * 100;
   const feedbackTone: 'correct' | 'wrong' = wasCorrect ? 'correct' : 'wrong';
   const explanationAccent = wasCorrect ? lumen.green : lumen.coral;
 
   const advance = useCallback(() => {
     if (questionIndex >= total - 1) {
-      navigation.replace('KnowledgeAnalysing');
+      resetToKnowledgeAnalysing(navigation, {
+        assessmentId: assessmentIdRef.current,
+        setId,
+        totalQuestions: total,
+        meta,
+      });
       return;
     }
     setQuestionIndex((i) => i + 1);
     setPhase('answering');
     setSelectedIndex(null);
     setWasCorrect(false);
-  }, [navigation, questionIndex, total]);
+    setTimedOut(false);
+  }, [meta, navigation, questionIndex, setId, total]);
+
+  const revealAnswer = useCallback(
+    async (index: number, fromTimeout = false) => {
+      if (phase !== 'answering' || !question) return;
+      if (responsesRef.current.some((item) => item.questionId === question.id)) return;
+      if (savingRef.current) return;
+
+      const selection = revealSelection(question, index);
+      setSelectedIndex(selection.selectedIndex);
+      setWasCorrect(selection.wasCorrect);
+      setTimedOut(fromTimeout && !selection.wasCorrect);
+      setPhase('revealed');
+
+      if (!user?.uid) return;
+
+      savingRef.current = true;
+      try {
+        const saved = await appendKnowledgeResponse(
+          user.uid,
+          setId,
+          assessmentIdRef.current,
+          { question, selectedIndex: selection.selectedIndex },
+          total,
+          responsesRef.current,
+        );
+        if (saved) {
+          setActiveAssessmentId(saved.assessmentId);
+          assessmentIdRef.current = saved.assessmentId;
+          setResponses(saved.assessment.responses);
+          responsesRef.current = saved.assessment.responses;
+        } else if (__DEV__) {
+          console.warn('[knowledge] save failed — check Firestore rules for knowledge collection');
+        }
+      } finally {
+        savingRef.current = false;
+      }
+    },
+    [phase, question, setId, total, user?.uid],
+  );
 
   const handleSelect = (index: number) => {
-    if (phase !== 'answering') return;
-    const correct = index === question.correctIndex;
-    setSelectedIndex(index);
-    setWasCorrect(correct);
-    setPhase('revealed');
+    void revealAnswer(index);
   };
 
+  const handleTimeout = useCallback(() => {
+    if (phase !== 'answering') return;
+    void revealAnswer(-1, true);
+  }, [phase, revealAnswer]);
+
   const getOptionHighlight = (index: number): 'correct' | 'wrong' | null => {
-    if (phase !== 'revealed' || selectedIndex === null) return null;
+    if (phase !== 'revealed' || selectedIndex === null) {
+      if (phase === 'revealed' && timedOut) {
+        const isCorrect = index === question.correct;
+        return isCorrect ? 'correct' : null;
+      }
+      return null;
+    }
 
     const isPicked = selectedIndex === index;
-    const isCorrect = index === question.correctIndex;
+    const isCorrect = index === question.correct;
 
     if (isPicked && isCorrect) return 'correct';
     if (isPicked && !isCorrect) return 'wrong';
     if (!isPicked && isCorrect && !wasCorrect) return 'correct';
     return null;
   };
+
+  if (!question) {
+    return null;
+  }
 
   return (
     <View style={styles.screen}>
@@ -138,13 +274,13 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
             <Text style={styles.progressLabel}>
               QUESTION {questionIndex + 1} / {total}
             </Text>
-            <Pressable
-              onPress={() => navigation.goBack()}
-              accessibilityRole="button"
-              accessibilityLabel="End quiz"
-            >
-              <Text style={styles.endQuiz}>End quiz</Text>
-            </Pressable>
+            <QuizQuestionTimer
+              key={`${question.id}-${questionIndex}`}
+              seconds={KNOWLEDGE_SECONDS_PER_QUESTION}
+              active={phase === 'answering'}
+              questionKey={question.id}
+              onExpire={handleTimeout}
+            />
           </View>
           <View style={styles.progressTrack}>
             <View
@@ -161,12 +297,12 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.prompt}>{question.prompt}</Text>
+          <Text style={styles.prompt}>{question.text}</Text>
 
           <View style={styles.options}>
-            {question.options.map((option, index) => (
+            {quizOptions.map((option, index) => (
               <OptionTile
-                key={option.letter}
+                key={`${question.id}-${option.letter}`}
                 letter={option.letter}
                 text={option.text}
                 highlight={getOptionHighlight(index)}
@@ -181,17 +317,17 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
               <View style={[styles.explanationRule, { backgroundColor: explanationAccent }]} />
               <View style={styles.explanationCopy}>
                 <Text style={[styles.explanationTitle, { color: explanationAccent }]}>
-                  {wasCorrect ? 'Exactly right.' : 'Not quite.'}
+                  {wasCorrect ? 'Exactly right.' : timedOut ? "Time's up." : 'Not quite.'}
                 </Text>
                 {wasCorrect ? (
-                  <Text style={styles.explanationBody}>{question.explanationCorrect}</Text>
+                  <Text style={styles.explanationBody}>{getExplanationCorrect(question)}</Text>
                 ) : (
                   <Text style={styles.explanationBody}>
                     The correct answer is{' '}
                     <Text style={styles.explanationHighlight}>
-                      {question.explanationWrong.highlight}
+                      {getExplanationWrong(question).highlight}
                     </Text>
-                    {question.explanationWrong.text}
+                    {getExplanationWrong(question).text}
                   </Text>
                 )}
               </View>
@@ -202,11 +338,7 @@ export function KnowledgeQuizScreen({ navigation }: Props) {
         {phase === 'revealed' ? (
           <View style={styles.footer}>
             <Text style={styles.advanceLabel}>Next question in 2s</Text>
-            <QuizAdvanceBar
-              key={questionIndex}
-              tone={feedbackTone}
-              onComplete={advance}
-            />
+            <QuizAdvanceBar key={questionIndex} tone={feedbackTone} onComplete={advance} />
           </View>
         ) : null}
       </View>
@@ -240,11 +372,6 @@ const styles = StyleSheet.create({
     ...sora('bold'),
     fontSize: 12,
     letterSpacing: 1.92,
-    color: lumen.fgMuted,
-  },
-  endQuiz: {
-    ...sora('semibold'),
-    fontSize: 13,
     color: lumen.fgMuted,
   },
   progressTrack: {

@@ -1,41 +1,76 @@
 // Design: kale-mobile-design — lum-03 KaleStrengthIntroLumen (screens/KaleLumenOnboarding.jsx)
 
 import { Ionicons } from '@expo/vector-icons';
+import { useCallback, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isStrengthDevSkipPoseCheck } from '../../config/strengthDev';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
+import { PlankRecordingReviewModal } from '../../components/strength/PlankRecordingReviewModal';
 import type { RootStackParamList } from '../../navigation/types';
+import { reviewPlankVideo, type PlankVideoReview } from '../../services/strength/reviewPlankVideo';
 import { lumen, lumenPillar, sora } from '../../theme';
 import { pickPlankVideo } from '../../utils/pickPlankVideo';
+import { normalizePickedVideoDurationSec } from '../../utils/normalizePickedVideoDuration';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StrengthIntro'>;
 
 const STEPS = [
-  'Find a clear space and set your phone to record.',
+  'Find a clear space and prop your phone where you are fully visible.',
   'Elbows under shoulders, body in one straight line.',
-  'Hold as long as you can, then stop recording.',
-  'Upload the video — we review it and log your time.',
+  'Tap record, hold as long as you can, then stop.',
+  'We log your hold time from the recording — pose check refines this soon.',
 ] as const;
 
 export function StrengthIntroScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const [picking, setPicking] = useState(false);
+  const [checkingUpload, setCheckingUpload] = useState(false);
+  const [pendingReview, setPendingReview] = useState<PlankVideoReview | null>(null);
 
-  const handleUpload = async () => {
-    if (picking) return;
-    setPicking(true);
-    try {
-      const video = await pickPlankVideo();
-      if (video) {
-        navigation.navigate('StrengthAnalysing', { videoUri: video.uri });
-      }
-    } finally {
-      setPicking(false);
-    }
+  const handleRecord = () => {
+    navigation.navigate('StrengthRecord');
   };
+
+  const handleDevUpload = useCallback(async () => {
+    if (checkingUpload) return;
+
+    const picked = await pickPlankVideo();
+    if (!picked?.uri) return;
+
+    setCheckingUpload(true);
+    try {
+      const durationSec = normalizePickedVideoDurationSec(picked.duration);
+      if (__DEV__) {
+        console.log('[strength] dev upload picked', {
+          fileName: picked.fileName,
+          rawDuration: picked.duration,
+          durationSec,
+        });
+      }
+      const review = await reviewPlankVideo(picked.uri, durationSec);
+      setPendingReview(review);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[strength] dev upload review failed', error);
+      }
+      Alert.alert('Check failed', 'Could not analyse that video. Try another clip.');
+    } finally {
+      setCheckingUpload(false);
+    }
+  }, [checkingUpload]);
+
+  const handleSubmitReview = useCallback(() => {
+    if (!pendingReview?.validation.ok) return;
+
+    navigation.replace('StrengthAnalysing', {
+      videoUri: pendingReview.videoUri,
+      recordedDurationSec: pendingReview.durationSec,
+      poseStats: pendingReview.poseStats,
+    });
+    setPendingReview(null);
+  }, [navigation, pendingReview]);
 
   return (
     <View style={styles.screen}>
@@ -85,19 +120,42 @@ export function StrengthIntroScreen({ navigation }: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
-          <LumenButton
-            onPress={handleUpload}
-            style={picking ? styles.buttonBusy : undefined}
-          >
-            {picking ? 'Opening library…' : 'Upload plank video'}
-          </LumenButton>
-          <Pressable style={styles.link} accessibilityRole="button" disabled={picking}>
-            <Text style={[styles.linkText, picking && styles.linkDisabled]}>
+          <LumenButton onPress={handleRecord}>Record plank</LumenButton>
+          {__DEV__ ? (
+            <Pressable
+              style={styles.devBtn}
+              onPress={() => void handleDevUpload()}
+              disabled={checkingUpload}
+              accessibilityRole="button"
+            >
+              {checkingUpload ? (
+                <ActivityIndicator color={lumen.fgMuted} size="small" />
+              ) : (
+                <Text style={styles.devBtnText}>
+                  Upload test video (dev)
+                  {isStrengthDevSkipPoseCheck() ? ' · pose skip on' : ''}
+                </Text>
+              )}
+            </Pressable>
+          ) : null}
+          <Pressable style={styles.link} accessibilityRole="button">
+            <Text style={styles.linkText}>
               Learn correct plank form ↗
             </Text>
           </Pressable>
         </View>
       </View>
+
+      {pendingReview ? (
+        <PlankRecordingReviewModal
+          visible
+          durationSec={pendingReview.durationSec}
+          poseStats={pendingReview.poseStats}
+          validation={pendingReview.validation}
+          onSubmit={handleSubmitReview}
+          onRecordAgain={() => setPendingReview(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -192,20 +250,28 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     gap: 16,
   },
-  buttonBusy: {
-    opacity: 0.7,
-  },
   link: {
     alignSelf: 'center',
     padding: 4,
+  },
+  devBtn: {
+    alignSelf: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  devBtnText: {
+    ...sora('semibold'),
+    fontSize: 13,
+    color: lumen.fgMuted,
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
   linkText: {
     ...sora('semibold'),
     fontSize: 13,
     color: lumen.fgMuted,
     textDecorationLine: 'underline',
-  },
-  linkDisabled: {
-    opacity: 0.5,
   },
 });

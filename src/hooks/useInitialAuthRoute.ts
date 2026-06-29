@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { RootStackParamList } from '../navigation/types';
+import { signOutUser } from '../services/auth/session';
 import { resolvePostAuthRoute } from '../services/onboarding/resolvePostAuthRoute';
+import { fetchUserProfile } from '../services/user/userProfile';
 import type { User } from 'firebase/auth';
 
 type InitialAuthRoute = keyof RootStackParamList | null;
 
 /**
- * Where authenticated users should land: Main (returning), CardioResult (assessed),
- * or ConnectTracker (onboarding).
+ * Where authenticated users should land: CardioAnalysing (first login),
+ * Main (onboarding done), CardioResult (resume), or ConnectTracker (next assessment).
  */
 export function useInitialAuthRoute(
   user: User | null,
@@ -28,13 +30,27 @@ export function useInitialAuthRoute(
 
     let cancelled = false;
 
-    void resolvePostAuthRoute(user.uid).then((next) => {
+    void (async () => {
+      const profile = await fetchUserProfile(user.uid);
+      if (cancelled) return;
+
+      if (!profile.policyHolder) {
+        if (__DEV__) {
+          console.log('[auth] not a policy holder — signing out');
+        }
+        await signOutUser();
+        return;
+      }
+
+      const next = await resolvePostAuthRoute(user.uid, profile);
       if (cancelled) return;
       if (__DEV__) {
-        console.log('[auth] initial route:', next);
+        console.log('[auth] initial route:', next, {
+          firstTimeLogin: profile.firstTimeLogin,
+        });
       }
       setRoute(next);
-    });
+    })();
 
     return () => {
       cancelled = true;

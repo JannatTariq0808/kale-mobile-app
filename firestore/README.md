@@ -144,3 +144,27 @@ npm run seed:rewards-products -- production
 ```
 
 Fallback: `src/data/rewardsProductsFallback.ts`
+
+---
+
+## Collection: `strength`
+
+One document per strength test attempt (mobile app writes on plank completion).
+
+| Field          | Type      | Required | Description                    |
+|----------------|-----------|----------|--------------------------------|
+| `created_at`   | timestamp | yes      | When the test was saved        |
+| `elapsed_time` | number    | yes      | Hold duration in seconds       |
+| `is_completed` | boolean   | yes      | `true` when test is finished   |
+| `level`        | number    | yes      | Strength level 1–10            |
+| `type`         | string    | yes      | e.g. `Plank`                   |
+| `user_id`      | reference | yes      | `/users/{uid}`                 |
+
+```
+match /strength/{strengthId} {
+  allow read: if request.auth != null
+    && resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid);
+  allow create, update: if request.auth != null
+    && request.resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid);
+}
+```

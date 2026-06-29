@@ -122,6 +122,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         photosPermission: 'Allow Kale to access your videos to upload your plank recording.',
       },
     ],
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'Allow Kale to record your plank for strength assessment.',
+        microphonePermission:
+          'Allow microphone access so Kale can record video on Android (audio is not saved).',
+        recordAudioAndroid: true,
+      },
+    ],
     'expo-font',
     '@react-native-community/datetimepicker',
     'expo-web-browser',
@@ -130,6 +139,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         android: {
           ndkVersion: '27.0.12077973',
+          // Staging dev builds need HTTP to the local kale-website server on a LAN IP.
+          ...(IS_STAGING ? { usesCleartextTraffic: true } : {}),
         },
       },
     ],

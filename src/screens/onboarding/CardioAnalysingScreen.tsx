@@ -6,26 +6,44 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { ResultLoaderRing } from '../../components/lumen/ResultLoaderRing';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
+import { clearFirstTimeLogin } from '../../services/user/userProfile';
+import { waitForCardioAssessmentReady } from '../../services/cardio/waitForCardioAssessment';
 import { lumen } from '../../theme';
-
-/** Simulated analysis — replace with real API completion later */
-const ANALYSIS_DURATION_MS = 4500;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CardioAnalysing'>;
 
 export function CardioAnalysingScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
   const headlineSize = 28;
   const subheadSize = 14;
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      navigation.replace('CardioResult');
-    }, ANALYSIS_DURATION_MS);
-    return () => clearTimeout(timer);
-  }, [navigation]);
+    let cancelled = false;
+
+    void (async () => {
+      if (user?.uid) {
+        await waitForCardioAssessmentReady(user.uid);
+      }
+
+      if (cancelled) return;
+
+      if (user?.uid) {
+        await clearFirstTimeLogin(user.uid);
+      }
+
+      if (!cancelled) {
+        navigation.replace('CardioResult');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, user?.uid]);
 
   return (
     <View style={styles.screen}>

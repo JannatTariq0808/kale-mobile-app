@@ -17,6 +17,7 @@ import { CardioAnalysingScreen } from '../screens/onboarding/CardioAnalysingScre
 import { SignInScreen } from '../screens/onboarding/SignInScreen';
 import { StrengthAnalysingScreen } from '../screens/onboarding/StrengthAnalysingScreen';
 import { StrengthIntroScreen } from '../screens/onboarding/StrengthIntroScreen';
+import { StrengthRecordScreen } from '../screens/onboarding/StrengthRecordScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
 import { KnowledgeResultScreen } from '../screens/result/KnowledgeResultScreen';
 import { CardioResultScreen } from '../screens/result/CardioResultScreen';
@@ -37,7 +38,7 @@ export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigat
   const backdropAnimated = useContext(BackdropAnimatedContext);
 
   const initialRouteName = isAuthenticated
-    ? (initialAuthRoute ?? 'ConnectTracker')
+    ? (initialAuthRoute ?? 'Main')
     : 'Welcome';
 
   return (
@@ -60,11 +61,20 @@ export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigat
         <Stack.Screen name="CardioAnalysing" component={CardioAnalysingScreen} />
         <Stack.Screen name="CardioResult" component={CardioResultScreen} />
         <Stack.Screen name="StrengthIntro" component={StrengthIntroScreen} />
-        <Stack.Screen name="StrengthAnalysing" component={StrengthAnalysingScreen} />
+        <Stack.Screen
+          name="StrengthRecord"
+          component={StrengthRecordScreen}
+          options={{ gestureEnabled: false, animation: 'fade' }}
+        />
+        <Stack.Screen name="StrengthAnalysing" component={StrengthAnalysingScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="StrengthResult" component={StrengthResultScreen} />
         <Stack.Screen name="KnowledgeIntro" component={KnowledgeIntroScreen} />
-        <Stack.Screen name="KnowledgeQuiz" component={KnowledgeQuizScreen} />
-        <Stack.Screen name="KnowledgeAnalysing" component={KnowledgeAnalysingScreen} />
+        <Stack.Screen
+          name="KnowledgeQuiz"
+          component={KnowledgeQuizScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Stack.Screen name="KnowledgeAnalysing" component={KnowledgeAnalysingScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="KnowledgeResult" component={KnowledgeResultScreen} />
         <Stack.Screen name="LevelReveal" component={LevelRevealScreen} />
         <Stack.Screen name="HealthYears" component={HealthYearsScreen} />

@@ -21,6 +21,11 @@ import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import type { RootStackParamList } from '../../navigation/types';
 import { mapFirebaseAuthError, signInWithEmail } from '../../services/auth/passwordReset';
+import { getFirebaseAuth, signOut } from '../../services/auth/index';
+import {
+  fetchUserProfile,
+  POLICY_HOLDER_REQUIRED_MESSAGE,
+} from '../../services/user/userProfile';
 import { lumen, sora, typography } from '../../theme';
 import { headlineTextStyle } from '../../theme/textMetrics';
 
@@ -73,7 +78,14 @@ export function SignInScreen({ navigation }: Props) {
 
     setBusy(true);
     try {
-      await signInWithEmail(email, password);
+      const credential = await signInWithEmail(email, password);
+      const profile = await fetchUserProfile(credential.user.uid);
+      if (!profile.policyHolder) {
+        await signOut(getFirebaseAuth());
+        Keyboard.dismiss();
+        setAuthError(POLICY_HOLDER_REQUIRED_MESSAGE);
+        return;
+      }
       // Post-login routing is handled by useInitialAuthRoute + useAuthNavigationSync
       // when the authenticated NavigationContainer remounts.
     } catch (err) {
@@ -98,7 +110,7 @@ export function SignInScreen({ navigation }: Props) {
 
           <LumenAuthScrollView
             contentContainerStyle={styles.scrollContent}
-            bottomInset={insets.bottom}
+            bottomInset={0}
           >
             <View style={styles.main}>
               <View style={styles.glyphMark}>
@@ -160,24 +172,18 @@ export function SignInScreen({ navigation }: Props) {
                 {busy ? 'Logging in…' : 'Log in'}
               </LumenButton>
 
-              <Pressable
-                style={styles.signUpLink}
-                onPress={() => navigation.navigate('SignUp')}
-                accessibilityRole="button"
-              >
-                <Text style={styles.signUpText}>
-                  New to Kale? <Text style={styles.signUpAccent}>Sign up</Text>
-                </Text>
-              </Pressable>
-
               {busy ? <ActivityIndicator color={lumen.lime} style={styles.busy} /> : null}
-
-              <Text style={styles.footer}>
-                Kale is available to policy holders. Your login arrives by email when your policy
-                begins.
-              </Text>
             </View>
           </LumenAuthScrollView>
+
+        <Text
+          style={[
+            styles.footer,
+            { paddingHorizontal: horizontalPadding, paddingBottom: insets.bottom + 16 },
+          ]}
+        >
+          Kale is available to policy holders. Your login arrives by email when your policy begins.
+        </Text>
       </View>
     </View>
   );
@@ -272,28 +278,12 @@ const styles = StyleSheet.create({
   submit: {
     marginTop: 22,
   },
-  signUpLink: {
-    alignSelf: 'center',
-    marginTop: 16,
-    padding: 4,
-  },
-  signUpText: {
-    ...sora('semibold'),
-    fontSize: 13.5,
-    color: lumen.fgMuted,
-  },
-  signUpAccent: {
-    ...sora('bold'),
-    color: lumen.green,
-  },
   busy: {
     marginTop: 16,
   },
   footer: {
     ...sora('semibold'),
-    marginTop: 28,
-    paddingTop: 8,
-    paddingBottom: 10,
+    marginTop: 'auto',
     textAlign: 'center',
     fontSize: 13,
     lineHeight: 19.5,
