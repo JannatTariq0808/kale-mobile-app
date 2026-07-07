@@ -11,6 +11,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
 import { clearFirstTimeLogin } from '../../services/user/userProfile';
 import { waitForCardioAssessmentReady } from '../../services/cardio/waitForCardioAssessment';
+import { linkCardioToActiveAssessment } from '../../services/assessment/assessmentSession';
 import { lumen } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CardioAnalysing'>;
@@ -22,17 +23,23 @@ export function CardioAnalysingScreen({ navigation }: Props) {
   const subheadSize = 14;
 
   useEffect(() => {
+    if (!user?.uid) return;
+
     let cancelled = false;
+    const uid = user.uid;
 
     void (async () => {
-      if (user?.uid) {
-        await waitForCardioAssessmentReady(user.uid);
-      }
+      await waitForCardioAssessmentReady(uid);
 
       if (cancelled) return;
 
-      if (user?.uid) {
-        await clearFirstTimeLogin(user.uid);
+      await linkCardioToActiveAssessment(uid);
+
+      if (cancelled) return;
+
+      await clearFirstTimeLogin(uid);
+      if (__DEV__) {
+        console.log('[auth] first_time_login cleared for', uid);
       }
 
       if (!cancelled) {

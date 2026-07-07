@@ -9,6 +9,10 @@ export type RootStackParamList = {
   NewPassword: { oobCode: string };
   ConnectTracker:
     | {
+        flow?: 'onboarding' | 'quarterly';
+        activitiesSince?: string;
+        syncPeriodLabel?: string;
+        garminCapped?: boolean;
         errorMessage?: string;
         errorReason?: string;
         errorProvider?: 'strava' | 'garmin';

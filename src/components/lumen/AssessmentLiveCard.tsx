@@ -10,6 +10,7 @@ import type { AssessmentWindowLive } from '../../utils/assessmentCycle';
 
 type AssessmentLiveCardProps = {
   window: AssessmentWindowLive;
+  quarterLabel: string;
   kaletteReward: number;
   onStartPress?: () => void;
 };
@@ -75,7 +76,12 @@ function LiveBadge({ labelSize }: { labelSize: number }) {
   );
 }
 
-export function AssessmentLiveCard({ window, kaletteReward, onStartPress }: AssessmentLiveCardProps) {
+export function AssessmentLiveCard({
+  window,
+  quarterLabel,
+  kaletteReward,
+  onStartPress,
+}: AssessmentLiveCardProps) {
   const { type } = useResponsiveLayout();
   const labelSize = type(10);
   const headlineSize = type(22);
@@ -91,7 +97,7 @@ export function AssessmentLiveCard({ window, kaletteReward, onStartPress }: Asse
       >
         <View style={styles.header}>
           <LiveBadge labelSize={labelSize} />
-          <Text style={[styles.cycleLabel, { fontSize: type(11) }]}>Cycle {window.cycleNumber}</Text>
+          <Text style={[styles.cycleLabel, { fontSize: type(11) }]}>{quarterLabel}</Text>
         </View>
 
         <Text style={[styles.headline, { fontSize: headlineSize, lineHeight: headlineSize * 1.15 }]}>

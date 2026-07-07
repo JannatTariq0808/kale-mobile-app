@@ -1,3 +1,6 @@
+import { allowMultipleAssessmentsPerQuarter } from '../config/assessmentDev';
+import { KNOWLEDGE_QUARTERS, type KnowledgeQuarter } from '../config/knowledgeAssessment';
+
 /** Assessment window is open during the first month of each quarter (Jan, Apr, Jul, Oct). */
 const LIVE_WINDOW_MONTHS = [0, 3, 6, 9] as const;
 /** Quarterly assessment boundaries — 1 Jan, 1 Apr, 1 Jul, 1 Oct. */
@@ -152,6 +155,29 @@ function getCycleNumber(now: Date): number {
   return (year - 2022) * 4 + quarterIndex + 1;
 }
 
+/** Human quarter label aligned with cloud functions (`Q1`…`Q4`). */
+export function getCurrentKnowledgeQuarter(now = new Date()): KnowledgeQuarter {
+  const month = now.getMonth() + 1;
+  return (
+    KNOWLEDGE_QUARTERS.find((quarter) => month >= quarter.startMonth && month <= quarter.month) ??
+    KNOWLEDGE_QUARTERS[KNOWLEDGE_QUARTERS.length - 1]
+  );
+}
+
+/** Prefer this in UI instead of the internal cycle counter (e.g. "Q3 2026"). */
+export function getAssessmentQuarterDisplay(now = new Date()): string {
+  const quarter = getCurrentKnowledgeQuarter(now);
+  return `${quarter.label} ${now.getFullYear()}`;
+}
+
+/**
+ * Internal counter since 2022 Q1 — e.g. July 2026 → cycle 19.
+ * Shown in UI only as a fallback; prefer {@link getAssessmentQuarterDisplay}.
+ */
+export function getAssessmentCycleNumber(now = new Date()): number {
+  return getCycleNumber(now);
+}
+
 function formatCloseLabel(windowEnd: Date): string {
   const day = windowEnd.getDate();
   const month = MONTH_SHORT[windowEnd.getMonth()].toUpperCase();
@@ -163,6 +189,95 @@ function formatCloseLabel(windowEnd: Date): string {
  * Window opens at local midnight on the 1st and closes at local midnight on the 1st of the next month.
  * All boundaries use the device timezone (e.g. Lahore PKT, London GMT/BST).
  */
+/** First day of the next assessment window (Jan / Apr / Jul / Oct) strictly after `now`. */
+export function getNextAssessmentWindowStart(now = new Date()): Date {
+  const today = startOfDay(now);
+  const boundaries = buildQuarterBoundaries(today.getFullYear());
+  const upcoming = boundaries.find((boundary) => boundary > today);
+  if (upcoming) return upcoming;
+  return new Date(today.getFullYear() + 1, QUARTER_MONTHS[0], 1);
+}
+
+export type AssessmentWindowCycleLabel = {
+  headline: string;
+  subline: string;
+  windowProgressPct: number;
+  windowLive: boolean;
+};
+
+export type AssessmentWindowLabelOptions = {
+  /** User already finished their one assessment this quarter (onboarding counts). */
+  completedThisQuarter?: boolean;
+};
+
+export function hasCompletedAssessmentThisQuarter(
+  assessments: { is_completed: boolean; updated_at: Date; created_at: Date }[],
+  now = new Date(),
+): boolean {
+  if (allowMultipleAssessmentsPerQuarter()) return false;
+
+  const { cycleStartDate, nextAssessmentDate } = getAssessmentCycle(now);
+  return assessments.some((assessment) => {
+    if (!assessment.is_completed) return false;
+    const completedAt = assessment.updated_at ?? assessment.created_at;
+    return completedAt >= cycleStartDate && completedAt < nextAssessmentDate;
+  });
+}
+
+/** Copy for Kalettes / rewards — assessment window, not “weeks until quarter boundary”. */
+export function formatAssessmentWindowCycleLabel(
+  now = new Date(),
+  options: AssessmentWindowLabelOptions = {},
+): AssessmentWindowCycleLabel {
+  const completedThisQuarter = options.completedThisQuarter === true;
+  const window = getAssessmentWindow(now);
+
+  if (window.live) {
+    if (completedThisQuarter) {
+      const nextOpen = getNextAssessmentWindowStart(now);
+      const openLabel = formatAssessmentDate(nextOpen);
+      return {
+        headline: 'Assessment done this quarter',
+        subline: `One per quarter · next window opens ${openLabel}`,
+        windowProgressPct: window.windowProgressPct,
+        windowLive: true,
+      };
+    }
+
+    const days = window.daysUntilClose;
+    const subline =
+      days === 0
+        ? 'Closes at midnight tonight'
+        : `${days} day${days === 1 ? '' : 's'} left to complete assessment`;
+
+    return {
+      headline: 'Assessment window open',
+      subline,
+      windowProgressPct: window.windowProgressPct,
+      windowLive: true,
+    };
+  }
+
+  const nextOpen = getNextAssessmentWindowStart(now);
+  const daysUntilOpen = Math.max(
+    0,
+    Math.round((startOfDay(nextOpen).getTime() - startOfDay(now).getTime()) / MS_PER_DAY),
+  );
+  const openLabel = formatAssessmentDate(nextOpen);
+  const subline = completedThisQuarter
+    ? `One per quarter · next window opens ${openLabel}`
+    : daysUntilOpen === 0
+      ? `Opens ${openLabel}`
+      : `Opens ${openLabel} · in ${daysUntilOpen} day${daysUntilOpen === 1 ? '' : 's'}`;
+
+  return {
+    headline: completedThisQuarter ? 'Assessment done this quarter' : 'Bank at your next assessment',
+    subline,
+    windowProgressPct: 0,
+    windowLive: false,
+  };
+}
+
 export function getAssessmentWindow(now = new Date()): AssessmentWindow {
   const cycleNumber = getCycleNumber(now);
 

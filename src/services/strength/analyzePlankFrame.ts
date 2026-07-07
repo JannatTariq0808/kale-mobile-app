@@ -2,6 +2,7 @@ import { getAuth } from 'firebase/auth';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { getKaleApiBase, kaleApiUrl } from '../../config/kaleApi';
 import type { PlankFrameAnalysisError, PlankPoseFrameResult } from './plankPoseSession';
+import { parsePlankHintCodes } from '../../utils/plankSetupHints';
 
 export type PoseLandmark = {
   name: string;
@@ -31,6 +32,7 @@ export function isPlankPoseFromLandmarks(landmarks: PoseLandmark[]): boolean {
 type AnalyzePlankFrameResponse = {
   valid?: boolean;
   confidence?: number;
+  hints?: unknown;
   error?: string;
 };
 
@@ -55,13 +57,13 @@ export async function analyzePlankFrameUri(uri: string): Promise<PlankPoseFrameR
   try {
     const user = getAuth().currentUser;
     if (!user) {
-      return { valid: false, confidence: 0, error: 'auth' };
+      return { valid: false, confidence: 0, hints: [], error: 'auth' };
     }
 
     const idToken = await user.getIdToken();
     const imageBase64 = await encodeFrameForVision(uri);
     if (!imageBase64) {
-      return { valid: false, confidence: 0, error: 'service' };
+      return { valid: false, confidence: 0, hints: [], error: 'service' };
     }
 
     if (__DEV__ && imageBase64.length > 120_000) {
@@ -88,9 +90,9 @@ export async function analyzePlankFrameUri(uri: string): Promise<PlankPoseFrameR
     if (res.status === 503) {
       const errorBody = (await res.json().catch(() => null)) as { error?: string } | null;
       if (errorBody?.error === 'quota_exceeded') {
-        return { valid: false, confidence: 0, error: 'quota' };
+        return { valid: false, confidence: 0, hints: [], error: 'quota' };
       }
-      return { valid: false, confidence: 0, error: 'service' };
+      return { valid: false, confidence: 0, hints: [], error: 'service' };
     }
 
     if (!res.ok) {
@@ -104,25 +106,27 @@ export async function analyzePlankFrameUri(uri: string): Promise<PlankPoseFrameR
           errorBody?.hint ?? errorBody?.error ?? '',
         );
       }
-      return { valid: false, confidence: 0, error: 'service' };
+      return { valid: false, confidence: 0, hints: [], error: 'service' };
     }
 
     const data = (await res.json()) as AnalyzePlankFrameResponse;
+    const hints = parsePlankHintCodes(data.hints);
     return {
       valid: data.valid === true,
       confidence:
         typeof data.confidence === 'number'
           ? Math.max(0, Math.min(1, data.confidence))
           : 0,
+      hints: data.valid === true ? [] : hints,
     };
   } catch (error) {
     if (__DEV__) {
       console.warn('[strength] analyzePlankFrameUri failed', error);
     }
     if (isNetworkError(error)) {
-      return { valid: false, confidence: 0, error: 'network' };
+      return { valid: false, confidence: 0, hints: [], error: 'network' };
     }
-    return { valid: false, confidence: 0, error: 'service' };
+    return { valid: false, confidence: 0, hints: [], error: 'service' };
   }
 }
 

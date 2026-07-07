@@ -1,22 +1,26 @@
+import { useCallback, useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { useAssessmentCycle } from '../hooks/useAssessmentCycle';
 import { useAssessmentWindow } from '../hooks/useAssessmentWindow';
+import { useHomeLongevityData } from '../hooks/useHomeLongevityData';
+import { useKalettesRewards } from '../hooks/useKalettesRewards';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AssessmentLiveCard } from '../components/lumen/AssessmentLiveCard';
+import { AssessmentQuarterCompleteCard } from '../components/lumen/AssessmentQuarterCompleteCard';
 import { FirstAssessmentCard } from '../components/lumen/FirstAssessmentCard';
 import { HealthYearsTrendChart } from '../components/lumen/HealthYearsTrendChart';
 import { LegendDot, QuickStatPillar } from '../components/lumen/HomeMetrics';
 import { LongevityLevelTrendChart } from '../components/lumen/LongevityLevelTrendChart';
 import { LumHeroRing } from '../components/lumen/LumHeroRing';
 import { LumenCard } from '../components/lumen/LumenCard';
-import { LumenButton } from '../components/lumen/LumenButton';
 import { LumenHeader } from '../components/lumen/LumenHeader';
 import { TrendChartScroll } from '../components/lumen/TrendChartScroll';
-import { getHomeChartSeries } from '../data/homeChartData';
-import { homeDemo } from '../data/homeDemo';
+import type { NavigationProp, ParamListBase } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { startQuarterlyAssessmentFromHome } from '../services/assessment/startQuarterlyAssessment';
+import { getAssessmentQuarterDisplay } from '../utils/assessmentCycle';
 import { lumen, lumenPillar, sora } from '../theme';
 
 function SectionEyebrow({
@@ -59,14 +63,44 @@ function SectionEyebrow({
 export function LongevityScreen() {
   const { scale, type, leading, isCompact, isNarrow, isTight, cardPadding, contentWidth } =
     useResponsiveLayout();
-  const isFirstAssessment = homeDemo.assessmentCount <= 1;
-  const chartSeries = getHomeChartSeries();
+  const home = useHomeLongevityData();
+  const homeRefresh = home.refresh;
+  const didInitialFocus = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!didInitialFocus.current) {
+        didInitialFocus.current = true;
+        return;
+      }
+      homeRefresh();
+    }, [homeRefresh]),
+  );
+  const isFirstAssessment = home.assessmentCount <= 1;
+  const chartSeries = home.chartSeries;
   const assessmentCycle = useAssessmentCycle();
   const assessmentWindow = useAssessmentWindow();
+  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const quarterLabel = getAssessmentQuarterDisplay();
+  const kalettesRewards = useKalettesRewards();
+  const handleStartAssessment = useCallback(() => {
+    void startQuarterlyAssessmentFromHome(navigation);
+  }, [navigation]);
+  const kaletteReward = kalettesRewards.hasQuote
+    ? kalettesRewards.pendingKalettes || kalettesRewards.monthlyKalettes
+    : Math.round(home.level * 81);
   const heroRingSize = scale(isCompact ? 80 : 104);
-  const promoStatSize = type(contentWidth < 340 ? 34 : isNarrow ? 40 : 52);
   const countdownSize = type(isTight ? 34 : 46);
-  const promoPad = isTight ? Math.max(12, cardPadding - 4) : cardPadding;
+
+  if (home.loading) {
+    return (
+      <View style={styles.screen}>
+        <LumenHeader />
+        <View style={styles.loaderWrap}>
+          <ActivityIndicator color={lumen.lime} size="large" />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -74,31 +108,60 @@ export function LongevityScreen() {
 
       <ScreenScroll contentContainerStyle={styles.scrollContent}>
         <Text style={[styles.greeting, { fontSize: type(21), lineHeight: leading(type(21)) }]}>
-          {homeDemo.firstName}, training today is training for{' '}
+          {home.firstName}, training today is training for{' '}
           <Text style={styles.greetingAccent}>your future</Text>.
         </Text>
 
         <View style={[styles.levelRow, { gap: scale(isTight ? 14 : 22) }]}>
-          <LumHeroRing value={homeDemo.level} pct={homeDemo.levelPct} size={heroRingSize} />
+          <LumHeroRing value={home.level} pct={home.levelPct} size={heroRingSize} />
           <View style={styles.levelCopy}>
             <Text style={[styles.levelTitle, { fontSize: type(30), lineHeight: leading(type(30), 1.12) }]}>
-              Level <Text style={styles.levelTitleAccent}>{homeDemo.level}</Text>
+              Level <Text style={styles.levelTitleAccent}>{home.level}</Text>
             </Text>
             <Text style={[styles.levelSubtitle, { fontSize: type(13) }]}>Your Longevity Level</Text>
-            <View style={styles.trendChip}>
-              <Ionicons name="arrow-up" size={11} color={lumen.mint} />
-              <Text style={[styles.trendChipText, { fontSize: type(12) }]}>
-                +{homeDemo.trendDelta} this cycle
-              </Text>
-            </View>
+            {home.showTrend && home.trendDelta != null ? (
+              <View style={styles.trendChip}>
+                <Ionicons
+                  name={home.trendDelta > 0 ? 'arrow-up' : 'arrow-down'}
+                  size={11}
+                  color={home.trendDelta > 0 ? lumen.mint : lumen.coral}
+                />
+                <Text
+                  style={[
+                    styles.trendChipText,
+                    { fontSize: type(12), color: home.trendDelta > 0 ? lumen.mint : lumen.coral },
+                  ]}
+                >
+                  {home.trendDelta > 0 ? `+${home.trendDelta}` : home.trendDelta} this cycle
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
+        <View style={styles.quickStats}>
+          <QuickStatPillar pillar="Cardio" level={home.pillarLevels.cardio} color={lumenPillar.cardio} />
+          <QuickStatPillar pillar="Strength" level={home.pillarLevels.strength} color={lumenPillar.strength} />
+          <QuickStatPillar pillar="Knowledge" level={home.pillarLevels.knowledge} color={lumenPillar.knowledge} />
+        </View>
+
         {assessmentWindow.live ? (
-          <AssessmentLiveCard
-            window={assessmentWindow}
-            kaletteReward={homeDemo.kaletteReward}
-          />
+          home.completedAssessmentThisQuarter ? (
+            <AssessmentQuarterCompleteCard
+              window={assessmentWindow}
+              quarterLabel={quarterLabel}
+              pendingKalettes={
+                kalettesRewards.hasQuote ? kalettesRewards.pendingKalettes : undefined
+              }
+            />
+          ) : (
+            <AssessmentLiveCard
+              window={assessmentWindow}
+              quarterLabel={quarterLabel}
+              kaletteReward={kaletteReward}
+              onStartPress={handleStartAssessment}
+            />
+          )
         ) : (
           <LumenCard accent={lumen.coral} style={styles.nextCard}>
             <View style={styles.nextHeader}>
@@ -134,19 +197,27 @@ export function LongevityScreen() {
               />
             </View>
             <Text style={[styles.nextReward, { fontSize: type(13) }]}>
-              Complete it to bank{' '}
-              <Text style={styles.nextRewardAccent}>{homeDemo.kaletteReward} Kalettes</Text>.
+              {home.completedAssessmentThisQuarter ? (
+                <>
+                  Assessment done this quarter. Next window opens soon — pending Kalettes bank then.
+                </>
+              ) : (
+                <>
+                  Complete it to bank{' '}
+                  <Text style={styles.nextRewardAccent}>{kaletteReward} Kalettes</Text>.
+                </>
+              )}
             </Text>
           </LumenCard>
         )}
 
         {isFirstAssessment ? (
           <FirstAssessmentCard
-            level={homeDemo.level}
-            lifespanYears={homeDemo.lifespanYears}
-            healthspanYears={homeDemo.healthspanYears}
+            level={home.level}
+            lifespanYears={home.lifespanYears}
+            healthspanYears={home.healthspanYears}
           />
-        ) : (
+        ) : chartSeries ? (
           <>
             <LumenCard style={styles.chartCard}>
               <SectionEyebrow trailing="5y outlook" trailingMuted>
@@ -164,14 +235,14 @@ export function LongevityScreen() {
               </TrendChartScroll>
               <View style={styles.legendRow}>
                 <View style={styles.legendColumn}>
-                  <LegendDot color={lumenPillar.cardio} name="Lifespan" value={`+${homeDemo.lifespanYears}y`} />
+                  <LegendDot color={lumenPillar.cardio} name="Lifespan" value={`+${home.lifespanYears}y`} />
                   <LegendDot
                     color={lumenPillar.knowledge}
                     name="Healthspan"
-                    value={`+${homeDemo.healthspanYears}y`}
+                    value={`+${home.healthspanYears}y`}
                   />
                 </View>
-                <Text style={styles.levelTag}>at Level {homeDemo.level}</Text>
+                <Text style={styles.levelTag}>at Level {home.level}</Text>
               </View>
             </LumenCard>
 
@@ -190,58 +261,7 @@ export function LongevityScreen() {
               </TrendChartScroll>
             </LumenCard>
           </>
-        )}
-
-        <View style={styles.quickStats}>
-          <QuickStatPillar pillar="Cardio" level={homeDemo.pillarLevels.cardio} color={lumenPillar.cardio} />
-          <QuickStatPillar pillar="Strength" level={homeDemo.pillarLevels.strength} color={lumenPillar.strength} />
-          <QuickStatPillar pillar="Knowledge" level={homeDemo.pillarLevels.knowledge} color={lumenPillar.knowledge} />
-        </View>
-
-        <View style={styles.promo}>
-          <LinearGradient
-            colors={['rgba(204,250,125,0.14)', 'rgba(0,200,150,0.08)', 'rgba(234,243,228,0.04)']}
-            locations={[0, 0.55, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-          <View style={[styles.promoInner, { padding: promoPad }]}>
-            <View style={styles.promoBadgeRow}>
-              <Text style={[styles.promoBadge, { fontSize: type(10.5) }]}>New</Text>
-              <View style={styles.promoRule} />
-            </View>
-            <View style={styles.promoMidRow}>
-              <View style={styles.promoCopy}>
-                <Text style={[styles.promoTitle, { fontSize: type(23), lineHeight: type(28) }]}>
-                  Your <Text style={styles.promoTitleAccent}>Running Years</Text>
-                </Text>
-                <Text
-                  style={[
-                    styles.promoText,
-                    { fontSize: type(13.5), lineHeight: Math.round(type(13.5) * 1.45) },
-                  ]}
-                >
-                  See the good years you've got ahead — and the moments worth training for.
-                </Text>
-              </View>
-              <View style={styles.promoStat}>
-                <Text style={[styles.promoStatTilde, { fontSize: type(14) }]}>~</Text>
-                <Text
-                  style={[
-                    styles.promoStatNum,
-                    { fontSize: promoStatSize, lineHeight: leading(promoStatSize, 1.08) },
-                  ]}
-                >
-                  {homeDemo.runningYearsAhead}
-                </Text>
-                <Text style={[styles.promoStatLabel, { fontSize: type(11) }]}>years ahead</Text>
-              </View>
-            </View>
-            <LumenButton style={styles.promoButton}>Explore your Running Years</LumenButton>
-          </View>
-        </View>
+        ) : null}
         </ScreenScroll>
     </View>
   );
@@ -256,6 +276,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 18,
+  },
+  loaderWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
   },
   greeting: {
     ...sora('bold'),
@@ -435,96 +461,5 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
     overflow: 'hidden',
     gap: 10,
-  },
-  promo: {
-    marginTop: 14,
-    marginBottom: 14,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(204,250,125,0.28)',
-    overflow: 'hidden',
-    width: '100%',
-    maxWidth: '100%',
-    position: 'relative',
-  },
-  promoInner: {
-    width: '100%',
-  },
-  promoButton: {
-    marginTop: 18,
-    height: 50,
-    backgroundColor: lumen.lime,
-  },
-  promoBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  promoBadge: {
-    ...sora('extrabold'),
-    fontSize: 10.5,
-    letterSpacing: 1.68,
-    textTransform: 'uppercase',
-    color: lumen.lime,
-  },
-  promoRule: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(204,250,125,0.25)',
-  },
-  promoMidRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 14,
-    width: '100%',
-  },
-  promoCopy: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 120,
-    paddingRight: 4,
-  },
-  promoTitle: {
-    ...sora('extrabold'),
-    fontSize: 23,
-    lineHeight: 28,
-    letterSpacing: -0.58,
-    color: lumen.fg,
-  },
-  promoTitleAccent: {
-    color: lumen.lime,
-  },
-  promoText: {
-    ...sora('semibold'),
-    marginTop: 8,
-    fontSize: 13.5,
-    lineHeight: 20,
-    color: 'rgba(234,243,228,0.65)',
-    maxWidth: 220,
-  },
-  promoStat: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 3,
-  },
-  promoStatTilde: {
-    ...sora('semibold'),
-    fontSize: 14,
-    color: lumen.fgMuted,
-  },
-  promoStatNum: {
-    ...sora('semibold'),
-    letterSpacing: -2,
-    color: lumen.lime,
-  },
-  promoStatLabel: {
-    ...sora('bold'),
-    fontSize: 11,
-    lineHeight: 13,
-    color: lumen.fg,
-    flexShrink: 0,
-    maxWidth: 56,
   },
 });

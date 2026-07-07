@@ -22,7 +22,9 @@ export function PlankRecordingReviewModal({
   onSubmit,
   onRecordAgain,
 }: PlankRecordingReviewModalProps) {
-  const holdLabel = formatPlankDuration(durationSec);
+  const recordedLabel = formatPlankDuration(durationSec);
+  const validHoldSec = Math.min(durationSec, Math.floor(poseStats.estimatedValidHoldSec));
+  const holdLabel = formatPlankDuration(validHoldSec > 0 ? validHoldSec : durationSec);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRecordAgain}>
@@ -38,8 +40,13 @@ export function PlankRecordingReviewModal({
           </Text>
 
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Hold time</Text>
+            <Text style={styles.statLabel}>Valid hold</Text>
             <Text style={styles.statValue}>{holdLabel}</Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Recorded</Text>
+            <Text style={styles.statValue}>{recordedLabel}</Text>
           </View>
 
           <View style={styles.statRow}>

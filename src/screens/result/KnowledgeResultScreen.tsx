@@ -7,8 +7,20 @@ import { LumenResultView, type LumenResultConfig } from '../../components/lumen/
 import type { RootStackParamList } from '../../navigation/types';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import {
+  fetchAssessmentsForUser,
+  fetchPreviousPillarLevelFromAssessments,
+} from '../../services/assessment/assessmentSession';
+import { resolveOnboardingResumeRoute } from '../../services/onboarding/resolveOnboardingNavigation';
+import {
+  clearActiveAssessmentFlow,
+  isQuarterlyAssessmentFlow,
+} from '../../services/assessment/assessmentFlowSession';
+import {
+  finalizeActiveAssessmentIfReady,
+  linkKnowledgeToOnboardingAssessment,
+} from '../../services/assessment/assessmentSession';
+import {
   fetchKnowledgeAssessmentById,
-  fetchPreviousCompletedKnowledgeLevel,
 } from '../../services/knowledge/knowledgeAssessmentSession';
 import { buildKnowledgeResultConfig } from '../../utils/knowledgeLevel';
 import { lumen } from '../../theme';
@@ -27,8 +39,16 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
       const assessment = await fetchKnowledgeAssessmentById(assessmentId);
       if (cancelled || !assessment) return;
 
+      const { assessments } = user?.uid
+        ? await fetchAssessmentsForUser(user.uid)
+        : { assessments: [] };
+      const currentAssessment = assessments.find((item) => item.knowledge_id === assessmentId);
+
       const previousLevel = user?.uid
-        ? await fetchPreviousCompletedKnowledgeLevel(user.uid, assessmentId)
+        ? await fetchPreviousPillarLevelFromAssessments(user.uid, 'knowledge', {
+            pillarRefId: assessmentId,
+            assessmentId: currentAssessment?.id,
+          })
         : null;
 
       if (cancelled) return;
@@ -56,17 +76,32 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
     );
   }
 
+  const handleNext = () => {
+    void (async () => {
+      if (isQuarterlyAssessmentFlow()) {
+        if (user?.uid) {
+          await linkKnowledgeToOnboardingAssessment(user.uid, assessmentId);
+          await finalizeActiveAssessmentIfReady(user.uid);
+        }
+        clearActiveAssessmentFlow();
+        navigation.replace('Main');
+        return;
+      }
+
+      if (user?.uid) {
+        const next = await resolveOnboardingResumeRoute(user.uid);
+        navigation.replace(next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main');
+        return;
+      }
+      navigation.replace('LevelReveal');
+    })();
+  };
+
   return (
     <LumenResultView
       config={config}
-      onBack={() => {
-        if (navigation.canGoBack()) {
-          navigation.goBack();
-          return;
-        }
-        navigation.replace('LevelReveal');
-      }}
-      onNext={() => navigation.replace('LevelReveal')}
+      showBackButton={false}
+      onNext={handleNext}
     />
   );
 }

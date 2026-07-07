@@ -17,6 +17,8 @@ import {
   type StrengthAssessment,
 } from '../../types/strengthAssessment';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
+import { linkStrengthToOnboardingAssessment } from '../assessment/assessmentSession';
+import { finalizeActiveAssessmentIfReady } from '../assessment/assessmentSession';
 
 const STRENGTH_COLLECTION = 'strength';
 const USERS_COLLECTION = 'users';
@@ -81,6 +83,25 @@ export async function fetchStrengthAssessmentsForUser(
   }
 }
 
+export async function fetchPreviousCompletedStrengthLevel(
+  uid: string,
+  excludeAssessmentId?: string,
+): Promise<number | null> {
+  const assessments = await fetchStrengthAssessmentsForUser(uid);
+  const completed = assessments.filter(
+    (item) =>
+      item.is_completed &&
+      item.type === PLANK_STRENGTH_TYPE &&
+      (!excludeAssessmentId || item.id !== excludeAssessmentId),
+  );
+
+  if (excludeAssessmentId) {
+    return completed[0]?.level ?? null;
+  }
+
+  return completed.length >= 2 ? (completed[1]?.level ?? null) : null;
+}
+
 export async function fetchLatestCompletedPlankAssessment(
   uid: string,
 ): Promise<StrengthAssessment | null> {
@@ -131,6 +152,8 @@ export async function saveStrengthAssessment(
     if (__DEV__) {
       console.log('[strength] saved assessment', created.id, payload);
     }
+    await linkStrengthToOnboardingAssessment(uid, created.id);
+    await finalizeActiveAssessmentIfReady(uid);
     return created.id;
   } catch (error) {
     logStrengthError('saveStrengthAssessment failed', error);

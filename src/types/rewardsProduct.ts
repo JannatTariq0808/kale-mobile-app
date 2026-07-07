@@ -9,6 +9,7 @@ export type RewardsProductCategory =
 
 export type RewardsProduct = {
   id: string;
+  slug: string;
   title: string;
   brand: string;
   pts: number;

@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -15,10 +15,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { LumRing } from '../../components/lumen/LumRing';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import type { RootStackParamList } from '../../navigation/types';
+import {
+  loadLevelRevealData,
+  type LevelRevealData,
+} from '../../services/onboarding/onboardingPillarStatus';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelReveal'>;
@@ -30,13 +35,6 @@ type PillarRing = {
   mergeOffset: number;
 };
 
-const PILLARS: PillarRing[] = [
-  { level: 6, color: lumenPillar.cardio, contribution: '70%', mergeOffset: 84 },
-  { level: 5, color: lumenPillar.strength, contribution: '20%', mergeOffset: 0 },
-  { level: 7, color: lumenPillar.knowledge, contribution: '10%', mergeOffset: -84 },
-];
-
-const LONGEVITY_LEVEL = 6;
 const RING_ROW_WIDTH = 320;
 const SMALL_RING = 86;
 const BIG_RING = 176;
@@ -44,12 +42,36 @@ const GLOW_SIZE = 340;
 
 type RevealStage = 0 | 1 | 2 | 3;
 
+function buildPillars(data: LevelRevealData): PillarRing[] {
+  return [
+    {
+      level: data.cardioLevel,
+      color: lumenPillar.cardio,
+      contribution: '70%',
+      mergeOffset: 84,
+    },
+    {
+      level: data.strengthLevel,
+      color: lumenPillar.strength,
+      contribution: '20%',
+      mergeOffset: 0,
+    },
+    {
+      level: data.knowledgeLevel,
+      color: lumenPillar.knowledge,
+      contribution: '10%',
+      mergeOffset: -84,
+    },
+  ];
+}
+
 export function LevelRevealScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
   const { leading } = useResponsiveLayout();
   const [stage, setStage] = useState<RevealStage>(0);
+  const [revealData, setRevealData] = useState<LevelRevealData | null>(null);
   const headlineSize = 26;
-  const subheadSize = 14;
 
   const glowOpacity = useSharedValue(0);
   const bigRingScale = useSharedValue(0.6);
@@ -59,6 +81,21 @@ export function LevelRevealScreen({ navigation }: Props) {
   const footerOpacity = useSharedValue(0);
 
   useEffect(() => {
+    if (!user?.uid) return;
+
+    let cancelled = false;
+    void loadLevelRevealData(user.uid).then((data) => {
+      if (!cancelled) setRevealData(data);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!revealData) return;
+
     const timers = [
       setTimeout(() => setStage(1), 500),
       setTimeout(() => setStage(2), 1900),
@@ -80,7 +117,7 @@ export function LevelRevealScreen({ navigation }: Props) {
       }, 3100),
     ];
     return () => timers.forEach(clearTimeout);
-  }, [bigRingOpacity, bigRingScale, copyOpacity, footerOpacity, glowOpacity, pulseScale]);
+  }, [bigRingOpacity, bigRingScale, copyOpacity, footerOpacity, glowOpacity, pulseScale, revealData]);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
@@ -103,6 +140,17 @@ export function LevelRevealScreen({ navigation }: Props) {
     opacity: footerOpacity.value,
   }));
 
+  if (!revealData) {
+    return (
+      <View style={[styles.screen, styles.loading]}>
+        <ActivityIndicator color={lumen.lime} size="large" />
+      </View>
+    );
+  }
+
+  const pillars = buildPillars(revealData);
+  const longevityLevel = revealData.longevityLevel;
+
   return (
     <View style={styles.screen}>
       <View
@@ -111,12 +159,11 @@ export function LevelRevealScreen({ navigation }: Props) {
           { paddingTop: insets.top + 30, paddingBottom: insets.bottom + 26 },
         ]}
       >
-
         <Text style={styles.eyebrow}>Your Longevity Level</Text>
 
         <View style={styles.ringStage}>
           <View style={[styles.pillarRow, { width: RING_ROW_WIDTH, height: SMALL_RING + 28 }]}>
-            {PILLARS.map((pillar, index) => (
+            {pillars.map((pillar, index) => (
               <PillarRingSlot
                 key={pillar.color}
                 pillar={pillar}
@@ -143,8 +190,8 @@ export function LevelRevealScreen({ navigation }: Props) {
             <Animated.View style={pulseStyle}>
               <View style={styles.bigRingGlow}>
                 <LumRing
-                  value={LONGEVITY_LEVEL}
-                  pct={LONGEVITY_LEVEL * 10}
+                  value={longevityLevel}
+                  pct={longevityLevel * 10}
                   size={BIG_RING}
                   stroke={10}
                 />
@@ -160,22 +207,30 @@ export function LevelRevealScreen({ navigation }: Props) {
               { fontSize: headlineSize, lineHeight: leading(headlineSize, 1.15) },
             ]}
           >
-            <Text style={styles.headlineAccent}>Level {LONGEVITY_LEVEL}.</Text> You're in good shape.
+            <Text style={styles.headlineAccent}>Level {longevityLevel}.</Text> You're in good shape.
           </Text>
 
-          <View style={styles.trendChip}>
-            <Ionicons name="arrow-up" size={11} color="#3FD08B" />
-            <Text style={styles.trendText}>+1 from last cycle</Text>
-          </View>
-
-          <Text
-            style={[
-              styles.subhead,
-              { fontSize: subheadSize, lineHeight: leading(subheadSize) },
-            ]}
-          >
-            And you've got a clear path to Level 7.
-          </Text>
+          {revealData.trend === 'up' ? (
+            <View style={styles.trendChipUp}>
+              <Ionicons name="arrow-up" size={11} color="#3FD08B" />
+              <Text style={styles.trendTextUp}>
+                +{revealData.trendDelta ?? 1} from last cycle
+              </Text>
+            </View>
+          ) : null}
+          {revealData.trend === 'down' ? (
+            <View style={styles.trendChipDown}>
+              <Ionicons name="arrow-down" size={11} color={lumen.coral} />
+              <Text style={styles.trendTextDown}>
+                {revealData.trendDelta ?? -1} from last cycle
+              </Text>
+            </View>
+          ) : null}
+          {revealData.trend === 'same' ? (
+            <View style={styles.trendChipSame}>
+              <Text style={styles.trendTextSame}>Held from last cycle</Text>
+            </View>
+          ) : null}
         </Animated.View>
 
         <Animated.View style={[styles.footer, footerStyle]}>
@@ -268,20 +323,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     flex: 1,
     zIndex: 2,
     alignItems: 'center',
     paddingHorizontal: 26,
-  },
-  backButton: {
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    marginLeft: -4,
-    marginBottom: 8,
-  },
-  backIcon: {
-    opacity: 0.85,
   },
   eyebrow: {
     ...sora('bold'),
@@ -353,26 +403,47 @@ const styles = StyleSheet.create({
   headlineAccent: {
     color: lumen.lime,
   },
-  trendChip: {
+  trendChipUp: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     marginTop: 10,
-    marginBottom: 12,
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: 999,
     backgroundColor: 'rgba(0,200,150,0.15)',
   },
-  trendText: {
+  trendTextUp: {
     ...sora('extrabold'),
     fontSize: 12,
     color: '#3FD08B',
   },
-  subhead: {
+  trendChipDown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,90,90,0.12)',
+  },
+  trendTextDown: {
+    ...sora('extrabold'),
+    fontSize: 12,
+    color: lumen.coral,
+  },
+  trendChipSame: {
+    marginTop: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  trendTextSame: {
     ...sora('semibold'),
+    fontSize: 12,
     color: lumen.fgMuted,
-    textAlign: 'center',
   },
   footer: {
     alignSelf: 'stretch',

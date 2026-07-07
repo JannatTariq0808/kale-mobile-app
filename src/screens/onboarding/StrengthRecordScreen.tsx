@@ -10,6 +10,8 @@ import {
   MAX_PLANK_RECORDING_SEC,
 } from '../../config/strengthRecording';
 import { PlankRecordingReviewModal } from '../../components/strength/PlankRecordingReviewModal';
+import { PlankSetupOverlay } from '../../components/strength/PlankSetupOverlay';
+import { usePlankSetupGate } from '../../hooks/usePlankSetupGate';
 import type { RootStackParamList } from '../../navigation/types';
 import { reviewPlankVideo } from '../../services/strength/reviewPlankVideo';
 import type { PlankPoseSessionStats } from '../../services/strength/plankPoseSession';
@@ -20,6 +22,7 @@ import { formatPlankDuration } from '../../utils/formatPlankDuration';
 type Props = NativeStackScreenProps<RootStackParamList, 'StrengthRecord'>;
 
 type Facing = 'front' | 'back';
+type CameraPhase = 'setup' | 'record';
 
 type RecordingResult = {
   uri: string;
@@ -39,6 +42,8 @@ export function StrengthRecordScreen({ navigation }: Props) {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const [facing, setFacing] = useState<Facing>('back');
+  const [cameraPhase, setCameraPhase] = useState<CameraPhase>('setup');
+  const [setupPaused, setSetupPaused] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
@@ -47,6 +52,42 @@ export function StrengthRecordScreen({ navigation }: Props) {
   const startedAtRef = useRef<number | null>(null);
   const recordingRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const cameraReadyRef = useRef(false);
+  const cameraReadyWaitersRef = useRef<Array<() => void>>([]);
+
+  const notifyCameraReady = useCallback(() => {
+    cameraReadyRef.current = true;
+    setCameraReady(true);
+    for (const resolve of cameraReadyWaitersRef.current) {
+      resolve();
+    }
+    cameraReadyWaitersRef.current = [];
+  }, []);
+
+  const markCameraNotReady = useCallback(() => {
+    cameraReadyRef.current = false;
+    setCameraReady(false);
+  }, []);
+
+  const waitForCameraReady = useCallback(async (timeoutMs = 6000) => {
+    if (cameraReadyRef.current) return;
+
+    await new Promise<void>((resolve, reject) => {
+      const onReady = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+
+      const timeout = setTimeout(() => {
+        cameraReadyWaitersRef.current = cameraReadyWaitersRef.current.filter(
+          (item) => item !== onReady,
+        );
+        reject(new Error('Camera did not become ready in time.'));
+      }, timeoutMs);
+
+      cameraReadyWaitersRef.current.push(onReady);
+    });
+  }, []);
 
   const clearTick = useCallback(() => {
     if (tickRef.current) {
@@ -59,6 +100,21 @@ export function StrengthRecordScreen({ navigation }: Props) {
 
   const permissionsReady =
     cameraPermission?.granted === true && microphonePermission?.granted === true;
+
+  const setupGateEnabled =
+    permissionsReady &&
+    cameraReady &&
+    cameraPhase === 'setup' &&
+    !setupPaused &&
+    !recording &&
+    !finishing &&
+    pendingReview == null;
+
+  const setupGate = usePlankSetupGate({
+    cameraRef,
+    cameraReady: permissionsReady && cameraReady,
+    enabled: setupGateEnabled,
+  });
 
   const requestMediaPermissions = useCallback(async () => {
     const camera = cameraPermission?.granted ? cameraPermission : await requestCameraPermission();
@@ -74,7 +130,9 @@ export function StrengthRecordScreen({ navigation }: Props) {
   ]);
 
   const handleStartRecording = useCallback(async () => {
-    if (!cameraRef.current || recording || finishing || !cameraReady) return;
+    if (!cameraRef.current || recording || finishing || !cameraReady || !setupGate.isLocked) {
+      return;
+    }
 
     const granted = await requestMediaPermissions();
     if (!granted) {
@@ -82,6 +140,22 @@ export function StrengthRecordScreen({ navigation }: Props) {
         'Permissions needed',
         'Kale needs camera and microphone access to record your plank. Android requires microphone permission even when audio is not saved.',
       );
+      return;
+    }
+
+    setSetupPaused(true);
+    markCameraNotReady();
+    setCameraPhase('record');
+
+    try {
+      await waitForCameraReady();
+    } catch (error) {
+      setSetupPaused(false);
+      setCameraPhase('setup');
+      if (__DEV__) {
+        console.warn('[strength] camera switch to video failed', error);
+      }
+      Alert.alert('Camera not ready', 'Could not switch to recording mode. Please try again.');
       return;
     }
 
@@ -104,6 +178,8 @@ export function StrengthRecordScreen({ navigation }: Props) {
       clearTick();
       recordingRef.current = false;
       setRecording(false);
+      setCameraPhase('setup');
+      setSetupPaused(false);
       startedAtRef.current = null;
       recordPromiseRef.current = null;
       if (__DEV__) {
@@ -111,13 +187,25 @@ export function StrengthRecordScreen({ navigation }: Props) {
       }
       Alert.alert('Recording failed', 'Could not start recording. Please try again.');
     }
-  }, [cameraReady, clearTick, finishing, recording, requestMediaPermissions]);
+  }, [
+    cameraReady,
+    clearTick,
+    finishing,
+    recording,
+    requestMediaPermissions,
+    setupGate.isLocked,
+    waitForCameraReady,
+    markCameraNotReady,
+  ]);
 
   const resetRecordingUi = useCallback(() => {
     setFinishing(false);
     recordingRef.current = false;
     setRecording(false);
     setElapsedSec(0);
+    setCameraPhase('setup');
+    setSetupPaused(false);
+    markCameraNotReady();
     startedAtRef.current = null;
     recordPromiseRef.current = null;
   }, []);
@@ -125,7 +213,8 @@ export function StrengthRecordScreen({ navigation }: Props) {
   const handleRecordAgain = useCallback(() => {
     setPendingReview(null);
     resetRecordingUi();
-  }, [resetRecordingUi]);
+    setupGate.reset();
+  }, [resetRecordingUi, setupGate]);
 
   const handleSubmitReview = useCallback(() => {
     if (!pendingReview?.validation.ok) return;
@@ -208,8 +297,9 @@ export function StrengthRecordScreen({ navigation }: Props) {
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
         facing={facing}
-        mode="video"
-        onCameraReady={() => setCameraReady(true)}
+        mode={cameraPhase === 'setup' ? 'picture' : 'video'}
+        mute
+        onCameraReady={notifyCameraReady}
       />
 
       <View
@@ -246,11 +336,21 @@ export function StrengthRecordScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
+        <PlankSetupOverlay
+          visible={!recording && !finishing && pendingReview == null}
+          status={setupGate.status}
+          hints={setupGate.hints}
+          consecutiveValid={setupGate.consecutiveValid}
+          requiredValid={setupGate.requiredValid}
+          statusMessage={setupGate.statusMessage}
+        />
+
         <View style={styles.hintCard}>
           <Text style={styles.hintEyebrow}>Plank recording</Text>
           <Text style={styles.hintText}>
-            Prop your phone to the side so shoulders, hips, and legs are visible. Hold a straight
-            plank, then stop — we check your form after you finish.
+            {setupGate.isLocked
+              ? 'Position locked. Tap record, hold your plank, then stop — we double-check form after you finish.'
+              : setupGate.statusMessage}
           </Text>
         </View>
 
@@ -267,24 +367,55 @@ export function StrengthRecordScreen({ navigation }: Props) {
               <View style={styles.stopInner} />
             </Pressable>
           ) : (
-            <Pressable
-              onPress={() => void handleStartRecording()}
-              style={[styles.recordButton, !cameraReady && styles.recordButtonDisabled]}
-              disabled={!cameraReady}
-              accessibilityRole="button"
-              accessibilityLabel="Start recording"
-            >
-              <View style={styles.recordInner} />
-            </Pressable>
+            <>
+              {!setupGate.isLocked ? (
+                <Pressable
+                  onPress={setupGate.checkNow}
+                  disabled={!cameraReady || setupGate.isChecking}
+                  style={[
+                    styles.checkButton,
+                    (!cameraReady || setupGate.isChecking) && styles.checkButtonDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Check position"
+                >
+                  <Text style={styles.checkButtonText}>
+                    {setupGate.isChecking ? 'Checking…' : 'Check position'}
+                  </Text>
+                </Pressable>
+              ) : null}
+              <Pressable
+                onPress={() => void handleStartRecording()}
+                style={[
+                  styles.recordButton,
+                  (!cameraReady || !setupGate.isLocked) && styles.recordButtonDisabled,
+                  setupGate.isLocked && styles.recordButtonReady,
+                ]}
+                disabled={!cameraReady || !setupGate.isLocked}
+                accessibilityRole="button"
+                accessibilityLabel="Start recording"
+              >
+                <View
+                  style={[
+                    styles.recordInner,
+                    setupGate.isLocked ? styles.recordInnerReady : null,
+                  ]}
+                />
+              </Pressable>
+            </>
           )}
           <Text style={styles.controlLabel}>
             {finishing
               ? 'Checking form…'
               : recording
                 ? 'Tap to stop'
-                : cameraReady
+                : setupGate.isLocked
                   ? 'Tap to record'
-                  : 'Starting camera…'}
+                  : setupGate.status === 'unavailable'
+                    ? 'Position check unavailable'
+                    : cameraReady
+                      ? 'Align position first'
+                      : 'Starting camera…'}
           </Text>
         </View>
       </View>
@@ -419,6 +550,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  checkButton: {
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderWidth: 1,
+    borderColor: lumen.lime,
+  },
+  checkButtonDisabled: {
+    opacity: 0.5,
+  },
+  checkButtonText: {
+    ...sora('bold'),
+    fontSize: 13,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: lumen.lime,
+  },
   recordButton: {
     width: 78,
     height: 78,
@@ -432,11 +581,17 @@ const styles = StyleSheet.create({
   recordButtonDisabled: {
     opacity: 0.45,
   },
+  recordButtonReady: {
+    borderColor: lumen.lime,
+  },
   recordInner: {
     width: 58,
     height: 58,
     borderRadius: 29,
     backgroundColor: lumen.coral,
+  },
+  recordInnerReady: {
+    backgroundColor: lumen.lime,
   },
   stopButton: {
     width: 78,

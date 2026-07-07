@@ -1,31 +1,29 @@
 import type { LumenResultConfig } from '../components/lumen/LumenResultView';
 import type { CardioSummary } from '../services/cardio/fetchCardioSummary';
 import type { HealthProfileForAssess } from '../services/user/fetchHealthProfile';
+import type { CardioType } from './cardioPerformance';
+import { isGarminDeviceName } from './cardioDevice';
 import {
+  calculateFtp,
   calculatePerformanceCardioNew,
   cardioRelativePerformancePercent,
   formatAgeBracketLabel,
+  formatCardioPace,
   formatGenderCohort,
+  getCardioLevelUpMessage,
   resolveAgeGroup,
   calculateAge,
 } from './cardioPerformance';
+import { resolveLevelTrend } from './resolveLevelTrend';
 
-function formatPaceMinPerKm(pace: number): string {
+function formatPaceValue(pace: number): string {
   if (!pace || !Number.isFinite(pace)) return '—';
-  const totalSec = Math.round(pace * 60);
-  const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
+  return formatCardioPace(pace);
 }
 
-function formatDistanceKm(distanceKm: number): string {
+function formatDistanceValue(distanceKm: number): string {
   if (!distanceKm || !Number.isFinite(distanceKm)) return '—';
-  return `${distanceKm.toFixed(1)}km`;
-}
-
-function formatVo2max(vo2max: number | null): string {
-  if (vo2max == null || !Number.isFinite(vo2max) || vo2max <= 0) return '—';
-  return String(Math.round(vo2max * 10) / 10);
+  return distanceKm.toFixed(1);
 }
 
 type BuildCardioResultInput = {
@@ -34,15 +32,69 @@ type BuildCardioResultInput = {
   previousLevel?: number | null;
 };
 
+function resolveFtpPerKg(
+  summary: CardioSummary,
+  weightKg: number,
+): number | null {
+  if (summary.ftpPerKg && summary.ftpPerKg > 0) return summary.ftpPerKg;
+  if (
+    summary.headlinePowerWatts &&
+    summary.headlinePowerWatts > 0 &&
+    summary.timeMin &&
+    summary.timeMin > 0 &&
+    weightKg > 0
+  ) {
+    return calculateFtp(summary.headlinePowerWatts, weightKg, summary.timeMin);
+  }
+  return null;
+}
+
+function formatDurationMinValue(timeMin: number): string {
+  return String(Math.round(timeMin));
+}
+
+function buildThirdTile(
+  summary: CardioSummary,
+  levelSource: CardioType | null,
+): { label: string; value: string; unit?: string } {
+  const isCycling = levelSource === 'Cycling';
+
+  if (summary.headlineAvgHeartrate && summary.headlineAvgHeartrate > 0) {
+    return {
+      label: 'Avg HR',
+      value: String(Math.round(summary.headlineAvgHeartrate)),
+      unit: 'bpm',
+    };
+  }
+
+  if (isCycling && summary.headlinePowerWatts && summary.headlinePowerWatts > 0) {
+    return {
+      label: 'Avg power',
+      value: String(Math.round(summary.headlinePowerWatts)),
+      unit: 'W',
+    };
+  }
+
+  if (summary.timeMin && summary.timeMin > 0) {
+    return {
+      label: isCycling ? 'Ride time' : 'Run time',
+      value: formatDurationMinValue(summary.timeMin),
+      unit: 'min',
+    };
+  }
+
+  return { label: 'Source', value: isCycling ? 'Ride' : 'Run' };
+}
+
 function resolvePerformanceInput(
   summary: CardioSummary,
-  profile: HealthProfileForAssess,
+  ftpPerKg: number | null,
 ): { userValue: number; levelSource: NonNullable<CardioSummary['levelSource']> } | null {
   const levelSource = summary.levelSource ?? 'Running';
 
   if (levelSource === 'Cycling') {
-    if (summary.ftpPerKg && summary.ftpPerKg > 0) {
-      return { userValue: summary.ftpPerKg, levelSource: 'Cycling' };
+    if (ftpPerKg && ftpPerKg > 0) {
+      return { userValue: ftpPerKg, levelSource: 'Cycling' };
     }
     return null;
   }
@@ -72,8 +124,9 @@ export function buildCardioResultConfig({
 
   const level = Math.max(1, Math.min(10, summary.level || 1));
   const nextLevel = Math.min(10, level + 1);
+  const ftpPerKg = resolveFtpPerKg(summary, profile.weight_kg);
 
-  const performanceInput = resolvePerformanceInput(summary, profile);
+  const performanceInput = resolvePerformanceInput(summary, ftpPerKg);
   let relativePerformance = 0;
 
   if (performanceInput) {
@@ -85,41 +138,47 @@ export function buildCardioResultConfig({
       distanceKm: summary.distanceKm,
       weightKg: profile.weight_kg,
       durationMin: summary.timeMin,
-      ftpPerKg: summary.ftpPerKg,
+      ftpPerKg,
     });
   }
 
   const percentile = cardioRelativePerformancePercent(relativePerformance);
 
-  let trend: LumenResultConfig['trend'] = 'none';
-  let trendDelta: number | undefined;
-  let levelNote = 'Your first cardio score.';
-
-  if (previousLevel != null && previousLevel > 0) {
-    const delta = level - previousLevel;
-    if (delta > 0) {
-      trend = 'up';
-      trendDelta = delta;
-      levelNote = `Up from Level ${previousLevel} last cycle.`;
-    } else if (delta < 0) {
-      trend = 'down';
-      trendDelta = delta;
-      levelNote = `Down from Level ${previousLevel} last cycle.`;
-    } else {
-      trend = 'same';
-      levelNote = `Held at Level ${level} from last cycle.`;
-    }
-  }
+  const { trend, trendDelta, levelNote } = resolveLevelTrend(
+    level,
+    previousLevel,
+    'Your first cardio score.',
+  );
 
   const bestPace =
     summary.levelSource === 'Running'
       ? summary.paceMinPerKm
       : summary.averagePace;
   const bestDistance = summary.distanceKm ?? summary.averageDistance;
-  const headlineLabel =
-    summary.levelSource === 'Cycling'
-      ? 'Estimated VO₂max from your best ride.'
-      : 'Estimated VO₂max — your strongest longevity signal.';
+
+  const cardioType = summary.levelSource ?? 'Running';
+  const userPace =
+    summary.paceMinPerKm ??
+    (summary.distanceKm && summary.timeMin
+      ? summary.timeMin / summary.distanceKm
+      : 0);
+
+  const levelUpMessage = getCardioLevelUpMessage({
+    cardioType,
+    gender: profile.gender,
+    dob,
+    currentLevel: level,
+    userValue: cardioType === 'Running' ? userPace : (ftpPerKg ?? 0),
+    weightKg: profile.weight_kg,
+  });
+
+  const deviceName = summary.deviceName?.trim() || 'Tracker';
+  const garminBranded = isGarminDeviceName(deviceName);
+
+  const isCycling = summary.levelSource === 'Cycling';
+
+  const heroValue = formatPaceValue(bestPace ?? 0);
+  const heroUnit = 'min/km';
 
   return {
     pillar: 'cardio',
@@ -130,46 +189,26 @@ export function buildCardioResultConfig({
     levelNote,
     percentile,
     rpText: `Fitter than ${percentile}% of ${genderCohort} aged ${ageBracket}.`,
-    resultHero: formatVo2max(summary.vo2max),
-    resultUnit: 'ml/kg·min',
-    resultLabel: headlineLabel,
+    resultHero: heroValue,
+    resultUnit: heroUnit,
+    resultLabel: '',
     tiles: [
       {
-        label: summary.levelSource === 'Cycling' ? 'Best ride' : 'Best pace',
-        value:
-          summary.levelSource === 'Cycling'
-            ? formatDistanceKm(bestDistance ?? 0)
-            : formatPaceMinPerKm(bestPace ?? 0),
-        unit: summary.levelSource === 'Cycling' ? '' : '/km',
+        label: isCycling ? 'Best ride' : 'Best run',
+        value: formatDistanceValue(bestDistance ?? 0),
+        unit: 'km',
       },
       {
-        label: summary.levelSource === 'Cycling' ? 'FTP/kg' : 'Best run',
-        value:
-          summary.levelSource === 'Cycling'
-            ? summary.ftpPerKg != null
-              ? summary.ftpPerKg.toFixed(2)
-              : '—'
-            : formatDistanceKm(bestDistance ?? 0),
-        unit: summary.levelSource === 'Cycling' ? 'W/kg' : '',
-      },
-      {
-        label: 'Device',
-        value: summary.deviceName?.trim() || 'Tracker',
+        ...buildThirdTile(summary, summary.levelSource),
       },
     ],
+    deviceAttribution:
+      deviceName && deviceName !== 'Tracker'
+        ? { deviceName, garminBranded }
+        : undefined,
     nextLevel,
-    nextActions:
-      summary.levelSource === 'Cycling'
-        ? [
-            'Add one Zone-2 ride each week',
-            `Push FTP/kg toward Level ${nextLevel}`,
-            'Keep rides over 30 minutes for scoring',
-          ]
-        : [
-            'Add one Zone-2 long run each week',
-            `Nudge your VO₂max past ${formatVo2max((summary.vo2max ?? 0) + 2)}`,
-            'Keep the 80/20 easy-to-hard split',
-          ],
+    nextActions: [],
+    levelUpMessage,
     nextBtn: 'Next — Strength',
   };
 }

@@ -2,13 +2,18 @@
 
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { ActivityIcon } from './ActivityIcon';
-import { GarminDeviceTag } from './GarminDeviceTag';
-import type { FitnessActivity } from '../../data/fitnessDemo';
+import { ActivityDeviceTag } from './ActivityDeviceTag';
+import type { CountFilter, FitnessActivity, SportFilter } from '../../data/fitnessDemo';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
+import { getActivityLogEmptyMessage } from '../../utils/activityLogEmptyState';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type ActivityLogListProps = {
   activities: FitnessActivity[];
+  sportFilter: SportFilter;
+  countFilter: CountFilter;
+  periodLabel: string;
+  hasAnyActivities: boolean;
   onLearnMorePress?: () => void;
 };
 
@@ -65,7 +70,7 @@ function ActivityRow({ activity }: { activity: FitnessActivity }) {
             <Text style={styles.reason}> · {activity.reason}</Text>
           ) : null}
         </Text>
-        {activity.device ? <GarminDeviceTag device={activity.device} /> : null}
+        {activity.device ? <ActivityDeviceTag device={activity.device} /> : null}
       </View>
 
       <View style={styles.side}>
@@ -80,20 +85,41 @@ function ActivityRow({ activity }: { activity: FitnessActivity }) {
   );
 }
 
-export function ActivityLogList({ activities, onLearnMorePress }: ActivityLogListProps) {
+export function ActivityLogList({
+  activities,
+  sportFilter,
+  countFilter,
+  periodLabel,
+  hasAnyActivities,
+  onLearnMorePress,
+}: ActivityLogListProps) {
   const { type, leading } = useResponsiveLayout();
+  const emptyMessage = getActivityLogEmptyMessage(
+    sportFilter,
+    countFilter,
+    periodLabel,
+    hasAnyActivities,
+  );
 
   return (
     <View>
       <View style={styles.list}>
-        {activities.map((activity, index) => (
-          <View
-            key={`${activity.name}-${activity.date}`}
-            style={index < activities.length - 1 ? styles.rowBorder : undefined}
-          >
-            <ActivityRow activity={activity} />
+        {activities.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Text style={[styles.emptyText, { fontSize: type(14), lineHeight: leading(type(14), 1.4) }]}>
+              {emptyMessage}
+            </Text>
           </View>
-        ))}
+        ) : (
+          activities.map((activity, index) => (
+            <View
+              key={`${activity.name}-${activity.date}-${activity.type}`}
+              style={index < activities.length - 1 ? styles.rowBorder : undefined}
+            >
+              <ActivityRow activity={activity} />
+            </View>
+          ))
+        )}
       </View>
 
       <Pressable onPress={onLearnMorePress} style={styles.learnMore}>
@@ -113,6 +139,15 @@ const styles = StyleSheet.create({
     borderColor: lumen.hairline,
     backgroundColor: 'rgba(234,243,228,0.05)',
     overflow: 'hidden',
+  },
+  emptyWrap: {
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+  },
+  emptyText: {
+    ...sora('semibold'),
+    color: lumen.fgMuted,
+    textAlign: 'center',
   },
   rowBorder: {
     borderBottomWidth: 1,

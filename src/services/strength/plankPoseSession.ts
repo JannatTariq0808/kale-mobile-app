@@ -1,8 +1,19 @@
 export type PlankFrameAnalysisError = 'network' | 'service' | 'auth' | 'quota';
 
+export type PlankHintCode =
+  | 'phone_side'
+  | 'step_back'
+  | 'lower_hips'
+  | 'raise_hips'
+  | 'straighten_back'
+  | 'forearms_down'
+  | 'person_not_visible'
+  | 'lighting';
+
 export type PlankPoseFrameResult = {
   valid: boolean;
   confidence: number;
+  hints: PlankHintCode[];
   error?: PlankFrameAnalysisError;
 };
 

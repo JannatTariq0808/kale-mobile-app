@@ -178,15 +178,6 @@ export function WelcomeScreen({ navigation }: Props) {
           >
             <Text style={styles.resetText}>Reset password</Text>
           </Pressable>
-          {__DEV__ ? (
-            <Pressable
-              style={styles.devLink}
-              onPress={() => navigation.navigate('KnowledgeIntro')}
-              accessibilityRole="button"
-            >
-              <Text style={styles.devText}>Dev: Knowledge quiz</Text>
-            </Pressable>
-          ) : null}
         </View>
         </ScrollView>
       </SafeAreaView>
@@ -293,14 +284,5 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: 'rgba(234,243,228,0.55)',
     textDecorationLine: 'underline',
-  },
-  devLink: {
-    alignSelf: 'center',
-    padding: 4,
-  },
-  devText: {
-    ...sora('semibold'),
-    fontSize: 12,
-    color: 'rgba(234,243,228,0.35)',
   },
 });

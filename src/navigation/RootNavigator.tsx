@@ -58,8 +58,16 @@ export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigat
           options={{ gestureEnabled: false }}
         />
         <Stack.Screen name="ConnectTracker" component={ConnectTrackerScreen} />
-        <Stack.Screen name="CardioAnalysing" component={CardioAnalysingScreen} />
-        <Stack.Screen name="CardioResult" component={CardioResultScreen} />
+        <Stack.Screen
+          name="CardioAnalysing"
+          component={CardioAnalysingScreen}
+          options={{ gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="CardioResult"
+          component={CardioResultScreen}
+          options={{ gestureEnabled: false }}
+        />
         <Stack.Screen name="StrengthIntro" component={StrengthIntroScreen} />
         <Stack.Screen
           name="StrengthRecord"

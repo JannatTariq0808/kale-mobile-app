@@ -26,26 +26,49 @@ function normalizeGender(value: unknown): string | null {
   return value.trim();
 }
 
-export async function fetchHealthProfileForAssess(): Promise<HealthProfileForAssess | null> {
+function readWeightKg(data: Record<string, unknown>): number | undefined {
+  const raw = data.weightKg ?? data.weight_kg ?? data.weight_in_kg;
+  const weight_kg =
+    typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+  if (!Number.isFinite(weight_kg) || weight_kg <= 0) return undefined;
+  return weight_kg;
+}
+
+/** Gender + DOB for strength / cohort grading (weight optional). */
+export type DemographicsForAssess = {
+  gender: string;
+  date_of_birth: string;
+  weight_kg?: number;
+};
+
+export async function fetchDemographicsForAssess(): Promise<DemographicsForAssess | null> {
   const uid = getFirebaseAuth().currentUser?.uid;
   if (!uid) return null;
 
   const snap = await getDoc(doc(getFirebaseFirestore(), 'users', uid));
   if (!snap.exists()) return null;
 
-  const data = snap.data();
+  const data = snap.data() as Record<string, unknown>;
   const gender = normalizeGender(data.gender);
-  const date_of_birth = formatDateOfBirth(data.dateOfBirth);
-  const weight_kg =
-    typeof data.weightKg === 'number'
-      ? data.weightKg
-      : typeof data.weightKg === 'string'
-        ? Number(data.weightKg)
-        : NaN;
+  const date_of_birth =
+    formatDateOfBirth(data.dateOfBirth) ?? formatDateOfBirth(data.date_of_birth);
 
-  if (!gender || !date_of_birth || !Number.isFinite(weight_kg) || weight_kg <= 0) {
-    return null;
-  }
+  if (!gender || !date_of_birth) return null;
 
-  return { gender, date_of_birth, weight_kg };
+  return {
+    gender,
+    date_of_birth,
+    weight_kg: readWeightKg(data),
+  };
+}
+
+export async function fetchHealthProfileForAssess(): Promise<HealthProfileForAssess | null> {
+  const demographics = await fetchDemographicsForAssess();
+  if (!demographics?.weight_kg) return null;
+
+  return {
+    gender: demographics.gender,
+    date_of_birth: demographics.date_of_birth,
+    weight_kg: demographics.weight_kg,
+  };
 }

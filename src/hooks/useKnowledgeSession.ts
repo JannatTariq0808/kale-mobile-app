@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchKnowledgeAssessmentForSet } from '../services/knowledge/knowledgeAssessmentSession';
+import { fetchKnowledgeAssessmentForActiveCycle } from '../services/knowledge/knowledgeAssessmentSession';
 import type { KnowledgeAssessment } from '../types/knowledgeAssessment';
 
 export function useKnowledgeSession(uid: string | null | undefined, setId: string) {
@@ -16,7 +16,7 @@ export function useKnowledgeSession(uid: string | null | undefined, setId: strin
     let cancelled = false;
     setLoading(true);
 
-    fetchKnowledgeAssessmentForSet(uid, setId)
+    fetchKnowledgeAssessmentForActiveCycle(uid, setId)
       .then((value) => {
         if (!cancelled) setAssessment(value);
       })

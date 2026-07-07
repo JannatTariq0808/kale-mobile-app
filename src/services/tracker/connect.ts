@@ -2,7 +2,8 @@ import type { ConnectionBrand } from '../../components/lumen/ConnectionBrandIcon
 import type { TrackerProvider } from '../../navigation/trackerLinking';
 import { getFirebaseAuth } from '../auth/firebaseApp';
 import { fetchHealthProfileForAssess } from '../user/fetchHealthProfile';
-import { assessStravaActivities } from './assess';
+import { getActiveAssessmentFlow } from '../assessment/assessmentFlowSession';
+import { assessStravaActivities, type AssessStravaOptions } from './assess';
 import { claimGarminConnection, claimStravaConnection } from './claim';
 import { pollGarminSyncStatus } from './garminSync';
 import { oauthReasonToMessage, runTrackerOAuth } from './oauth';
@@ -37,6 +38,7 @@ async function getIdToken(): Promise<string> {
 async function finishProviderConnection(
   provider: TrackerProvider,
   pendingToken: string,
+  assessOptions?: AssessStravaOptions,
 ): Promise<ConnectTrackerResult> {
   const idToken = await getIdToken();
 
@@ -59,7 +61,7 @@ async function finishProviderConnection(
       };
     }
 
-    const assess = await assessStravaActivities(idToken, profile);
+    const assess = await assessStravaActivities(idToken, profile, assessOptions);
     if (!assess.ok) {
       return { ok: false, message: assess.message, provider: 'strava' };
     }
@@ -102,10 +104,20 @@ async function finishProviderConnection(
 export async function finishTrackerConnection(
   provider: TrackerProvider,
   pendingToken: string,
+  assessOptions?: AssessStravaOptions,
 ): Promise<ConnectTrackerResult> {
   return dedupeFinishTrackerConnection(pendingToken, () =>
-    finishProviderConnection(provider, pendingToken),
+    finishProviderConnection(provider, pendingToken, assessOptions),
   );
+}
+
+function readAssessOptionsFromFlow(): AssessStravaOptions | undefined {
+  const flow = getActiveAssessmentFlow();
+  if (!flow) return undefined;
+  const options: AssessStravaOptions = {};
+  if (flow.activitiesSince) options.activitiesSince = flow.activitiesSince;
+  if (flow.assessmentId) options.assessmentId = flow.assessmentId;
+  return Object.keys(options).length > 0 ? options : undefined;
 }
 
 export async function connectTracker(brand: ConnectionBrand): Promise<ConnectTrackerResult> {
@@ -136,5 +148,5 @@ export async function connectTracker(brand: ConnectionBrand): Promise<ConnectTra
     return { ok: false, message: 'Missing connection token.', provider };
   }
 
-  return finishTrackerConnection(provider, pendingToken);
+  return finishTrackerConnection(provider, pendingToken, readAssessOptionsFromFlow());
 }

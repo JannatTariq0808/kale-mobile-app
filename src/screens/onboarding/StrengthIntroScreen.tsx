@@ -9,8 +9,12 @@ import { isStrengthDevSkipPoseCheck } from '../../config/strengthDev';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { PlankRecordingReviewModal } from '../../components/strength/PlankRecordingReviewModal';
+import { useAuthSession } from '../../hooks/useAuthSession';
+import { useOnboardingPillarStatus } from '../../hooks/useOnboardingPillarStatus';
 import type { RootStackParamList } from '../../navigation/types';
+import { onboardingSkipTarget } from '../../services/onboarding/resolveOnboardingNavigation';
 import { reviewPlankVideo, type PlankVideoReview } from '../../services/strength/reviewPlankVideo';
+import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import { lumen, lumenPillar, sora } from '../../theme';
 import { pickPlankVideo } from '../../utils/pickPlankVideo';
 import { normalizePickedVideoDurationSec } from '../../utils/normalizePickedVideoDuration';
@@ -26,12 +30,20 @@ const STEPS = [
 
 export function StrengthIntroScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
+  const { canSkipStrength, status: pillarStatus, loading: pillarLoading } =
+    useOnboardingPillarStatus(user?.uid);
+  const hideBackButton = pillarLoading || pillarStatus != null;
   const [checkingUpload, setCheckingUpload] = useState(false);
   const [pendingReview, setPendingReview] = useState<PlankVideoReview | null>(null);
 
   const handleRecord = () => {
     navigation.navigate('StrengthRecord');
   };
+
+  const handleSkip = useCallback(() => {
+    navigation.replace(onboardingSkipTarget('strength'));
+  }, [navigation]);
 
   const handleDevUpload = useCallback(async () => {
     if (checkingUpload) return;
@@ -80,14 +92,18 @@ export function StrengthIntroScreen({ navigation }: Props) {
           { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 },
         ]}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
-        </Pressable>
+        {hideBackButton ? (
+          <View style={styles.headerSpacer} />
+        ) : (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
+          </Pressable>
+        )}
 
         <ScrollView
           style={styles.flex}
@@ -112,15 +128,21 @@ export function StrengthIntroScreen({ navigation }: Props) {
               <Text style={styles.stepText}>{line}</Text>
             </View>
           ))}
-
-          <Text style={styles.footnote}>
-            Later assessments add a wall sit and — eventually — press-ups. Your strength test
-            evolves as you progress.
-          </Text>
         </ScrollView>
 
         <View style={styles.footer}>
           <LumenButton onPress={handleRecord}>Record plank</LumenButton>
+          {pillarStatus != null && canSkipStrength ? (
+            <Pressable
+              onPress={handleSkip}
+              style={styles.link}
+              accessibilityRole="button"
+              accessibilityLabel="Skip strength for now"
+            >
+              <Text style={styles.linkText}>Skip for now</Text>
+            </Pressable>
+          ) : null}
+          <OnboardingLogoutLink navigation={navigation} />
           {__DEV__ ? (
             <Pressable
               style={styles.devBtn}
@@ -138,11 +160,6 @@ export function StrengthIntroScreen({ navigation }: Props) {
               )}
             </Pressable>
           ) : null}
-          <Pressable style={styles.link} accessibilityRole="button">
-            <Text style={styles.linkText}>
-              Learn correct plank form ↗
-            </Text>
-          </Pressable>
         </View>
       </View>
 
@@ -180,6 +197,10 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     opacity: 0.85,
+  },
+  headerSpacer: {
+    height: 32,
+    marginLeft: 16,
   },
   scrollContent: {
     flexGrow: 1,

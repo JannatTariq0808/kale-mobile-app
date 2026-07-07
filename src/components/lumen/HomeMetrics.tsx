@@ -1,7 +1,16 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { lumen, sora } from '../../theme';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type LegendDotProps = {
   color: string;
@@ -36,13 +45,25 @@ function PillarRingMini({
   const radius = (size - stroke) / 2;
   const cx = size / 2;
   const circumference = 2 * Math.PI * radius;
-  const arc = (level / maxLevel) * circumference;
+  const target = Math.max(0, Math.min(1, level / maxLevel));
+
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(target, {
+      duration: 900,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, target]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
 
   return (
     <Svg width={size} height={size}>
       <Circle cx={cx} cy={cx} r={radius} stroke="rgba(255,255,255,0.10)" strokeWidth={stroke} fill="none" />
       <G rotation={-90} origin={`${cx}, ${cx}`}>
-        <Circle
+        <AnimatedCircle
           cx={cx}
           cy={cx}
           r={radius}
@@ -50,7 +71,9 @@ function PillarRingMini({
           strokeWidth={stroke}
           fill="none"
           strokeLinecap="round"
-          strokeDasharray={`${arc} ${circumference}`}
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference}
+          animatedProps={animatedProps}
         />
       </G>
     </Svg>

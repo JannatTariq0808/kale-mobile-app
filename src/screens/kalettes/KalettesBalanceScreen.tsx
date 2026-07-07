@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BalanceCardGlow } from '../../components/kalettes/BalanceCardGlow';
 import { ScreenScroll } from '../../components/layout/ScreenScroll';
 import { FaqAccordion } from '../../components/lumen/FaqAccordion';
@@ -11,8 +11,10 @@ import { LumenCard } from '../../components/lumen/LumenCard';
 import { LumenHeader } from '../../components/lumen/LumenHeader';
 import { kalettesDemo } from '../../data/kalettesDemo';
 import { useKalettesQuestions } from '../../hooks/useKalettesQuestions';
+import { useKalettesRewards } from '../../hooks/useKalettesRewards';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { KalettesStackParamList } from '../../navigation/KalettesStackNavigator';
+import { openRewardsWeb } from '../../services/kalettes/openRewardsWeb';
 import { fetchRewardsProducts } from '../../services/kalettes/fetchRewardsProducts';
 import { lumen, lumenPillar, sora } from '../../theme';
 
@@ -21,8 +23,13 @@ type Props = NativeStackScreenProps<KalettesStackParamList, 'Balance'>;
 export function KalettesBalanceScreen({ navigation }: Props) {
   const { type, scale, leading } = useResponsiveLayout();
   const { items: faqItems, loading: faqLoading } = useKalettesQuestions();
+  const rewards = useKalettesRewards();
   const heroSize = scale(56);
   const balanceSize = type(72);
+  const pendingKalettes = rewards.hasQuote ? rewards.pendingKalettes : 0;
+  const windowProgressPct = rewards.hasQuote
+    ? rewards.windowProgressPct
+    : kalettesDemo.cycleProgressPct;
 
   useEffect(() => {
     void fetchRewardsProducts();
@@ -39,20 +46,66 @@ export function KalettesBalanceScreen({ navigation }: Props) {
 
         <View style={styles.balanceCard}>
           <BalanceCardGlow />
-          <View style={styles.balanceHeader}>
-            <Text style={[styles.balanceLabel, { fontSize: type(11) }]}>Kalettes</Text>
-            <Text style={[styles.earnedBadge, { fontSize: type(10) }]}>EARNED THIS CYCLE</Text>
-          </View>
-          <View style={styles.balanceRow}>
-            <Text style={[styles.balanceValue, { fontSize: balanceSize, lineHeight: leading(balanceSize, 1.08) }]}>
-              {kalettesDemo.balance}
+          <Text style={[styles.balanceLabel, { fontSize: type(11) }]}>Kalettes</Text>
+          {rewards.loading ? (
+            <ActivityIndicator color={lumen.lime} style={styles.balanceLoader} />
+          ) : !rewards.hasQuote ? (
+            <Text style={[styles.noQuoteCopy, { fontSize: type(14), lineHeight: leading(type(14)) }]}>
+              Rewards appear once your policy quote is active.
             </Text>
-            <Text style={[styles.balanceGbp, { fontSize: type(16) }]}>{kalettesDemo.gbpEstimate}</Text>
-          </View>
+          ) : (
+            <>
+              <View style={styles.balanceSplit}>
+                <View style={styles.balanceBlock}>
+                  <Text style={[styles.balanceBlockLabel, { fontSize: type(10) }]}>
+                    Ready to spend
+                  </Text>
+                  <View style={styles.balancePtsRow}>
+                    <Text
+                      style={[
+                        styles.balanceValue,
+                        { fontSize: balanceSize, lineHeight: leading(balanceSize, 1.08) },
+                      ]}
+                    >
+                      {rewards.bankedBalance.toLocaleString('en-GB')}
+                    </Text>
+                    <Text style={[styles.balancePts, { fontSize: type(16) }]}>pts</Text>
+                  </View>
+                  <Text style={[styles.balanceBlockHint, { fontSize: type(12), lineHeight: leading(type(12)) }]}>
+                    In the marketplace now
+                  </Text>
+                </View>
+
+                <View style={styles.balanceDivider} />
+
+                <View style={styles.balanceBlock}>
+                  <Text style={[styles.balanceBlockLabel, { fontSize: type(10) }]}>
+                    Waiting to bank
+                  </Text>
+                  <View style={styles.balancePtsRow}>
+                    <Text style={[styles.balanceValuePending, { fontSize: type(36) }]}>
+                      {pendingKalettes.toLocaleString('en-GB')}
+                    </Text>
+                    <Text style={[styles.balancePts, { fontSize: type(16) }]}>pts</Text>
+                  </View>
+                  <Text style={[styles.balanceBlockHint, { fontSize: type(12), lineHeight: leading(type(12)) }]}>
+                    {rewards.completedAssessmentThisQuarter
+                      ? 'Banks at your next quarter\'s on-time assessment'
+                      : 'Banks at your next on-time assessment'}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={[styles.premiumHint, { fontSize: type(12), lineHeight: leading(type(12)) }]}>
+                Athlete level {rewards.level} · {rewards.level}% of £
+                {rewards.monthlyPremiumGbp.toFixed(2)}/mo premium back
+              </Text>
+            </>
+          )}
           <View style={styles.ctaBlock}>
             <LumenButton
               style={styles.spendButton}
-              onPress={() => void Linking.openURL(kalettesDemo.rewardsUrl)}
+              onPress={() => void openRewardsWeb()}
             >
               Spend my points at kale.insure
             </LumenButton>
@@ -74,39 +127,52 @@ export function KalettesBalanceScreen({ navigation }: Props) {
 
         <View style={styles.cycleSection}>
           <View style={styles.cycleHeader}>
-            <Text style={[styles.sectionLabel, { fontSize: type(11) }]}>This quarterly cycle</Text>
-            <Text style={[styles.cycleWeeks, { fontSize: type(12) }]}>{kalettesDemo.cycleWeeksLeft}</Text>
+            <Text style={[styles.sectionLabel, { fontSize: type(11) }]}>
+              {rewards.hasQuote ? rewards.cycleHeadline : 'Assessment window'}
+            </Text>
+            <Text style={[styles.cycleWeeks, { fontSize: type(12) }]}>
+              {rewards.hasQuote ? rewards.cycleSubline : kalettesDemo.cycleWeeksLeft}
+            </Text>
           </View>
 
           <LumenCard>
             <View style={styles.cycleRow}>
               <View style={styles.cycleCopy}>
-                <Text style={[styles.cycleSubLabel, { fontSize: type(11) }]}>To bank at next assessment</Text>
-                <View style={styles.cyclePtsRow}>
-                  <Text style={[styles.cyclePts, { fontSize: type(30) }]}>{kalettesDemo.toBankPts}</Text>
-                  <Text style={[styles.cyclePtsUnit, { fontSize: type(12) }]}>pts</Text>
-                </View>
+                <Text style={[styles.cycleSubLabel, { fontSize: type(11) }]}>
+                  Assessment window
+                </Text>
+                <Text style={[styles.cycleWindowCopy, { fontSize: type(14), lineHeight: leading(type(14)) }]}>
+                  {rewards.hasQuote ? rewards.cycleSubline : '—'}
+                </Text>
               </View>
               <LumHeroRing
                 value=""
-                pct={kalettesDemo.cycleProgressPct}
+                pct={windowProgressPct}
                 size={heroSize}
                 stroke={5}
                 accentColor={lumen.lime}
               />
             </View>
             <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${kalettesDemo.cycleProgressPct}%` }]} />
+              <View style={[styles.progressFill, { width: `${windowProgressPct}%` }]} />
             </View>
             <View style={styles.progressLabels}>
-              <Text style={[styles.progressLabel, { fontSize: type(11) }]}>Cycle start</Text>
+              <Text style={[styles.progressLabel, { fontSize: type(11) }]}>
+                {rewards.completedAssessmentThisQuarter
+                  ? 'Done this quarter'
+                  : rewards.windowLive
+                    ? 'Window open'
+                    : 'Waiting'}
+              </Text>
               <Text style={[styles.progressLabelAccent, { fontSize: type(11) }]}>Assessment</Text>
             </View>
           </LumenCard>
 
           <LumenCard accent={lumenPillar.strength} style={styles.bankNote}>
             <Text style={[styles.bankNoteText, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
-              Complete your assessment to bank these. Miss it — they reset.
+              {rewards.completedAssessmentThisQuarter
+                ? 'You can only complete one assessment per quarter. Pending Kalettes move to your spendable balance when you finish next quarter\'s assessment on time.'
+                : 'Complete your assessment during the window to bank pending Kalettes into your balance. Miss the window — they expire.'}
             </Text>
           </LumenCard>
         </View>
@@ -136,13 +202,6 @@ const styles = StyleSheet.create({
     letterSpacing: 2.8,
     textTransform: 'uppercase',
   },
-  pageTitle: {
-    ...sora('extrabold'),
-    color: lumen.fg,
-    letterSpacing: -1,
-    marginTop: 4,
-    marginBottom: 2,
-  },
   balanceCard: {
     marginTop: 14,
     padding: 24,
@@ -152,33 +211,40 @@ const styles = StyleSheet.create({
     borderColor: lumen.hairline,
     overflow: 'hidden',
   },
-  balanceHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-  },
   balanceLabel: {
     ...sora('extrabold'),
     color: lumen.lime,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+    marginBottom: 14,
   },
-  earnedBadge: {
-    ...sora('extrabold'),
+  balanceSplit: {
+    gap: 16,
+  },
+  balanceBlock: {
+    gap: 4,
+  },
+  balanceBlockLabel: {
+    ...sora('bold'),
     color: lumen.fgMuted,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: 'rgba(234,243,228,0.10)',
-    overflow: 'hidden',
   },
-  balanceRow: {
+  balanceBlockHint: {
+    ...sora('semibold'),
+    color: lumen.fgMuted,
+    opacity: 0.85,
+    marginTop: 4,
+  },
+  balanceDivider: {
+    height: 1,
+    backgroundColor: lumen.hairline,
+  },
+  balancePtsRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 10,
-    marginTop: 14,
+    gap: 8,
+    marginTop: 4,
   },
   balanceValue: {
     ...sora('semibold'),
@@ -186,9 +252,30 @@ const styles = StyleSheet.create({
     letterSpacing: -2.8,
     fontVariant: ['tabular-nums'],
   },
-  balanceGbp: {
+  balanceValuePending: {
+    ...sora('semibold'),
+    color: lumen.mint,
+    letterSpacing: -1.2,
+    fontVariant: ['tabular-nums'],
+  },
+  balancePts: {
     ...sora('bold'),
     color: lumen.fgMuted,
+  },
+  balanceLoader: {
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  noQuoteCopy: {
+    ...sora('semibold'),
+    color: lumen.fgMuted,
+    marginTop: 16,
+  },
+  premiumHint: {
+    ...sora('semibold'),
+    color: lumen.fgMuted,
+    marginTop: 8,
+    opacity: 0.85,
   },
   ctaBlock: {
     marginTop: 22,
@@ -221,7 +308,8 @@ const styles = StyleSheet.create({
   cycleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'flex-start',
+    gap: 12,
     marginBottom: 12,
   },
   sectionLabel: {
@@ -229,10 +317,13 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
+    flex: 1,
   },
   cycleWeeks: {
     ...sora('semibold'),
     color: lumen.fgMuted,
+    flexShrink: 1,
+    textAlign: 'right',
   },
   cycleRow: {
     flexDirection: 'row',
@@ -248,21 +339,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  cyclePtsRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-    marginTop: 6,
-  },
-  cyclePts: {
+  cycleWindowCopy: {
     ...sora('semibold'),
-    color: lumen.lime,
-    letterSpacing: -0.8,
-    fontVariant: ['tabular-nums'],
-  },
-  cyclePtsUnit: {
-    ...sora('semibold'),
-    color: lumen.fgMuted,
+    color: lumen.fg,
+    marginTop: 8,
   },
   progressTrack: {
     height: 6,

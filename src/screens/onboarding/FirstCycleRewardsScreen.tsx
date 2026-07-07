@@ -2,12 +2,14 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import type { RootStackParamList } from '../../navigation/types';
 import { enterMainApp } from '../../services/auth/session';
+import { useKalettesRewards } from '../../hooks/useKalettesRewards';
+import { useAssessmentWindow } from '../../hooks/useAssessmentWindow';
 import {
   bodyTextStyle,
   displayTextStyle,
@@ -17,10 +19,22 @@ import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FirstCycleRewards'>;
 
+const TIMELINE_DOT_SIZE = 14;
+const TIMELINE_END_SIZE = 13;
+
 export function FirstCycleRewardsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const rewards = useKalettesRewards();
+  const assessmentWindow = useAssessmentWindow();
   const headlineSize = 32;
   const heroValueSize = 92;
+  const timelineProgressPct = assessmentWindow.live
+    ? Math.min(100, Math.max(4, assessmentWindow.windowProgressPct))
+    : 4;
+
+  const windowLabel = assessmentWindow.live
+    ? `${assessmentWindow.daysUntilClose} day${assessmentWindow.daysUntilClose === 1 ? '' : 's'} left`
+    : 'Opens next quarter';
 
   return (
     <View style={styles.screen}>
@@ -44,8 +58,18 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
           <View style={styles.heroBlock}>
             <Text style={styles.heroLabel}>Bank at your next assessment</Text>
             <View style={styles.heroValueRow}>
-              <Text style={displayTextStyle(heroValueSize, lumen.lime)}>486</Text>
-              <Text style={styles.heroUnit}>Kalettes</Text>
+              {rewards.loading ? (
+                <View style={[styles.heroValuePlaceholder, { minHeight: heroValueSize * 1.08 }]}>
+                  <ActivityIndicator color={lumen.lime} size="large" />
+                </View>
+              ) : (
+                <Text style={displayTextStyle(heroValueSize, lumen.lime)}>
+                  {rewards.hasQuote ? rewards.monthlyKalettes : '—'}
+                </Text>
+              )}
+              <Text style={[styles.heroUnit, rewards.loading && styles.heroUnitLoading]}>
+                Kalettes
+              </Text>
             </View>
           </View>
 
@@ -69,12 +93,22 @@ export function FirstCycleRewardsScreen({ navigation }: Props) {
           <View style={styles.timeline}>
             <View style={styles.timelineHeader}>
               <Text style={styles.timelineLabel}>Next assessment</Text>
-              <Text style={styles.timelineWeeks}>11 weeks</Text>
+              <Text style={styles.timelineWeeks}>{windowLabel}</Text>
             </View>
-            <View style={styles.timelineTrackWrap}>
-              <View style={styles.timelineTrack} />
-              <View style={styles.timelineFill} />
-              <View style={styles.timelineDot} />
+            <View style={styles.timelineTrackRow}>
+              <View style={styles.timelineTrackWrap}>
+                <View style={styles.timelineTrack} />
+                <View style={[styles.timelineFill, { width: `${timelineProgressPct}%` }]} />
+                <View
+                  style={[
+                    styles.timelineDot,
+                    {
+                      left: `${timelineProgressPct}%`,
+                      transform: [{ translateX: -TIMELINE_DOT_SIZE / 2 }],
+                    },
+                  ]}
+                />
+              </View>
               <View style={styles.timelineEnd} />
             </View>
             <View style={styles.timelineFooter}>
@@ -149,12 +183,19 @@ const styles = StyleSheet.create({
     gap: 12,
     overflow: 'visible',
   },
+  heroValuePlaceholder: {
+    justifyContent: 'flex-end',
+    minWidth: 72,
+  },
   heroUnit: {
     ...sora('bold'),
     fontSize: 18,
     lineHeight: 24,
     color: lumen.fgMuted,
     paddingBottom: 12,
+  },
+  heroUnitLoading: {
+    opacity: 0.45,
   },
   storeSection: {
     marginTop: 24,
@@ -218,15 +259,21 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: lumen.fg,
   },
+  timelineTrackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   timelineTrackWrap: {
+    flex: 1,
     position: 'relative',
-    height: 14,
+    height: TIMELINE_DOT_SIZE,
   },
   timelineTrack: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 5,
+    top: (TIMELINE_DOT_SIZE - 5) / 2,
     height: 5,
     borderRadius: 3,
     backgroundColor: 'rgba(234,243,228,0.08)',
@@ -234,30 +281,25 @@ const styles = StyleSheet.create({
   timelineFill: {
     position: 'absolute',
     left: 0,
-    top: 5,
-    width: '6%',
+    top: (TIMELINE_DOT_SIZE - 5) / 2,
     height: 5,
     borderRadius: 3,
     backgroundColor: lumen.lime,
   },
   timelineDot: {
     position: 'absolute',
-    left: '4%',
     top: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: TIMELINE_DOT_SIZE,
+    height: TIMELINE_DOT_SIZE,
+    borderRadius: TIMELINE_DOT_SIZE / 2,
     backgroundColor: lumen.lime,
-    marginLeft: -7,
   },
   timelineEnd: {
-    position: 'absolute',
-    right: 0,
-    top: 1,
-    width: 13,
-    height: 13,
+    width: TIMELINE_END_SIZE,
+    height: TIMELINE_END_SIZE,
     borderRadius: 3,
     backgroundColor: lumenPillar.strength,
+    flexShrink: 0,
   },
   timelineFooter: {
     flexDirection: 'row',

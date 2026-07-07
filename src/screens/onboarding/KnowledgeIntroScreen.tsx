@@ -13,14 +13,19 @@ import {
   formatKnowledgeQuestionCount,
   formatKnowledgeQuizDuration,
   KNOWLEDGE_SECONDS_PER_QUESTION,
+  getQuarterForMonth,
   resolveKnowledgeSetId,
 } from '../../config/knowledgeAssessment';
+import { isQuarterlyAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
 import { useAuthSession } from '../../hooks/useAuthSession';
+import { useOnboardingPillarStatus } from '../../hooks/useOnboardingPillarStatus';
 import { useKnowledgeSession } from '../../hooks/useKnowledgeSession';
 import { useQuestionSet } from '../../hooks/useQuestionSet';
 import type { RootStackParamList } from '../../navigation/types';
 import { resetToKnowledgeResult } from '../../navigation/knowledgeFlow';
-import { ensureKnowledgeAssessment } from '../../services/knowledge/knowledgeAssessmentSession';
+import { onboardingSkipTarget } from '../../services/onboarding/resolveOnboardingNavigation';
+import { ensureKnowledgeAssessment, fetchKnowledgeAssessmentById } from '../../services/knowledge/knowledgeAssessmentSession';
+import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeIntro'>;
@@ -45,9 +50,17 @@ function TopicMeta({ label }: { label: string }) {
 export function KnowledgeIntroScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { user } = useAuthSession();
+  const { canSkipKnowledge, status: pillarStatus, loading: pillarLoading } =
+    useOnboardingPillarStatus(user?.uid);
+  const onboardingActive = pillarStatus != null;
   const [starting, setStarting] = useState(false);
-  const setId = useMemo(() => resolveKnowledgeSetId(), []);
+  const isQuarterly = isQuarterlyAssessmentFlow();
+  const setId = useMemo(
+    () => (isQuarterly ? getQuarterForMonth(new Date().getMonth() + 1).setId : resolveKnowledgeSetId()),
+    [isQuarterly],
+  );
   const meta = useMemo(() => buildKnowledgeAssessmentMeta(setId), [setId]);
+  const hideBackButton = meta.isOnboarding || pillarLoading || (onboardingActive && !isQuarterly);
   const { questions, loading, error } = useQuestionSet(setId);
   const { assessment, loading: sessionLoading } = useKnowledgeSession(user?.uid, setId);
 
@@ -64,6 +77,18 @@ export function KnowledgeIntroScreen({ navigation }: Props) {
     answeredCount > 0 &&
     answeredCount < questions.length;
   const isCompleted = assessment?.is_completed === true;
+  const showOnboardingSkip = onboardingActive && meta.isOnboarding && canSkipKnowledge;
+  const showQuarterlySkip = !meta.isOnboarding;
+
+  const handleSkip = useCallback(() => {
+    if (showOnboardingSkip) {
+      navigation.replace(onboardingSkipTarget('knowledge'));
+      return;
+    }
+    if (showQuarterlySkip) {
+      navigation.replace('Main');
+    }
+  }, [navigation, showOnboardingSkip, showQuarterlySkip]);
 
   const openCompletedFlow = useCallback(() => {
     if (!assessment || questions.length === 0) return;
@@ -100,7 +125,7 @@ export function KnowledgeIntroScreen({ navigation }: Props) {
         return;
       }
 
-      const latest = assessment?.id === assessmentId ? assessment : null;
+      const latest = await fetchKnowledgeAssessmentById(assessmentId);
 
       navigation.navigate('KnowledgeQuiz', {
         setId,
@@ -145,14 +170,18 @@ export function KnowledgeIntroScreen({ navigation }: Props) {
           { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 },
         ]}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
-        </Pressable>
+        {hideBackButton ? (
+          <View style={styles.headerSpacer} />
+        ) : (
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
+          </Pressable>
+        )}
 
         <ScrollView
           style={styles.flex}
@@ -207,9 +236,22 @@ export function KnowledgeIntroScreen({ navigation }: Props) {
           {loading || sessionLoading ? (
             <ActivityIndicator color={lumen.lime} />
           ) : (
-            <LumenButton onPress={handlePrimaryPress}>
-              {primaryLabel}
-            </LumenButton>
+            <>
+              <LumenButton onPress={handlePrimaryPress}>
+                {primaryLabel}
+              </LumenButton>
+              {showOnboardingSkip || showQuarterlySkip ? (
+                <Pressable
+                  onPress={handleSkip}
+                  style={styles.skipLink}
+                  accessibilityRole="button"
+                  accessibilityLabel="Skip for now"
+                >
+                  <Text style={styles.skipLinkText}>Skip for now</Text>
+                </Pressable>
+              ) : null}
+              <OnboardingLogoutLink navigation={navigation} />
+            </>
           )}
         </View>
       </View>
@@ -241,6 +283,10 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     opacity: 0.85,
+  },
+  headerSpacer: {
+    height: 32,
+    marginLeft: 16,
   },
   scrollContent: {
     paddingHorizontal: 28,
@@ -366,5 +412,15 @@ const styles = StyleSheet.create({
     minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 16,
+  },
+  skipLink: {
+    padding: 4,
+  },
+  skipLinkText: {
+    ...sora('semibold'),
+    fontSize: 13,
+    color: lumen.fgMuted,
+    textDecorationLine: 'underline',
   },
 });

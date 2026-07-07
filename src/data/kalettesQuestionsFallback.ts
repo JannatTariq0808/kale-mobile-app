@@ -6,7 +6,7 @@ export const KALETTES_QUESTIONS_FALLBACK: KalettesQuestion[] = [
     id: 'how-to-earn',
     question: 'How do I earn Kalettes?',
     answer:
-      'Every quarterly assessment you complete pays out a points cycle, calculated from your Longevity Level. Level 6 earns 6% of your annual premium each quarter, paid as points.',
+      'Complete your quarterly assessment to earn Kalettes from your active policy. Your Longevity Level sets your rebate: level 1 is 1% of your monthly premium back, level 10 is 10%. Each Kalette is worth 1p (£0.01). Points start as pending and move into your spendable balance when you complete your next assessment on time.',
     sortOrder: 1,
     active: true,
   },

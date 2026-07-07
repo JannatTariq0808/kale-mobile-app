@@ -6,8 +6,14 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { LumenResultView, type LumenResultConfig } from '../../components/lumen/LumenResultView';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
+import {
+  fetchActiveInProgressAssessment,
+  fetchAssessmentsForUser,
+  fetchPreviousPillarLevelFromAssessments,
+} from '../../services/assessment/assessmentSession';
 import { fetchCardioSummary } from '../../services/cardio/fetchCardioSummary';
 import { fetchHealthProfileForAssess } from '../../services/user/fetchHealthProfile';
+import { clearFirstTimeLogin } from '../../services/user/userProfile';
 import { buildCardioResultConfig } from '../../utils/buildCardioResultConfig';
 import { lumen } from '../../theme';
 
@@ -22,19 +28,16 @@ const FALLBACK_CONFIG: LumenResultConfig = {
   percentile: 35,
   rpText: 'Complete a qualifying run or ride to see your cohort ranking.',
   resultHero: '—',
-  resultUnit: 'ml/kg·min',
-  resultLabel: 'Estimated VO₂max — your strongest longevity signal.',
+  resultUnit: 'min/km',
+  resultLabel: '',
   tiles: [
-    { label: 'Best pace', value: '—', unit: '/km' },
-    { label: 'Best run', value: '—' },
-    { label: 'Device', value: 'Tracker' },
+    { label: 'Best run', value: '—', unit: 'km' },
+    { label: 'Avg HR', value: '—', unit: 'bpm' },
   ],
   nextLevel: 2,
-  nextActions: [
-    'Connect Strava or Garmin with a qualifying activity',
-    'Sync a run over 3 km or a ride with power data',
-    'Re-open the app after your tracker syncs',
-  ],
+  nextActions: [],
+  levelUpMessage:
+    'Connect Strava or Garmin and sync a qualifying run or ride to see your level-up target.',
   nextBtn: 'Next — Strength',
 };
 
@@ -43,14 +46,21 @@ export function CardioResultScreen({ navigation }: Props) {
   const [config, setConfig] = useState<LumenResultConfig | null>(null);
 
   useEffect(() => {
+    if (!user?.uid) return;
+    void clearFirstTimeLogin(user.uid);
+  }, [user?.uid]);
+
+  useEffect(() => {
     let cancelled = false;
 
     void (async () => {
       if (!user?.uid) return;
 
-      const [summary, profile] = await Promise.all([
+      const [{ assessments }, summary, profile, activeAssessment] = await Promise.all([
+        fetchAssessmentsForUser(user.uid),
         fetchCardioSummary(user.uid),
         fetchHealthProfileForAssess(),
+        fetchActiveInProgressAssessment(user.uid),
       ]);
 
       if (cancelled) return;
@@ -60,10 +70,21 @@ export function CardioResultScreen({ navigation }: Props) {
         return;
       }
 
+      const currentAssessment =
+        activeAssessment ??
+        assessments.find((item) => item.cardio_id && !item.is_completed) ??
+        assessments.find((item) => item.cardio_id);
+      const previousLevel = await fetchPreviousPillarLevelFromAssessments(user.uid, 'cardio', {
+        assessmentId: currentAssessment?.id,
+      });
+
+      if (cancelled) return;
+
       setConfig(
         buildCardioResultConfig({
           summary,
           profile,
+          previousLevel,
         }),
       );
     })();
@@ -84,7 +105,7 @@ export function CardioResultScreen({ navigation }: Props) {
   return (
     <LumenResultView
       config={config}
-      onBack={() => navigation.goBack()}
+      showBackButton={false}
       onNext={() => navigation.navigate('StrengthIntro')}
     />
   );

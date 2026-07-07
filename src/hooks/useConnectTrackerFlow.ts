@@ -10,6 +10,7 @@ import {
 } from '../services/tracker/connectIssueCopy';
 import { finishTrackerConnection } from '../services/tracker/connect';
 import { isPendingTokenInFlight } from '../services/tracker/connectSession';
+import type { AssessStravaOptions } from '../services/tracker/assess';
 
 export function useConnectTrackerFlow(options: {
   setConnecting: (brand: 'strava' | 'garmin' | 'apple' | null) => void;
@@ -59,7 +60,14 @@ export function useConnectTrackerFlow(options: {
           }
           options.setConnecting(params.oauthProvider);
           options.setConnectIssue(null);
-          const result = await finishTrackerConnection(params.oauthProvider, params.pendingToken);
+          const assessOptions: AssessStravaOptions | undefined = params.activitiesSince
+            ? { activitiesSince: params.activitiesSince }
+            : undefined;
+          const result = await finishTrackerConnection(
+            params.oauthProvider,
+            params.pendingToken,
+            assessOptions,
+          );
           if (!result.ok) {
             if (!result.cancelled) {
               options.setConnectIssue(

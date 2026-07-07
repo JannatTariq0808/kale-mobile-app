@@ -1,23 +1,48 @@
 // Design: kale-mobile-design — lum-20 KaleSettingsLumen (screens/KaleLumenApp2.jsx)
 
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, type NavigationProp, type ParamListBase } from '@react-navigation/native';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { logoutAndReturnToWelcome } from '../services/auth/session';
 import { LumenCard } from '../components/lumen/LumenCard';
 import { LumenHeader } from '../components/lumen/LumenHeader';
+import { ProfileAvatar } from '../components/lumen/ProfileAvatar';
 import { SectionLabel } from '../components/lumen/SectionLabel';
 import { SettingsRow } from '../components/lumen/SettingsRow';
 import { SettingsToggle } from '../components/lumen/SettingsToggle';
-import { lumen, lumenPillar, sora, typography } from '../theme';
+import { useSettingsData } from '../hooks/useSettingsData';
+import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
+import { lumen, sora, typography } from '../theme';
 
-export function SettingsScreen() {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+const PRIVACY_URL = 'https://www.kale.insure/privacy';
+const CONTACT_URL = 'https://www.kale.insure/contact';
+
+type Props = NativeStackScreenProps<SettingsStackParamList, 'Main'>;
+
+export function SettingsScreen({ navigation }: Props) {
+  const settings = useSettingsData();
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const handleLogout = () => {
     logoutAndReturnToWelcome(navigation);
   };
+
+  const openUrl = (url: string) => {
+    void Linking.openURL(url);
+  };
+
+  const weightLabel =
+    settings.weightKg != null ? `${settings.weightKg} kg` : null;
+
+  const memberMeta = [
+    settings.email,
+    weightLabel,
+    settings.memberSince ? `Member since ${settings.memberSince}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <View style={styles.screen}>
@@ -26,42 +51,30 @@ export function SettingsScreen() {
         <ScreenScroll contentContainerStyle={styles.scrollContent}>
           <SectionLabel variant="page">Settings</SectionLabel>
 
+          {settings.loading ? (
+            <View style={styles.loaderWrap}>
+              <ActivityIndicator color={lumen.mint} />
+            </View>
+          ) : null}
+
           <LumenCard style={styles.profileCard}>
-            <Pressable style={styles.profileRow} accessibilityRole="button">
-              <Image source={require('../../assets/iris.jpg')} style={styles.profileAvatar} />
+            <Pressable
+              style={styles.profileRow}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+              onPress={() => navigation.navigate('Profile')}
+            >
+              <ProfileAvatar
+                name={settings.displayName}
+                photoUrl={settings.photoUrl}
+                size={56}
+              />
               <View style={styles.profileCopy}>
-                <Text style={styles.profileName}>Alex Pendragon</Text>
-                <Text style={styles.profileMeta}>alex@pendragon.io · Member since Nov 2025</Text>
+                <Text style={styles.profileName}>{settings.displayName}</Text>
+                {memberMeta ? <Text style={styles.profileMeta}>{memberMeta}</Text> : null}
               </View>
               <Ionicons name="chevron-forward" size={16} color={lumen.fgMuted} />
             </Pressable>
-          </LumenCard>
-
-          <SectionLabel>Your policy</SectionLabel>
-          <LumenCard padding={0} style={styles.sectionCard}>
-            <View style={styles.policyHeader}>
-              <View>
-                <Text style={styles.policyAmount}>£250k</Text>
-                <Text style={styles.policyTerm}>Level term · 25 years</Text>
-              </View>
-              <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
-              </View>
-            </View>
-            <SettingsRow label="Monthly premium" value="£27.00" last />
-          </LumenCard>
-
-          <SectionLabel>Connections</SectionLabel>
-          <LumenCard padding={0} style={styles.sectionCard}>
-            <SettingsRow icon="strava" label="Strava" value="Connected" valueColor={lumen.mint} />
-            <SettingsRow icon="garmin" label="Garmin" value="Connected" valueColor={lumen.mint} />
-            <SettingsRow
-              icon="apple"
-              label="Apple Health"
-              value="Add"
-              valueColor={lumenPillar.cardio}
-              last
-            />
           </LumenCard>
 
           <SectionLabel>Preferences</SectionLabel>
@@ -76,8 +89,14 @@ export function SettingsScreen() {
           </LumenCard>
 
           <LumenCard padding={0} style={styles.sectionCard}>
-            <SettingsRow label="Privacy & data" />
-            <SettingsRow label="Help & support" />
+            <SettingsRow
+              label="Privacy & data"
+              onPress={() => openUrl(PRIVACY_URL)}
+            />
+            <SettingsRow
+              label="Help & support"
+              onPress={() => openUrl(CONTACT_URL)}
+            />
             <SettingsRow
               label="Log out"
               labelColor={lumen.coral}
@@ -87,9 +106,9 @@ export function SettingsScreen() {
             />
           </LumenCard>
 
-          <Text style={styles.footer}>Kale Insurance · v2.4.1</Text>
-          </ScreenScroll>
-        </View>
+          <Text style={styles.footer}>Kale Insurance · v{appVersion}</Text>
+        </ScreenScroll>
+      </View>
     </View>
   );
 }
@@ -109,6 +128,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 18,
   },
+  loaderWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
   profileCard: {
     marginTop: 14,
     marginBottom: 16,
@@ -117,13 +141,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-  },
-  profileAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1.5,
-    borderColor: lumen.hairline,
   },
   profileCopy: {
     flex: 1,
@@ -143,38 +160,6 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: 16,
-  },
-  policyHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
-  policyAmount: {
-    ...sora('extrabold'),
-    fontSize: 22,
-    color: lumen.fg,
-    letterSpacing: -0.4,
-  },
-  policyTerm: {
-    ...sora('regular'),
-    fontSize: typography.caption,
-    color: lumen.fgMuted,
-    marginTop: 2,
-  },
-  activeBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,200,150,0.15)',
-  },
-  activeBadgeText: {
-    ...sora('extrabold'),
-    fontSize: typography.micro,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: lumen.mint,
   },
   footer: {
     ...sora('regular'),

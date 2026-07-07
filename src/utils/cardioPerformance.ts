@@ -335,13 +335,28 @@ export function calculateAge(dob: Date, now = new Date()): number {
   return age;
 }
 
-export function resolveAgeGroup(age: number): AgeBracket {
+/** Cycling brackets — Flutter `getCyclingVo2BracketsForUser`. */
+function resolveCyclingAgeGroup(age: number): AgeBracket {
   if (age >= 18 && age <= 29) return '18-29';
   if (age <= 39) return '30-39';
   if (age <= 49) return '40-49';
   if (age <= 59) return '50-59';
   if (age <= 69) return '60-69';
   return '70+';
+}
+
+/** Run brackets — Flutter `getRunLevelsForUser`. */
+function resolveRunAgeGroup(age: number): AgeBracket {
+  if (age <= 29) return '18-29';
+  if (age <= 39) return '30-39';
+  if (age <= 49) return '40-49';
+  if (age <= 59) return '50-59';
+  if (age <= 69) return '60-69';
+  return '70+';
+}
+
+export function resolveAgeGroup(age: number): AgeBracket {
+  return resolveCyclingAgeGroup(age);
 }
 
 export function formatAgeBracketLabel(bracket: AgeBracket): string {
@@ -377,39 +392,53 @@ export function getCyclingVo2BracketsForUser(
   gender: string,
   age: number,
 ): LevelRange[] {
-  const bracket = resolveAgeGroup(age);
+  const bracket = resolveCyclingAgeGroup(age);
   const table =
     gender.toLowerCase() === 'male' ? MALE_CYCLING_THRESHOLDS : FEMALE_CYCLING_THRESHOLDS;
   return table[bracket];
 }
 
 export function getRunLevelsForUser(gender: string, age: number): LevelRange[] {
-  const bracket = resolveAgeGroup(age);
+  const bracket = resolveRunAgeGroup(age);
   const table = gender.toLowerCase() === 'male' ? MALE_RUN_THRESHOLDS : FEMALE_RUN_THRESHOLDS;
   return table[bracket];
 }
 
-function interpolateBracketScore(
-  value: number,
-  levels: LevelRange[],
-  compare: (value: number, low: number, high: number) => boolean,
-  gapCompare: (value: number, high: number, nextLow: number) => boolean,
-): number {
-  if (value < levels[0][0]) return LEVEL_LOW[0];
-  if (value >= levels[9][1]) return LEVEL_HIGH[9];
+function scoreCyclingFtpPerKg(resolvedFtpPerKg: number, levels: LevelRange[]): number {
+  if (resolvedFtpPerKg < levels[0][0]) return LEVEL_LOW[0];
+  if (resolvedFtpPerKg >= levels[9][1]) return LEVEL_HIGH[9];
 
   for (let i = 0; i < levels.length; i++) {
     const [low, high] = levels[i];
-    if (compare(value, low, high)) {
-      const t = (value - low) / (high - low);
+    if (resolvedFtpPerKg >= low && resolvedFtpPerKg <= high) {
+      const t = (resolvedFtpPerKg - low) / (high - low);
       return LEVEL_LOW[i] + t * (LEVEL_HIGH[i] - LEVEL_LOW[i]);
     }
   }
 
   for (let i = 0; i < levels.length - 1; i++) {
-    const [, high] = levels[i];
-    const [nextLow] = levels[i + 1];
-    if (gapCompare(value, high, nextLow)) {
+    if (resolvedFtpPerKg > levels[i][1] && resolvedFtpPerKg < levels[i + 1][0]) {
+      return LEVEL_HIGH[i];
+    }
+  }
+
+  return LEVEL_LOW[0];
+}
+
+function scoreRunningFiveKTime(fiveKTime: number, levels: LevelRange[]): number {
+  if (fiveKTime >= levels[0][0]) return LEVEL_LOW[0];
+  if (fiveKTime <= levels[9][1]) return LEVEL_HIGH[9];
+
+  for (let i = 0; i < levels.length; i++) {
+    const [slow, fast] = levels[i];
+    if (fiveKTime <= slow && fiveKTime >= fast) {
+      const t = (slow - fiveKTime) / (slow - fast);
+      return LEVEL_LOW[i] + t * (LEVEL_HIGH[i] - LEVEL_LOW[i]);
+    }
+  }
+
+  for (let i = 0; i < levels.length - 1; i++) {
+    if (fiveKTime < levels[i][1] && fiveKTime > levels[i + 1][0]) {
       return LEVEL_HIGH[i];
     }
   }
@@ -449,13 +478,7 @@ export function calculatePerformanceCardioNew({
       calculateFtp(userValue, weightKg!, durationMin!);
 
     const levels = getCyclingVo2BracketsForUser(gender, age);
-
-    return interpolateBracketScore(
-      resolvedFtpPerKg,
-      levels,
-      (value, low, high) => value >= low && value <= high,
-      (value, high, nextLow) => value > high && value < nextLow,
-    );
+    return scoreCyclingFtpPerKg(resolvedFtpPerKg, levels);
   }
 
   const distance = distanceKm!;
@@ -463,14 +486,82 @@ export function calculatePerformanceCardioNew({
   const fiveKTime = actualTime * Math.pow(5 / distance, 1.07);
   const levels = getRunLevelsForUser(gender, age);
 
-  return interpolateBracketScore(
-    fiveKTime,
-    levels,
-    (value, slow, fast) => value <= slow && value >= fast,
-    (value, fast, nextSlow) => value < fast && value > nextSlow,
-  );
+  return scoreRunningFiveKTime(fiveKTime, levels);
 }
 
 export function cardioRelativePerformancePercent(rp: number): number {
-  return Math.round(Math.max(35, Math.min(100, rp)));
+  const clamped = Math.max(35, Math.min(100, rp));
+  // Avoid 99 when bracket math lands at 99.5–99.9 (elite scores should read 100).
+  if (clamped >= 99.5) return 100;
+  return Math.round(clamped);
+}
+
+/** Progress within the current cardio level band (0–1) from the RP score. */
+export function cardioLevelProgress(rp: number, level: number): number {
+  const idx = Math.max(0, Math.min(9, Math.floor(level) - 1));
+  const low = LEVEL_LOW[idx];
+  const high = LEVEL_HIGH[idx];
+  if (high <= low) return 1;
+  return Math.max(0, Math.min(1, (rp - low) / (high - low)));
+}
+
+/** Pace in min/km → M:SS (floor seconds = faster pace). */
+export function formatCardioPace(pace: number): string {
+  const totalSeconds = Math.floor(pace * 60);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** Trim trailing zeros from a fixed-decimal number string. */
+export function formatCardioNumber(value: number): string {
+  return value
+    .toFixed(2)
+    .replace(/\.?0+$/, '');
+}
+
+export type CardioLevelUpMessageInput = {
+  cardioType: string;
+  gender: string;
+  dob: Date;
+  currentLevel: number;
+  userValue: number;
+  weightKg?: number | null;
+};
+
+/** Port of Flutter `getCardioLevelUpMessage`. */
+export function getCardioLevelUpMessage({
+  cardioType,
+  gender,
+  dob,
+  currentLevel,
+  userValue,
+  weightKg,
+}: CardioLevelUpMessageInput): string {
+  if (currentLevel >= 10) return '';
+
+  const nextLevel = currentLevel + 1;
+  const age = calculateAge(dob);
+  const type = cardioType.toLowerCase();
+
+  if (type === 'run' || type === 'running') {
+    const levels = getRunLevelsForUser(gender, age);
+    const nextRow = levels[nextLevel - 1];
+    const next5kTime = nextRow[0];
+    const nextPace = next5kTime / 5;
+
+    let targetPace = nextPace;
+    if (Math.floor(targetPace * 60) >= Math.floor(userValue * 60)) {
+      targetPace = userValue - 0.01;
+    }
+
+    return `Keep going! Hit ${formatCardioPace(targetPace)} min/km to reach Level ${nextLevel}`;
+  }
+
+  const levels = getCyclingVo2BracketsForUser(gender, age);
+  const nextRow = levels[nextLevel - 1];
+  const nextLow = nextRow[0];
+  const requiredFtpWatts = nextLow * weightKg!;
+
+  return `Keep going! Hit ${formatCardioNumber(requiredFtpWatts)} W FTP to reach Level ${nextLevel}`;
 }

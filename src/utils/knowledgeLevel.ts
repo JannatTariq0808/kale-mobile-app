@@ -1,5 +1,6 @@
 import type { KnowledgeAssessmentMeta } from '../types/questionSet';
 import type { LumenResultConfig } from '../components/lumen/LumenResultView';
+import { resolveLevelTrend } from './resolveLevelTrend';
 
 export const KNOWLEDGE_LEVEL_MIN = 1;
 export const KNOWLEDGE_LEVEL_MAX = 10;
@@ -47,6 +48,23 @@ export function correctAnswersForLevel(level: number, totalQuestions: number): n
   return Math.ceil((level * totalQuestions) / KNOWLEDGE_LEVEL_MAX);
 }
 
+/** Mirrors Flutter `getKnowledgeLevelUpMessage`. */
+export function getKnowledgeLevelUpMessage(
+  correctCount: number,
+  totalQuestions: number,
+): string {
+  if (totalQuestions <= 0) return '';
+
+  const currentLevel = Math.floor((correctCount / totalQuestions) * 10);
+
+  if (currentLevel >= KNOWLEDGE_LEVEL_MAX) return '';
+
+  const nextLevel = currentLevel + 1;
+  const requiredCorrect = Math.ceil((totalQuestions * nextLevel) / KNOWLEDGE_LEVEL_MAX);
+
+  return `Keep going! Hit ${requiredCorrect}/${totalQuestions} to reach Level ${nextLevel}`;
+}
+
 type BuildKnowledgeResultInput = {
   correctCount: number;
   totalQuestions: number;
@@ -67,40 +85,15 @@ export function buildKnowledgeResultConfig({
   );
   const nextLevel = Math.min(KNOWLEDGE_LEVEL_MAX, level + 1);
   const topicLabel = meta.isOnboarding ? 'General longevity' : meta.title;
+  const topicType = meta.topicType ?? meta.title;
 
-  let trend: LumenResultConfig['trend'] = 'none';
-  let trendDelta: number | undefined;
-  let levelNote = 'Your first knowledge score.';
+  const { trend, trendDelta, levelNote } = resolveLevelTrend(
+    level,
+    previousLevel,
+    'Your first knowledge score.',
+  );
 
-  if (previousLevel != null && previousLevel > 0) {
-    const delta = level - previousLevel;
-    if (delta > 0) {
-      trend = 'up';
-      trendDelta = delta;
-      levelNote = `Up from Level ${previousLevel} last cycle.`;
-    } else if (delta < 0) {
-      trend = 'down';
-      trendDelta = delta;
-      levelNote = `Down from Level ${previousLevel} last cycle.`;
-    } else {
-      trend = 'same';
-      levelNote = `Held at Level ${level} from last cycle.`;
-    }
-  }
-
-  const neededForNext =
-    level < KNOWLEDGE_LEVEL_MAX
-      ? correctAnswersForLevel(nextLevel, totalQuestions)
-      : totalQuestions;
-
-  const nextActions =
-    level >= KNOWLEDGE_LEVEL_MAX
-      ? ['Keep reading the weekly longevity briefs', 'Share what you learned with your crew']
-      : [
-          `Score ${neededForNext}/${totalQuestions} next quarter`,
-          `Brush up on ${topicLabel.toLowerCase()} basics`,
-          'Read the weekly longevity briefs',
-        ];
+  const levelUpMessage = getKnowledgeLevelUpMessage(correctCount, totalQuestions);
 
   return {
     pillar: 'knowledge',
@@ -114,12 +107,12 @@ export function buildKnowledgeResultConfig({
     resultHero: `${correctCount}/${totalQuestions}`,
     resultLabel: `Quiz score — ${topicLabel}.`,
     tiles: [
+      { label: 'Type', value: topicType },
       { label: 'Accuracy', value: String(relativePerformancePercent), unit: '%' },
-      { label: 'Topic', value: meta.eyebrow },
-      { label: 'Level', value: String(level), unit: '/10' },
     ],
     nextLevel,
-    nextActions,
+    nextActions: [],
+    levelUpMessage,
     nextBtn: 'See your Longevity Level',
   };
 }

@@ -168,3 +168,45 @@ match /strength/{strengthId} {
     && request.resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid);
 }
 ```
+
+---
+
+## Collection: `assessments`
+
+Parent doc for onboarding / quarterly cycles. Created by the **website Admin SDK** when cardio is saved. The mobile app may **link** `strength_id` / `knowledge_id` after each pillar.
+
+| Field           | Type      | Description                              |
+|-----------------|-----------|------------------------------------------|
+| `user_id`       | reference | `/users/{uid}`                           |
+| `cardio_id`     | reference | `/cardios/{uid}`                         |
+| `strength_id`   | reference | `/strength/{id}` — set after plank       |
+| `knowledge_id`  | reference | `/knowledge/{id}` — set after quiz       |
+| `isOnboarding`  | boolean   | `true` for first assessment              |
+| `is_completed`  | boolean   | `true` when all pillars + level are done |
+| `quarter`       | map       | Onboarding or Q1–Q4 metadata            |
+
+Without an **update** rule, `linkStrengthToOnboardingAssessment` fails with `Missing or insufficient permissions` (strength save still succeeds).
+
+**Important:** `allow read` must include **completed** assessments (`is_completed: true`). If read is restricted to in-progress docs only, the list query `where user_id == …` fails as soon as the user finishes onboarding — you will see `fetchAssessmentsForUser failed` in the app log.
+
+```
+match /assessments/{assessmentId} {
+  // Owner can read ALL their assessments (in-progress AND completed).
+  allow read: if request.auth != null
+    && resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid);
+
+  // Server / admin creates assessments
+  allow create, delete: if isAdmin();
+
+  // Mobile links pillar refs during onboarding (in-progress only)
+  allow update: if request.auth != null
+    && resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid)
+    && resource.data.is_completed != true
+    && request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['cardio_id', 'strength_id', 'knowledge_id', 'level', 'is_completed', 'updated_at']);
+}
+```
+
+Do **not** add `&& resource.data.is_completed != true` to the **read** rule.
+
+Until that rule is deployed, login resume still works: the app falls back to latest completed `strength` / `knowledge` docs when refs are missing on the assessment.

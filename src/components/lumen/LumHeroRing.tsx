@@ -1,7 +1,16 @@
+import { useEffect } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, G } from 'react-native-svg';
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { lumen, sora } from '../../theme';
 import { RingCenterValue } from './RingCenterValue';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 type LumHeroRingProps = {
   value: number | string;
@@ -26,17 +35,29 @@ export function LumHeroRing({
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const cx = size / 2;
-  const arc = (pct / 100) * circumference;
+  const targetPct = Math.max(0, Math.min(100, pct));
   const fontSize = Math.round(size * 0.4);
   const suffixSize = Math.round(size * 0.12);
   const captionSize = Math.max(9, Math.round(size * 0.1));
+
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withTiming(targetPct / 100, {
+      duration: 1000,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, targetPct]);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - progress.value),
+  }));
 
   return (
     <View style={[styles.root, { width: size, height: size }]}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
         <Circle cx={cx} cy={cx} r={radius} stroke={lumen.track} strokeWidth={stroke} fill="none" />
         <G rotation={-90} origin={`${cx}, ${cx}`}>
-          <Circle
+          <AnimatedCircle
             cx={cx}
             cy={cx}
             r={radius}
@@ -44,7 +65,9 @@ export function LumHeroRing({
             strokeWidth={stroke}
             fill="none"
             strokeLinecap="round"
-            strokeDasharray={`${arc} ${circumference}`}
+            strokeDasharray={circumference}
+            strokeDashoffset={circumference}
+            animatedProps={animatedProps}
           />
         </G>
       </Svg>

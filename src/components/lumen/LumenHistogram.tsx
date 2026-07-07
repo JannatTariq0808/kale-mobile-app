@@ -6,6 +6,8 @@ type LumenHistogramProps = {
 };
 
 const BAR_COUNT = 24;
+/** Center of the rightmost bar — marker sits here at 100th percentile. */
+const LAST_BAR_CENTER = (BAR_COUNT - 0.5) / BAR_COUNT;
 
 function barHeights() {
   return Array.from({ length: BAR_COUNT }, (_, i) => {
@@ -17,14 +19,16 @@ function barHeights() {
 const HEIGHTS = barHeights();
 
 export function LumenHistogram({ percentile = 90 }: LumenHistogramProps) {
-  const frac = Math.max(0.05, Math.min(0.96, percentile / 100));
+  const fillFrac = Math.max(0.05, Math.min(1, percentile / 100));
+  const markerFrac =
+    fillFrac >= 1 ? LAST_BAR_CENTER : Math.max(0.05, Math.min(LAST_BAR_CENTER, fillFrac));
 
   return (
     <View>
       <View style={styles.chart}>
         {HEIGHTS.map((h, i) => {
           const barFrac = (i + 0.5) / BAR_COUNT;
-          const active = barFrac <= frac;
+          const active = barFrac <= fillFrac;
           return (
             <View
               key={i}
@@ -39,8 +43,8 @@ export function LumenHistogram({ percentile = 90 }: LumenHistogramProps) {
             />
           );
         })}
-        <View style={[styles.marker, { left: `${frac * 100}%` }]} />
-        <Text style={[styles.youLabel, { left: `${frac * 100}%` }]}>YOU</Text>
+        <View style={[styles.marker, { left: `${markerFrac * 100}%` }]} />
+        <Text style={[styles.youLabel, { left: `${markerFrac * 100}%` }]}>YOU</Text>
       </View>
       <View style={styles.axis}>
         <Text style={styles.axisLabel}>Lower</Text>

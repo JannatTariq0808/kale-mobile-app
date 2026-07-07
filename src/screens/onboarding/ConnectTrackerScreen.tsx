@@ -2,6 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useRoute } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -26,6 +27,7 @@ import {
   type ConnectIssueContent,
 } from '../../services/tracker/connectIssueCopy';
 import { lumen, sora } from '../../theme';
+import { isQuarterlyAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ConnectTracker'>;
 
@@ -47,11 +49,14 @@ const APPLE_HEALTH: TrackerOption = {
 };
 
 function getTrackerOptions(): TrackerOption[] {
-  return [...BASE_TRACKERS, APPLE_HEALTH];
+  return [...BASE_TRACKERS];
 }
 
 export function ConnectTrackerScreen({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
+  const route = useRoute();
+  const routeParams = (route.params ?? {}) as RootStackParamList['ConnectTracker'];
+  const isQuarterly = routeParams?.flow === 'quarterly' || isQuarterlyAssessmentFlow();
+  const syncPeriodLabel = routeParams?.syncPeriodLabel ?? 'the last 12 weeks';
   const trackers = getTrackerOptions();
   const [connecting, setConnecting] = useState<ConnectionBrand | null>(null);
   const [connectIssue, setConnectIssue] = useState<ConnectIssueContent | null>(null);
@@ -69,6 +74,8 @@ export function ConnectTrackerScreen({ navigation }: Props) {
   const handleContinueLevel1 = useCallback(() => {
     navigation.replace('CardioResult');
   }, [navigation]);
+
+  const insets = useSafeAreaInsets();
 
   const handleConnect = useCallback(
     async (brand: ConnectionBrand) => {
@@ -135,14 +142,31 @@ export function ConnectTrackerScreen({ navigation }: Props) {
             />
           ) : (
             <>
-              <LumEyebrow pillar="cardio" label="Cardio" step="Test 1 of 3" />
+              <LumEyebrow
+                pillar="cardio"
+                label="Cardio"
+                step={isQuarterly ? 'Quarterly assessment' : 'Test 1 of 3'}
+              />
 
               <Text style={styles.headline}>
-                Connect your <Text style={styles.headlineAccent}>apps</Text>.
+                {isQuarterly ? (
+                  <>
+                    Sync your <Text style={styles.headlineAccent}>latest</Text> activities.
+                  </>
+                ) : (
+                  <>
+                    Connect your <Text style={styles.headlineAccent}>apps</Text>.
+                  </>
+                )}
               </Text>
               <Text style={styles.subhead}>
-                We read runs and rides from the last 12 weeks to estimate your cardio fitness. We
-                never read your private messages or contacts.
+                {isQuarterly
+                  ? `We read runs and rides from ${syncPeriodLabel}${
+                      routeParams?.garminCapped
+                        ? ' — Garmin cannot backfill more than one month at a time'
+                        : ''
+                    }.`
+                  : 'We read runs and rides from the last 12 weeks to estimate your cardio fitness. We never read your private messages or contacts.'}
               </Text>
 
               {connecting ? (

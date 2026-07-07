@@ -90,10 +90,20 @@ export function validatePlankRecording(
     };
   }
 
+  const validHoldSec = Math.min(durationSec, Math.floor(poseStats.estimatedValidHoldSec));
+  if (validHoldSec < MIN_PLANK_RECORDING_SEC) {
+    return {
+      ok: false,
+      reason: 'too_short',
+      minValidFrames,
+      message: `Only about ${validHoldSec}s of valid plank detected. Hold a straight plank for at least ${MIN_PLANK_RECORDING_SEC} seconds, then stop.`,
+    };
+  }
+
   return {
     ok: true,
     minValidFrames,
-    message: 'Plank detected. Submit this recording?',
+    message: `About ${validHoldSec}s of valid plank detected (${durationSec}s recorded). Submit?`,
   };
 }
 

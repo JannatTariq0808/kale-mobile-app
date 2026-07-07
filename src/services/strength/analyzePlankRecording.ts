@@ -1,6 +1,5 @@
 import type {
   PlankAnalysisResult,
-  PlankPoseSessionStats,
   PlankRecordingPayload,
 } from '../../types/plankRecording';
 
@@ -16,27 +15,28 @@ function resolveHoldDuration(input: PlankRecordingPayload): {
   const pose = input.poseStats;
 
   if (pose && pose.sampledFrames > 0 && pose.validFrames > 0) {
-    const poseHold = Math.floor(pose.estimatedValidHoldSec);
-    const holdDurationSec = Math.min(recorded, Math.max(1, poseHold));
+    const estimated = Math.max(1, Math.floor(pose.estimatedValidHoldSec));
+    const holdDurationSec = Math.min(recorded, estimated);
+
     return {
       holdDurationSec,
-      confidence: 0.72,
+      confidence: pose.validFrames / pose.sampledFrames,
       source: 'pose_detection',
       formNotes: [
-        `Pose sampling: ${pose.validFrames}/${pose.sampledFrames} valid frames.`,
-        'Hold time uses detected plank form, capped by recording length.',
+        `Plank detected in ${pose.validFrames}/${pose.sampledFrames} samples.`,
+        `Hold time: ${holdDurationSec}s of ${recorded}s recorded.`,
       ],
     };
   }
 
   if (pose && pose.sampledFrames > 0) {
     return {
-      holdDurationSec: recorded,
-      confidence: 0.55,
-      source: 'recording_timer',
+      holdDurationSec: 0,
+      confidence: 0,
+      source: 'pose_detection',
       formNotes: [
-        `Sampled ${pose.sampledFrames} frames — no valid plank pose detected yet.`,
-        'Hold time matches recording length until pose model is fully wired.',
+        'No valid plank detected in your recording.',
+        'Only time spent in a correct plank counts toward your hold.',
       ],
     };
   }

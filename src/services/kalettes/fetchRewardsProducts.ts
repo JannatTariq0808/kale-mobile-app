@@ -170,6 +170,7 @@ function mapDoc(id: string, data: Record<string, unknown>): RewardsProduct | nul
 
   return {
     id,
+    slug: slug || id,
     title,
     brand,
     pts,

@@ -1,5 +1,7 @@
 // Design: kale-mobile-design — lum-13 / nu-2 activity log demo data
 
+import { sortActivitiesByPace } from '../utils/sortActivitiesByPace';
+
 export type ActivityType = 'run' | 'ride';
 
 export type FitnessActivity = {
@@ -117,13 +119,15 @@ export function filterActivities(
   countFilter: CountFilter,
   sportFilter: SportFilter,
 ): FitnessActivity[] {
-  return activities.filter((activity) => {
+  const filtered = activities.filter((activity) => {
     if (countFilter === 'Counted' && !activity.counted) return false;
     if (countFilter === 'Not counted' && activity.counted) return false;
     if (sportFilter === 'Runs' && activity.type !== 'run') return false;
     if (sportFilter === 'Rides' && activity.type !== 'ride') return false;
     return true;
   });
+
+  return sortActivitiesByPace(filtered);
 }
 
 export type Vo2SourceRow = {

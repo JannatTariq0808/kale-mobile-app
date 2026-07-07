@@ -17,6 +17,7 @@ const COUNT_OPTIONS: CountFilter[] = ['All', 'Counted', 'Not counted'];
 type ActivityLogFiltersProps = {
   sportFilter: SportFilter;
   countFilter: CountFilter;
+  periodLabel: string;
   onSportFilterChange: (filter: SportFilter) => void;
   onCountFilterChange: (filter: CountFilter) => void;
 };
@@ -24,6 +25,7 @@ type ActivityLogFiltersProps = {
 export function ActivityLogFilters({
   sportFilter,
   countFilter,
+  periodLabel,
   onSportFilterChange,
   onCountFilterChange,
 }: ActivityLogFiltersProps) {
@@ -87,7 +89,9 @@ export function ActivityLogFilters({
             );
           })}
         </View>
-        <Text style={[styles.periodLabel, { fontSize: pillSize, lineHeight: pillLine }]}>Last 12 weeks</Text>
+        <Text style={[styles.periodLabel, { fontSize: pillSize, lineHeight: pillLine }]}>
+          {periodLabel}
+        </Text>
       </View>
     </View>
   );

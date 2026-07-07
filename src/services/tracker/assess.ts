@@ -5,9 +5,17 @@ export type AssessStravaResult =
   | { ok: true; level: number; longevity_discount_pct: number }
   | { ok: false; message: string };
 
+export type AssessStravaOptions = {
+  /** Only include activities on or after this instant (quarterly re-sync). */
+  activitiesSince?: string;
+  /** Parent assessment doc to link after cardio is saved. */
+  assessmentId?: string;
+};
+
 export async function assessStravaActivities(
   idToken: string,
   profile: HealthProfileForAssess,
+  options?: AssessStravaOptions,
 ): Promise<AssessStravaResult> {
   const res = await kaleApiFetch('/api/strava/assess', idToken, {
     method: 'POST',
@@ -15,6 +23,8 @@ export async function assessStravaActivities(
       gender: profile.gender,
       date_of_birth: profile.date_of_birth,
       weight_kg: profile.weight_kg,
+      ...(options?.activitiesSince ? { activities_since: options.activitiesSince } : {}),
+      ...(options?.assessmentId ? { assessment_id: options.assessmentId } : {}),
     }),
   });
 

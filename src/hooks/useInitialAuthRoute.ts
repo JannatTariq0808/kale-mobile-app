@@ -9,7 +9,7 @@ type InitialAuthRoute = keyof RootStackParamList | null;
 
 /**
  * Where authenticated users should land: CardioAnalysing (first login),
- * Main (onboarding done), CardioResult (resume), or ConnectTracker (next assessment).
+ * StrengthIntro / KnowledgeIntro / LevelReveal (onboarding resume), or Main.
  */
 export function useInitialAuthRoute(
   user: User | null,

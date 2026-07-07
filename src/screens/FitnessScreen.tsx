@@ -1,9 +1,8 @@
 // Design: lum-13 KaleFitnessCardioLumen + nu-2 filter tabs (screens/KaleLumenApp.jsx, KaleApp.jsx)
 
-import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { ActivityLogFilters } from '../components/fitness/ActivityLogFilters';
 import { ActivityLogList } from '../components/fitness/ActivityLogList';
@@ -17,59 +16,77 @@ import {
   type FitnessSubTab,
 } from '../components/fitness/FitnessShell';
 import { LumenHeader } from '../components/lumen/LumenHeader';
-import {
-  filterActivities,
-  fitnessActivityLog,
-  type CountFilter,
-  type SportFilter,
-} from '../data/fitnessDemo';
-import { homeDemo } from '../data/homeDemo';
-import type { RootStackParamList } from '../navigation/types';
-import { lumen, sora } from '../theme';
+import { filterActivities, type CountFilter, type SportFilter } from '../data/fitnessDemo';
+import { useFitnessPillarData } from '../hooks/useFitnessPillarData';
+import type { CardioActivityLog } from '../services/cardio/fetchCardioActivities';
 
-function ActivityLogPanel() {
+function ActivityLogPanel({
+  summary,
+  activities,
+}: {
+  summary: CardioActivityLog['summary'];
+  activities: CardioActivityLog['activities'];
+}) {
   const [sportFilter, setSportFilter] = useState<SportFilter>('All sports');
   const [countFilter, setCountFilter] = useState<CountFilter>('All');
 
   const visibleActivities = useMemo(
-    () => filterActivities([...fitnessActivityLog.activities], countFilter, sportFilter),
-    [countFilter, sportFilter],
+    () => filterActivities(activities, countFilter, sportFilter),
+    [activities, countFilter, sportFilter],
   );
 
   return (
     <>
       <ActivityLogSummary
-        countedLabel={fitnessActivityLog.summary.countedLabel}
-        runCount={fitnessActivityLog.summary.runCount}
-        distanceKm={fitnessActivityLog.summary.distanceKm}
+        countedLabel={summary.countedLabel}
+        runCount={summary.runCount}
+        distanceKm={summary.distanceKm}
       />
       <ActivityLogFilters
         sportFilter={sportFilter}
         countFilter={countFilter}
+        periodLabel={summary.periodLabel}
         onSportFilterChange={setSportFilter}
         onCountFilterChange={setCountFilter}
       />
-      <ActivityLogList activities={visibleActivities} />
+      <ActivityLogList
+        activities={visibleActivities}
+        sportFilter={sportFilter}
+        countFilter={countFilter}
+        periodLabel={summary.periodLabel}
+        hasAnyActivities={activities.length > 0}
+      />
     </>
   );
 }
 
 export function FitnessScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { pillarsLoading, levels, strength, knowledge, cardio, activityLog, refresh } =
+    useFitnessPillarData();
+  const didInitialFocus = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!didInitialFocus.current) {
+        didInitialFocus.current = true;
+        return;
+      }
+      refresh();
+    }, [refresh]),
+  );
   const [pillar, setPillar] = useState<FitnessPillar>('cardio');
   const [subTab, setSubTab] = useState<FitnessSubTab>('log');
 
-  const level = homeDemo.pillarLevels[pillar];
+  const level = levels[pillar];
 
   const body =
     pillar === 'strength' ? (
-      <StrengthPanel />
+      <StrengthPanel data={strength} loading={pillarsLoading} />
     ) : pillar === 'knowledge' ? (
-      <KnowledgePanel />
+      <KnowledgePanel data={knowledge} loading={pillarsLoading} />
     ) : pillar === 'cardio' && subTab === 'log' ? (
-      <ActivityLogPanel />
+      <ActivityLogPanel summary={activityLog.summary} activities={activityLog.activities} />
     ) : pillar === 'cardio' ? (
-      <Vo2MaxPanel />
+      <Vo2MaxPanel data={cardio} />
     ) : null;
 
   return (
@@ -77,15 +94,6 @@ export function FitnessScreen() {
       <LumenHeader />
 
       <ScreenScroll contentContainerStyle={styles.scrollContent}>
-        {__DEV__ ? (
-          <Pressable
-            style={styles.devLink}
-            onPress={() => navigation.navigate('KnowledgeIntro')}
-            accessibilityRole="button"
-          >
-            <Text style={styles.devText}>Dev: Knowledge quiz</Text>
-          </Pressable>
-        ) : null}
         <FitnessShell
           pillar={pillar}
           subTab={subTab}
@@ -112,15 +120,5 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 8,
-  },
-  devLink: {
-    alignSelf: 'center',
-    marginBottom: 8,
-    padding: 4,
-  },
-  devText: {
-    ...sora('semibold'),
-    fontSize: 12,
-    color: 'rgba(234,243,228,0.35)',
   },
 });

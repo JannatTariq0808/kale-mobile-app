@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../../components/layout/ScreenScroll';
 import { MarketplaceProductCard } from '../../components/kalettes/MarketplaceProductCard';
 import { LumenHeader } from '../../components/lumen/LumenHeader';
 import { kalettesDemo } from '../../data/kalettesDemo';
+import { useKalettesRewards } from '../../hooks/useKalettesRewards';
 import { useRewardsProducts } from '../../hooks/useRewardsProducts';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { KalettesStackParamList } from '../../navigation/KalettesStackNavigator';
+import { openRewardsWeb } from '../../services/kalettes/openRewardsWeb';
 import type { MarketplaceFilter } from '../../types/rewardsProduct';
 import { lumen, sora } from '../../theme';
 
@@ -19,6 +21,7 @@ const GRID_GAP = 10;
 export function KalettesMarketplaceScreen({ navigation }: Props) {
   const { type, contentWidth, leading } = useResponsiveLayout();
   const { items: products, meta, loading } = useRewardsProducts();
+  const rewards = useKalettesRewards();
   const [category, setCategory] = useState<MarketplaceFilter>('All');
 
   const cellWidth = Math.floor((contentWidth - GRID_GAP) / 2);
@@ -82,7 +85,11 @@ export function KalettesMarketplaceScreen({ navigation }: Props) {
           <Text style={[styles.pageTitle, { fontSize: type(32), lineHeight: leading(type(32), 1.15) }]}>
             Longevity Marketplace
           </Text>
-          <Text style={[styles.ptsBadge, { fontSize: type(12) }]}>{kalettesDemo.balance} pts</Text>
+          <Text style={[styles.ptsBadge, { fontSize: type(12) }]}>
+            {rewards.hasQuote || rewards.bankedBalance > 0
+              ? `${rewards.bankedBalance.toLocaleString('en-GB')} to spend`
+              : '— to spend'}
+          </Text>
         </View>
 
         <Text style={[styles.subcopy, { fontSize: type(13), lineHeight: leading(type(13)) }]}>
@@ -134,7 +141,7 @@ export function KalettesMarketplaceScreen({ navigation }: Props) {
                   <View key={item.id} style={{ width: cellWidth }}>
                     <MarketplaceProductCard
                       item={item}
-                      onPress={() => void Linking.openURL(item.productUrl)}
+                      onPress={() => void openRewardsWeb({ slug: item.slug })}
                     />
                   </View>
                 ))}
@@ -145,7 +152,7 @@ export function KalettesMarketplaceScreen({ navigation }: Props) {
         )}
 
         <Pressable
-          onPress={() => void Linking.openURL(kalettesDemo.rewardsUrl)}
+          onPress={() => void openRewardsWeb()}
           style={({ pressed }) => [styles.webCta, pressed && styles.webCtaPressed]}
           accessibilityRole="link"
         >

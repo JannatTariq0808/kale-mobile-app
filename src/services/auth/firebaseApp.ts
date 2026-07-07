@@ -3,6 +3,7 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { Platform } from 'react-native';
 import type { Auth, Persistence } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getFirebaseConfig, isFirebaseConfigured } from '../../config/firebase';
 
 type AuthModule = typeof import('firebase/auth') & {
@@ -22,6 +23,7 @@ export function loadAuthModule(): AuthModule {
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 let firestore: Firestore | undefined;
+let storage: FirebaseStorage | undefined;
 
 export function getFirebaseApp(): FirebaseApp {
   if (!isFirebaseConfigured()) {
@@ -77,6 +79,14 @@ export function getFirebaseFirestore(): Firestore {
   }
 
   return firestore;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (!storage) {
+    storage = getStorage(getFirebaseApp());
+  }
+
+  return storage;
 }
 
 /** Side-effect import — call once at app startup when Firebase is configured. */

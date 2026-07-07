@@ -1,28 +1,64 @@
 // Design: kale-mobile-design — lum-10 KaleHealthYearsLumen (screens/KaleLumenOnboarding2.jsx)
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenRuleCaption } from '../../components/lumen/LumenRuleCaption';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
+import { fetchAthleteLevel } from '../../services/user/athleteLevel';
 import {
   bodyTextStyle,
   displayTextStyle,
   headlineTextStyle,
 } from '../../theme/textMetrics';
+import {
+  formatYearsAdded,
+  getLifeSpan,
+  getNextLevelHealthSpanGain,
+} from '../../utils/getLifeSpan';
 import { lumen, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'HealthYears'>;
 
 export function HealthYearsScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuthSession();
+  const [athleteLevel, setAthleteLevel] = useState<number | null>(null);
+
   const headlineSize = 38;
   const subheadSize = 14.5;
   const heroValueSize = 92;
   const breakdownValueSize = 34;
   const calloutValueSize = 40;
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    let cancelled = false;
+    void fetchAthleteLevel(user.uid).then((level) => {
+      if (!cancelled) setAthleteLevel(level);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  if (athleteLevel == null) {
+    return (
+      <View style={[styles.screen, styles.loading]}>
+        <ActivityIndicator color={lumen.lime} size="large" />
+      </View>
+    );
+  }
+
+  const { lifeSpan, healthSpan } = getLifeSpan(athleteLevel);
+  const nextLevelGain = getNextLevelHealthSpanGain(athleteLevel);
+  const nextLevel = Math.min(10, athleteLevel + 1);
 
   return (
     <View style={styles.screen}>
@@ -33,7 +69,7 @@ export function HealthYearsScreen({ navigation }: Props) {
         ]}
       >
         <View style={styles.levelBadgeRow}>
-          <Text style={styles.levelBadge}>LEVEL 6</Text>
+          <Text style={styles.levelBadge}>LEVEL {athleteLevel}</Text>
         </View>
 
         <ScrollView
@@ -47,13 +83,15 @@ export function HealthYearsScreen({ navigation }: Props) {
             You've added <Text style={styles.headlineAccent}>healthy years</Text>.
           </Text>
           <Text style={[styles.subhead, bodyTextStyle(subheadSize, lumen.fgMuted)]}>
-            At Level 6, here's your trajectory versus an inactive life.
+            At Level {athleteLevel}, here's your trajectory versus an inactive life.
           </Text>
 
           <View style={styles.heroBlock}>
             <Text style={styles.heroLabel}>Healthy years added</Text>
             <View style={styles.heroValueRow}>
-              <Text style={displayTextStyle(heroValueSize, lumen.lime)}>+6.8</Text>
+              <Text style={displayTextStyle(heroValueSize, lumen.lime)}>
+                {formatYearsAdded(healthSpan)}
+              </Text>
               <Text style={styles.heroUnit}>years</Text>
             </View>
           </View>
@@ -62,7 +100,9 @@ export function HealthYearsScreen({ navigation }: Props) {
             <View style={styles.breakdownCol}>
               <Text style={styles.breakdownLabel}>Lifespan</Text>
               <View style={styles.breakdownValueRow}>
-                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>+4.2</Text>
+                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>
+                  {formatYearsAdded(lifeSpan)}
+                </Text>
                 <Text style={styles.breakdownUnit}>yrs</Text>
               </View>
               <Text style={[styles.breakdownNote, bodyTextStyle(12, lumen.fgMuted)]}>
@@ -73,7 +113,9 @@ export function HealthYearsScreen({ navigation }: Props) {
             <View style={[styles.breakdownCol, styles.breakdownColRight]}>
               <Text style={styles.breakdownLabel}>Healthspan</Text>
               <View style={styles.breakdownValueRow}>
-                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>+6.8</Text>
+                <Text style={displayTextStyle(breakdownValueSize, lumen.fg)}>
+                  {formatYearsAdded(healthSpan)}
+                </Text>
                 <Text style={styles.breakdownUnit}>yrs</Text>
               </View>
               <Text style={[styles.breakdownNote, bodyTextStyle(12, lumen.fgMuted)]}>
@@ -88,15 +130,19 @@ export function HealthYearsScreen({ navigation }: Props) {
             </LumenRuleCaption>
           </View>
 
-          <View style={styles.levelCallout}>
-            <Text style={displayTextStyle(calloutValueSize, lumen.lime)}>+0.9</Text>
-            <View style={styles.levelCalloutCopy}>
-              <Text style={[styles.levelCalloutTitle, bodyTextStyle(13.5, lumen.fg)]}>
-                extra healthspan years at Level 7.
+          {nextLevelGain != null && nextLevelGain > 0 ? (
+            <View style={styles.levelCallout}>
+              <Text style={displayTextStyle(calloutValueSize, lumen.lime)}>
+                {formatYearsAdded(nextLevelGain)}
               </Text>
-              <Text style={styles.levelCalloutSub}>That's a lot for one level.</Text>
+              <View style={styles.levelCalloutCopy}>
+                <Text style={[styles.levelCalloutTitle, bodyTextStyle(13.5, lumen.fg)]}>
+                  extra healthspan years at Level {nextLevel}.
+                </Text>
+                <Text style={styles.levelCalloutSub}>That's a lot for one level.</Text>
+              </View>
             </View>
-          </View>
+          ) : null}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -114,6 +160,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
     overflow: 'visible',
+  },
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   flex: {
     flex: 1,

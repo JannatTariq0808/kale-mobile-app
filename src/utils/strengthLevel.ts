@@ -1,16 +1,30 @@
-const STRENGTH_LEVEL_MIN = 1;
-const STRENGTH_LEVEL_MAX = 10;
+import { PLANK_STRENGTH_TYPE } from '../types/strengthAssessment';
+import {
+  getStrengthLevel,
+  strengthRequiredHoldSec,
+  type StrengthType,
+} from './strengthPerformance';
 
-/** Reference max plank hold (seconds) for level mapping until norms table exists. */
-const REFERENCE_MAX_PLANK_SEC = 120;
-
+/** @deprecated Use getStrengthLevel with dob/gender from health profile. */
 export function calculateStrengthLevelFromPlankHold(holdSec: number): number {
-  if (holdSec <= 0) return STRENGTH_LEVEL_MIN;
-  const relativePerformance = holdSec / REFERENCE_MAX_PLANK_SEC;
-  const raw = Math.floor(relativePerformance * STRENGTH_LEVEL_MAX);
-  return Math.max(STRENGTH_LEVEL_MIN, Math.min(STRENGTH_LEVEL_MAX, raw));
+  if (holdSec <= 0) return 1;
+  const raw = Math.floor((holdSec / 120) * 10);
+  return Math.max(1, Math.min(10, raw));
 }
 
-export function plankHoldSecForLevel(level: number): number {
-  return Math.ceil((level * REFERENCE_MAX_PLANK_SEC) / STRENGTH_LEVEL_MAX);
+export function calculatePlankLevel(
+  dob: Date,
+  gender: string,
+  holdSec: number,
+): number {
+  return getStrengthLevel(dob, gender, holdSec, PLANK_STRENGTH_TYPE);
+}
+
+export function plankHoldSecForLevel(
+  level: number,
+  dob: Date,
+  gender: string,
+  type: StrengthType | string = PLANK_STRENGTH_TYPE,
+): number {
+  return strengthRequiredHoldSec(level, dob, gender, type);
 }

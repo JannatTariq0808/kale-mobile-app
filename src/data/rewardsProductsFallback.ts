@@ -4,6 +4,7 @@ import type { RewardsProduct } from '../types/rewardsProduct';
 export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   {
     id: 'running-tights',
+    slug: 'running-tights',
     title: 'Running tights',
     brand: 'Tracksmith',
     pts: 400,
@@ -17,6 +18,7 @@ export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   },
   {
     id: 'garmin-offer',
+    slug: 'garmin-25',
     title: '25% off Garmin',
     brand: 'Garmin',
     pts: 100,
@@ -31,6 +33,7 @@ export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   },
   {
     id: 'blood-panel',
+    slug: 'blood-panel',
     title: 'Full blood panel',
     brand: 'Forth',
     pts: 800,
@@ -44,6 +47,7 @@ export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   },
   {
     id: 'coach-anna-3-month-z2-plan',
+    slug: 'coach-anna-3-month-z2-plan',
     title: '3-month Z2 plan',
     brand: 'Coach Anna',
     pts: 400,
@@ -57,6 +61,7 @@ export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   },
   {
     id: 'training-tee',
+    slug: 'training-tee',
     title: 'Training tee',
     brand: 'Tracksmith',
     pts: 250,
@@ -70,6 +75,7 @@ export const REWARDS_PRODUCTS_FALLBACK: RewardsProduct[] = [
   },
   {
     id: 'vo2-lab',
+    slug: 'vo2-lab',
     title: 'VO₂max lab test',
     brand: 'PH Centre',
     pts: 600,

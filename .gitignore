@@ -36,11 +36,15 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env.eas-production
 
 # Firebase Admin service accounts (never commit)
 *-service-account.json
 
 hosting/hosting.config.json
+
+# Firebase cloud functions live locally for deploy — not part of the mobile app repo
+cloud functions/
 
 # typescript
 *.tsbuildinfo

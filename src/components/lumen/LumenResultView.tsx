@@ -11,6 +11,7 @@ import { LumenButton } from './LumenButton';
 import { LumenHistogram } from './LumenHistogram';
 import { LumenRuleCaption } from './LumenRuleCaption';
 import { LumenStat } from './LumenStat';
+import { GarminDeviceTag } from '../fitness/GarminDeviceTag';
 import { bodyTextStyle, displayTextStyle } from '../../theme/textMetrics';
 import { lumen, lumenPillar, sora } from '../../theme';
 
@@ -20,6 +21,11 @@ type ResultTile = {
   label: string;
   value: string;
   unit?: string;
+};
+
+export type DeviceAttribution = {
+  deviceName: string;
+  garminBranded: boolean;
 };
 
 type Trend = 'up' | 'down' | 'same' | 'none';
@@ -37,15 +43,21 @@ export type LumenResultConfig = {
   resultUnit?: string;
   resultLabel: string;
   tiles: ResultTile[];
+  /** Device logo + name shown below the stats row (cardio / Garmin). */
+  deviceAttribution?: DeviceAttribution;
   nextLevel: number;
   nextActions: string[];
+  /** Single level-up callout — replaces the nextActions list when set. */
+  levelUpMessage?: string;
   nextBtn: string;
 };
 
 type LumenResultViewProps = {
   config: LumenResultConfig;
-  onBack: () => void;
   onNext: () => void;
+  onBack?: () => void;
+  /** Show header back control. Result screens are forward-only — default false. */
+  showBackButton?: boolean;
 };
 
 function ordinal(n: number) {
@@ -91,6 +103,7 @@ export const LumenResultView = memo(function LumenResultView({
   config,
   onBack,
   onNext,
+  showBackButton = false,
 }: LumenResultViewProps) {
   const accent = lumenPillar[config.pillar];
   const { horizontalPadding, pad } = useResponsiveLayout();
@@ -102,14 +115,18 @@ export const LumenResultView = memo(function LumenResultView({
     <View style={styles.screen}>
       <SafeAreaView style={styles.content} edges={['top', 'left', 'right', 'bottom']}>
         <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
-          <Pressable
-            onPress={onBack}
-            style={styles.backButton}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
-          </Pressable>
+          {showBackButton ? (
+            <Pressable
+              onPress={onBack}
+              style={styles.backButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="arrow-back" size={20} color={lumen.fg} style={styles.backIcon} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
           <LumEyebrow pillar={config.pillar} label={config.pillarLabel} step="Result" />
           <View style={styles.headerSpacer} />
         </View>
@@ -163,40 +180,76 @@ export const LumenResultView = memo(function LumenResultView({
                 <Text style={styles.heroUnit}>{config.resultUnit}</Text>
               ) : null}
             </View>
-            <Text style={[styles.resultLabel, bodyTextStyle(13, lumen.fgMuted)]}>
-              {config.resultLabel}
-            </Text>
-            <View style={styles.tiles}>
-              {config.tiles.map((tile, index) => (
-                <Fragment key={tile.label}>
-                  {index > 0 ? <View style={styles.tileDivider} /> : null}
-                  <View style={styles.tileCell}>
-                    <LumenStat label={tile.label} value={tile.value} unit={tile.unit} />
-                  </View>
-                </Fragment>
-              ))}
-            </View>
+            {config.resultLabel ? (
+              <Text style={[styles.resultLabel, bodyTextStyle(13, lumen.fgMuted)]}>
+                {config.resultLabel}
+              </Text>
+            ) : null}
+            {config.tiles.length > 0 ? (
+              <View style={styles.tiles}>
+                {config.tiles.map((tile, index) => (
+                  <Fragment key={tile.label}>
+                    {index > 0 ? <View style={styles.tileDivider} /> : null}
+                    <View style={styles.tileCell}>
+                      <LumenStat label={tile.label} value={tile.value} unit={tile.unit} />
+                    </View>
+                  </Fragment>
+                ))}
+              </View>
+            ) : null}
+            {config.deviceAttribution ? (
+              <View style={styles.deviceAttribution}>
+                {config.deviceAttribution.garminBranded ? (
+                  <GarminDeviceTag device={config.deviceAttribution.deviceName} compact />
+                ) : (
+                  <Text style={[styles.devicePlain, bodyTextStyle(13, lumen.fgMuted)]}>
+                    {config.deviceAttribution.deviceName}
+                  </Text>
+                )}
+              </View>
+            ) : null}
           </View>
 
-          <View style={styles.nextSection}>
-            <View style={styles.nextHeader}>
-              <Text style={[styles.nextTitle, { color: accent }]}>
-                Reach Level {config.nextLevel}
-              </Text>
-              <View style={styles.nextRule} />
-            </View>
-            {config.nextActions.map((action, index, arr) => (
-              <View
-                key={action}
-                style={[styles.nextRow, index < arr.length - 1 && styles.nextRowBorder]}
-              >
-                <View style={[styles.nextIcon, { borderColor: accent }]}>
-                  <Ionicons name="arrow-forward" size={11} color={accent} />
+          {config.levelUpMessage !== undefined ? (
+            config.levelUpMessage ? (
+              <View style={styles.nextSection}>
+                <View style={styles.nextHeader}>
+                  <Text style={[styles.nextTitle, { color: accent }]}>
+                    Reach Level {config.nextLevel}
+                  </Text>
+                  <View style={styles.nextRule} />
                 </View>
-                <Text style={[styles.nextAction, bodyTextStyle(14.5, lumen.fg)]}>{action}</Text>
+                <View style={styles.nextMessageRow}>
+                  <View style={[styles.nextIcon, { borderColor: accent }]}>
+                    <Ionicons name="arrow-forward" size={11} color={accent} />
+                  </View>
+                  <Text style={[styles.nextMessage, bodyTextStyle(15, lumen.fg)]}>
+                    {config.levelUpMessage}
+                  </Text>
+                </View>
               </View>
-            ))}
-          </View>
+            ) : null
+          ) : (
+            <View style={styles.nextSection}>
+              <View style={styles.nextHeader}>
+                <Text style={[styles.nextTitle, { color: accent }]}>
+                  Reach Level {config.nextLevel}
+                </Text>
+                <View style={styles.nextRule} />
+              </View>
+              {config.nextActions.map((action, index, arr) => (
+                <View
+                  key={action}
+                  style={[styles.nextRow, index < arr.length - 1 && styles.nextRowBorder]}
+                >
+                  <View style={[styles.nextIcon, { borderColor: accent }]}>
+                    <Ionicons name="arrow-forward" size={11} color={accent} />
+                  </View>
+                  <Text style={[styles.nextAction, bodyTextStyle(14.5, lumen.fg)]}>{action}</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </ScrollView>
 
         <View style={[styles.footer, { paddingHorizontal: pad(26) }]}>
@@ -379,8 +432,14 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     marginTop: 18,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: lumen.hairline,
+  },
+  deviceAttribution: {
+    marginTop: 14,
+    paddingBottom: 4,
+  },
+  devicePlain: {
+    ...sora('semibold'),
   },
   tileCell: {
     flex: 1,
@@ -432,6 +491,17 @@ const styles = StyleSheet.create({
   },
   nextAction: {
     flex: 1,
+  },
+  nextMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingTop: 2,
+    paddingBottom: 4,
+  },
+  nextMessage: {
+    flex: 1,
+    lineHeight: 22,
   },
   footer: {
     paddingTop: 18,

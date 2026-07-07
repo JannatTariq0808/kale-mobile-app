@@ -18,10 +18,11 @@ import { optionIndexFromKey, optionKeyFromIndex } from '../../utils/questionSetQ
 import { calculateKnowledgeLevel } from '../../utils/knowledgeLevel';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
 import {
-  clearCachedKnowledgeAssessmentId,
-  getCachedKnowledgeAssessmentId,
-  setCachedKnowledgeAssessmentId,
-} from './knowledgeAssessmentLocal';
+  fetchInProgressOnboardingAssessment,
+  fetchInProgressQuarterlyAssessment,
+} from '../assessment/assessmentSession';
+import { linkKnowledgeToOnboardingAssessment } from '../assessment/assessmentSession';
+import { finalizeActiveAssessmentIfReady } from '../assessment/assessmentSession';
 
 const KNOWLEDGE_COLLECTION = 'knowledge';
 const QUESTION_SETS_COLLECTION = 'questionSets';
@@ -130,6 +131,28 @@ export async function fetchKnowledgeAssessmentForSet(
   );
 }
 
+/**
+ * Knowledge doc for the active assessment cycle — resolved entirely from Firestore:
+ * prefers the parent assessment's `knowledge_id`, then the latest doc for this question set.
+ */
+export async function fetchKnowledgeAssessmentForActiveCycle(
+  uid: string,
+  setId: string,
+): Promise<KnowledgeAssessment | null> {
+  const normalizedSetId = setId.toLowerCase();
+
+  const parentAssessment =
+    (await fetchInProgressOnboardingAssessment(uid)) ??
+    (await fetchInProgressQuarterlyAssessment(uid));
+
+  if (parentAssessment?.knowledge_id) {
+    const linked = await loadAssessmentById(parentAssessment.knowledge_id);
+    if (linked && linked.set === normalizedSetId) return linked;
+  }
+
+  return fetchKnowledgeAssessmentForSet(uid, setId);
+}
+
 export async function fetchInProgressKnowledgeAssessment(
   uid: string,
   setId: string,
@@ -172,10 +195,10 @@ export async function createKnowledgeAssessment(
       set: normalizedSetId,
       user_id: userRef(uid),
     });
-    await setCachedKnowledgeAssessmentId(uid, normalizedSetId, created.id);
     if (__DEV__) {
       console.log('[knowledge] created assessment', created.id);
     }
+    void linkKnowledgeToOnboardingAssessment(uid, created.id);
     return created.id;
   } catch (error) {
     logKnowledgeError('createKnowledgeAssessment failed', error);
@@ -201,7 +224,7 @@ export async function ensureKnowledgeAssessment(
     if (!assessment || assessment.is_completed || assessment.set !== normalizedSetId) {
       return null;
     }
-    await setCachedKnowledgeAssessmentId(uid, normalizedSetId, assessment.id);
+    void linkKnowledgeToOnboardingAssessment(uid, assessment.id);
     return assessment.id;
   };
 
@@ -210,15 +233,17 @@ export async function ensureKnowledgeAssessment(
     if (reused) return reused;
   }
 
-  const cachedId = await getCachedKnowledgeAssessmentId(uid, normalizedSetId);
-  if (cachedId) {
-    const reused = await reuseIfInProgress(cachedId);
+  const parentAssessment =
+    (await fetchInProgressOnboardingAssessment(uid)) ??
+    (await fetchInProgressQuarterlyAssessment(uid));
+  if (parentAssessment?.knowledge_id) {
+    const reused = await reuseIfInProgress(parentAssessment.knowledge_id);
     if (reused) return reused;
   }
 
   const inProgress = await fetchInProgressKnowledgeAssessment(uid, normalizedSetId);
   if (inProgress) {
-    await setCachedKnowledgeAssessmentId(uid, normalizedSetId, inProgress.id);
+    void linkKnowledgeToOnboardingAssessment(uid, inProgress.id);
     return inProgress.id;
   }
 
@@ -322,9 +347,9 @@ export async function appendKnowledgeResponse(
     const parsed = parseAssessment(snap.id, snap.data() as Record<string, unknown>);
     if (!parsed) return null;
 
-    await setCachedKnowledgeAssessmentId(uid, normalizedSetId, activeAssessmentId);
     if (parsed.is_completed) {
-      await clearCachedKnowledgeAssessmentId(uid, normalizedSetId);
+      await linkKnowledgeToOnboardingAssessment(uid, activeAssessmentId);
+      await finalizeActiveAssessmentIfReady(uid);
     }
 
     if (__DEV__) {

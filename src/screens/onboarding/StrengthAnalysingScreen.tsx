@@ -10,8 +10,9 @@ import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
 import { analyzePlankRecording } from '../../services/strength/analyzePlankRecording';
 import { saveStrengthAssessment } from '../../services/strength/strengthAssessmentSession';
+import { fetchDemographicsForAssess } from '../../services/user/fetchHealthProfile';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
-import { calculateStrengthLevelFromPlankHold } from '../../utils/strengthLevel';
+import { scoreStrengthPlank } from '../../utils/buildStrengthResultConfig';
 import { lumen } from '../../theme';
 
 const MIN_DISPLAY_MS = 2500;
@@ -40,7 +41,29 @@ export function StrengthAnalysingScreen({ navigation, route }: Props) {
       if (cancelled) return;
 
       const elapsed_time = analysis.holdDurationSec;
-      const level = calculateStrengthLevelFromPlankHold(elapsed_time);
+
+      setStatusLine('Grading your hold…');
+      const profile = await fetchDemographicsForAssess();
+      const scored = scoreStrengthPlank(elapsed_time, profile);
+      const { level, rpPct, percentile, usedNorms } = scored;
+
+      if (__DEV__) {
+        console.log('[strength] scored plank', {
+          elapsed_time,
+          level,
+          rpPct,
+          percentile,
+          usedNorms,
+          gender: profile?.gender,
+          dob: profile?.date_of_birth,
+        });
+      }
+
+      if (!usedNorms && __DEV__) {
+        console.warn(
+          '[strength] norms skipped — users/{uid} needs gender + dateOfBirth (weight not required for strength)',
+        );
+      }
 
       let strengthAssessmentId: string | undefined;
       if (user?.uid) {
@@ -103,7 +126,7 @@ export function StrengthAnalysingScreen({ navigation, route }: Props) {
               { textAlign: 'center' },
             ]}
           >
-            {statusLine} Pose detection will refine this automatically in a future update.
+            {statusLine}
           </Text>
         </View>
 

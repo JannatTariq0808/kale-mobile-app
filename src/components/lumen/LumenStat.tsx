@@ -12,8 +12,15 @@ export function LumenStat({ label, value, unit }: LumenStatProps) {
   return (
     <View style={styles.cell}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, displayTextStyle(24, lumen.fg, 'extrabold')]}>{value}</Text>
-      {unit ? <Text style={styles.unit}>{unit}</Text> : null}
+      <View style={styles.valueBlock}>
+        <Text
+          style={[styles.value, displayTextStyle(24, lumen.fg, 'extrabold')]}
+          numberOfLines={2}
+        >
+          {value}
+        </Text>
+        {unit ? <Text style={styles.unit}>{unit}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -34,6 +41,9 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
     marginBottom: 6,
   },
+  valueBlock: {
+    gap: 2,
+  },
   value: {
     letterSpacing: -0.48,
   },
@@ -42,6 +52,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     color: lumen.fgMuted,
-    marginTop: 2,
   },
 });
