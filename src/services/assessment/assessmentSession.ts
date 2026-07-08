@@ -17,6 +17,7 @@ import { allowMultipleAssessmentsPerQuarter } from '../../config/assessmentDev';
 import { getCurrentKnowledgeQuarter } from '../../utils/assessmentCycle';
 import {
   getActiveAssessmentFlow,
+  setActiveAssessmentFlow,
 } from './assessmentFlowSession';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
 import { syncAthleteLevelToUser } from '../user/athleteLevel';
@@ -455,63 +456,94 @@ export async function resolveOnboardingPillarStep(
 }
 
 /**
- * Copy the live cardio result (`cardios/{uid}`) into a separate `cardios/{autoId}` doc and
- * point the assessment's `cardio_id` at it.
- *
- * `cardios/{uid}` stays as the live/latest doc (Garmin ingestion, dashboard). Each assessment
- * gets its own immutable doc so a later assessment never overwrites an earlier cycle's level.
+ * Create (or reuse) a per-assessment `cardios/{autoId}` before tracker connect/assess.
+ * The website writes assessment results to this doc — never to `cardios/{uid}`.
  */
-async function ensureFrozenCardioForAssessment(
-  uid: string,
-  assessment: KaleAssessment,
-): Promise<string | null> {
-  if (assessment.is_completed) return assessment.cardio_id;
+export async function ensureAssessmentCardioDoc(uid: string): Promise<string | null> {
+  const flow = getActiveAssessmentFlow();
+  if (flow?.cardioDocId) {
+    return flow.cardioDocId;
+  }
 
-  // Already linked to a separate cardio doc for this assessment.
-  if (isFrozenCardioDocId(uid, assessment.cardio_id)) {
+  const assessment = await resolveAssessmentForLinking(uid);
+  if (assessment?.is_completed) return null;
+
+  if (assessment && isFrozenCardioDocId(uid, assessment.cardio_id)) {
+    if (flow) {
+      setActiveAssessmentFlow({ ...flow, cardioDocId: assessment.cardio_id! });
+    }
     return assessment.cardio_id;
   }
 
   const db = getFirebaseFirestore();
-  const liveSnap = await getDoc(doc(db, CARDIOS_COLLECTION, uid));
-  const liveData = liveSnap.exists() ? liveSnap.data() : null;
-  const liveLevel = typeof liveData?.level === 'number' ? liveData.level : 0;
+  const cardioRef = doc(collection(db, CARDIOS_COLLECTION));
+  await setDoc(cardioRef, {
+    user_ref: userRef(uid),
+    ...(assessment ? { assessment_id: assessment.id } : {}),
+    assessmentStatus: 'pending',
+    is_completed: false,
+    created_at: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 
-  // No usable cardio result yet — keep pointing at the live doc for now.
-  if (!liveData || liveLevel <= 0) {
-    const liveRef = doc(db, CARDIOS_COLLECTION, uid);
+  if (assessment) {
     await updateDoc(doc(db, ASSESSMENTS_COLLECTION, assessment.id), {
-      cardio_id: liveRef,
+      cardio_id: cardioRef,
       updated_at: serverTimestamp(),
     });
-    return uid;
+    await rememberAssessmentId(uid, assessment.id);
   }
 
-  const frozenRef = doc(collection(db, CARDIOS_COLLECTION));
-  await setDoc(frozenRef, {
-    ...liveData,
-    user_ref: userRef(uid),
-    source_cardio_id: doc(db, CARDIOS_COLLECTION, uid),
-    assessment_id: assessment.id,
-    snapshot_at: serverTimestamp(),
-  });
-  await updateDoc(doc(db, ASSESSMENTS_COLLECTION, assessment.id), {
-    cardio_id: frozenRef,
-    updated_at: serverTimestamp(),
-  });
-  return frozenRef.id;
+  if (flow) {
+    setActiveAssessmentFlow({ ...flow, cardioDocId: cardioRef.id });
+  } else {
+    setActiveAssessmentFlow({
+      mode: 'onboarding',
+      assessmentId: assessment?.id ?? '',
+      cardioDocId: cardioRef.id,
+    });
+  }
+
+  if (__DEV__) {
+    console.log(
+      '[assessment] created cardio doc',
+      cardioRef.id,
+      assessment ? `→ ${assessment.id}` : '(no assessment yet)',
+    );
+  }
+
+  return cardioRef.id;
 }
 
-/** Freeze the current cardio result into a per-attempt doc and link it to the open assessment. */
+/** Resolve the assessment cardio doc id (auto-generated, not `cardios/{uid}`). */
+export async function resolveAssessmentCardioDocId(uid: string): Promise<string | null> {
+  const flow = getActiveAssessmentFlow();
+  if (flow?.cardioDocId) return flow.cardioDocId;
+
+  const assessment = await resolveAssessmentForLinking(uid);
+  if (assessment && isFrozenCardioDocId(uid, assessment.cardio_id)) {
+    return assessment.cardio_id;
+  }
+
+  return null;
+}
+
+/** Confirm the open assessment points at its per-attempt cardio doc after backend assess. */
 export async function linkCardioToActiveAssessment(uid: string): Promise<void> {
   const assessment = await resolveAssessmentForLinking(uid);
   if (!assessment || assessment.is_completed) return;
 
   try {
-    const cardioId = await ensureFrozenCardioForAssessment(uid, assessment);
+    const cardioDocId = await resolveAssessmentCardioDocId(uid);
+    if (!cardioDocId || !isFrozenCardioDocId(uid, cardioDocId)) {
+      if (__DEV__) {
+        console.warn('[assessment] linkCardioToActiveAssessment: no assessment cardio doc');
+      }
+      return;
+    }
     await rememberAssessmentId(uid, assessment.id);
     if (__DEV__) {
-      console.log('[assessment] linked cardio_id →', assessment.id, cardioId);
+      console.log('[assessment] cardio linked', assessment.id, '→', cardioDocId);
     }
   } catch (error) {
     if (__DEV__) {
@@ -578,17 +610,10 @@ export async function finalizeActiveAssessmentIfReady(
   const assessment = await resolveAssessmentForFinalize(uid);
   if (!assessment || assessment.is_completed) return null;
 
-  // Guarantee a completed assessment keeps its own frozen cardio result, even if the
-  // website re-pointed cardio_id back at the live doc after it was first linked.
-  if (assessment.cardio_id) {
-    try {
-      const cardioId = await ensureFrozenCardioForAssessment(uid, assessment);
-      if (cardioId) assessment.cardio_id = cardioId;
-    } catch (error) {
-      if (__DEV__) {
-        console.warn('[assessment] freeze cardio before finalize failed', error);
-      }
-    }
+  // Assessment cardio must be a separate `cardios/{autoId}` doc, not `cardios/{uid}`.
+  const cardioDocId = await resolveAssessmentCardioDocId(uid);
+  if (cardioDocId) {
+    assessment.cardio_id = cardioDocId;
   }
 
   const levels = await readPillarLevelsForAssessment(uid, assessment);

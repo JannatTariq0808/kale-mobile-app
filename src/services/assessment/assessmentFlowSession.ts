@@ -3,6 +3,8 @@ export type AssessmentFlowMode = 'onboarding' | 'quarterly';
 type ActiveAssessmentFlow = {
   mode: AssessmentFlowMode;
   assessmentId: string;
+  /** Per-assessment `cardios/{autoId}` created before tracker connect. */
+  cardioDocId?: string;
   /** ISO — activities to include when re-syncing cardio for a quarterly attempt. */
   activitiesSince?: string;
 };

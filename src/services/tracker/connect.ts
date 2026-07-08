@@ -3,6 +3,7 @@ import type { TrackerProvider } from '../../navigation/trackerLinking';
 import { getFirebaseAuth } from '../auth/firebaseApp';
 import { fetchHealthProfileForAssess } from '../user/fetchHealthProfile';
 import { getActiveAssessmentFlow } from '../assessment/assessmentFlowSession';
+import { ensureAssessmentCardioDoc } from '../assessment/assessmentSession';
 import { assessStravaActivities, type AssessStravaOptions } from './assess';
 import { claimGarminConnection, claimStravaConnection } from './claim';
 import { pollGarminSyncStatus } from './garminSync';
@@ -40,7 +41,16 @@ async function finishProviderConnection(
   pendingToken: string,
   assessOptions?: AssessStravaOptions,
 ): Promise<ConnectTrackerResult> {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) {
+    throw new Error('You must be signed in to connect a tracker.');
+  }
+
   const idToken = await getIdToken();
+  const options: AssessStravaOptions = {
+    ...(await prepareAssessOptions(uid)),
+    ...assessOptions,
+  };
 
   if (provider === 'strava') {
     const claim = await claimStravaConnection(idToken, pendingToken);
@@ -61,7 +71,7 @@ async function finishProviderConnection(
       };
     }
 
-    const assess = await assessStravaActivities(idToken, profile, assessOptions);
+    const assess = await assessStravaActivities(idToken, profile, options);
     if (!assess.ok) {
       return { ok: false, message: assess.message, provider: 'strava' };
     }
@@ -117,7 +127,17 @@ function readAssessOptionsFromFlow(): AssessStravaOptions | undefined {
   const options: AssessStravaOptions = {};
   if (flow.activitiesSince) options.activitiesSince = flow.activitiesSince;
   if (flow.assessmentId) options.assessmentId = flow.assessmentId;
+  if (flow.cardioDocId) options.cardioDocId = flow.cardioDocId;
   return Object.keys(options).length > 0 ? options : undefined;
+}
+
+async function prepareAssessOptions(uid: string): Promise<AssessStravaOptions | undefined> {
+  const cardioDocId = await ensureAssessmentCardioDoc(uid);
+  const base = readAssessOptionsFromFlow() ?? {};
+  if (cardioDocId) {
+    return { ...base, cardioDocId };
+  }
+  return Object.keys(base).length > 0 ? base : undefined;
 }
 
 export async function connectTracker(brand: ConnectionBrand): Promise<ConnectTrackerResult> {
@@ -148,5 +168,7 @@ export async function connectTracker(brand: ConnectionBrand): Promise<ConnectTra
     return { ok: false, message: 'Missing connection token.', provider };
   }
 
-  return finishTrackerConnection(provider, pendingToken, readAssessOptionsFromFlow());
+  const uid = getFirebaseAuth().currentUser?.uid;
+  const options = uid ? await prepareAssessOptions(uid) : readAssessOptionsFromFlow();
+  return finishTrackerConnection(provider, pendingToken, options);
 }

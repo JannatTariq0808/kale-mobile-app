@@ -11,7 +11,10 @@ import type { RootStackParamList } from '../../navigation/types';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
 import { clearFirstTimeLogin } from '../../services/user/userProfile';
 import { waitForCardioAssessmentReady } from '../../services/cardio/waitForCardioAssessment';
-import { linkCardioToActiveAssessment } from '../../services/assessment/assessmentSession';
+import {
+  linkCardioToActiveAssessment,
+  resolveAssessmentCardioDocId,
+} from '../../services/assessment/assessmentSession';
 import { lumen } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CardioAnalysing'>;
@@ -29,7 +32,8 @@ export function CardioAnalysingScreen({ navigation }: Props) {
     const uid = user.uid;
 
     void (async () => {
-      await waitForCardioAssessmentReady(uid);
+      const cardioDocId = (await resolveAssessmentCardioDocId(uid)) ?? uid;
+      await waitForCardioAssessmentReady(cardioDocId);
 
       if (cancelled) return;
 

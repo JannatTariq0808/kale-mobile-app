@@ -10,6 +10,8 @@ export type AssessStravaOptions = {
   activitiesSince?: string;
   /** Parent assessment doc to link after cardio is saved. */
   assessmentId?: string;
+  /** Per-assessment `cardios/{autoId}` — backend writes here instead of `cardios/{uid}`. */
+  cardioDocId?: string;
 };
 
 export async function assessStravaActivities(
@@ -25,6 +27,7 @@ export async function assessStravaActivities(
       weight_kg: profile.weight_kg,
       ...(options?.activitiesSince ? { activities_since: options.activitiesSince } : {}),
       ...(options?.assessmentId ? { assessment_id: options.assessmentId } : {}),
+      ...(options?.cardioDocId ? { cardio_doc_id: options.cardioDocId } : {}),
     }),
   });
 
