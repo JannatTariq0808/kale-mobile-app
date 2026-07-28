@@ -4,6 +4,7 @@ import {
   type NavigationState,
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, InteractionManager, Platform, StyleSheet, View } from 'react-native';
@@ -25,6 +26,7 @@ import { applySoraFontGlobally } from './src/utils/applySoraFont';
 import { hideAndroidSystemNav } from './src/utils/hideAndroidSystemNav';
 import { useGlobalTrackerDeepLink } from './src/hooks/useGlobalTrackerDeepLink';
 import { useInitialAuthRoute } from './src/hooks/useInitialAuthRoute';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 
 const styles = StyleSheet.create({
   root: {
@@ -50,6 +52,7 @@ export default function App() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuthSession();
   const sessionReady = !authLoading;
   const initialAuthRoute = useInitialAuthRoute(user, sessionReady);
+  usePushNotifications(isAuthenticated ? user?.uid : undefined);
   const [navigationReady, setNavigationReady] = useState(false);
   const canMountNav =
     fontsReady && sessionReady && (!isAuthenticated || initialAuthRoute != null);
@@ -108,6 +111,16 @@ export default function App() {
   useEffect(() => {
     if (fontsReady) applySoraFontGlobally();
   }, [fontsReady]);
+
+  useEffect(() => {
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
+      (error) => {
+        if (__DEV__) {
+          console.warn('[app] could not lock portrait orientation', error);
+        }
+      },
+    );
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;

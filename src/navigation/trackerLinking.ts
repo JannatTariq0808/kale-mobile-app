@@ -12,6 +12,7 @@ export type TrackerConnectLink = {
 export type ConnectTrackerRouteParams = {
   flow?: 'onboarding' | 'quarterly';
   activitiesSince?: string;
+  assessmentId?: string;
   syncPeriodLabel?: string;
   garminCapped?: boolean;
   errorMessage?: string;

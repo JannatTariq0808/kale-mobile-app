@@ -7,7 +7,10 @@ import {
 } from '../config/strengthRecording';
 import { isStrengthDevSkipPoseCheck } from '../config/strengthDev';
 import { analyzePlankFrameUri } from '../services/strength/analyzePlankFrame';
-import type { PlankHintCode } from '../services/strength/plankPoseSession';
+import type {
+  PlankFrameAnalysisError,
+  PlankHintCode,
+} from '../services/strength/plankPoseSession';
 
 export type PlankSetupGateStatus =
   | 'idle'
@@ -73,6 +76,7 @@ export function usePlankSetupGate({
   const [hints, setHints] = useState<PlankHintCode[]>([]);
   const [consecutiveValid, setConsecutiveValid] = useState(0);
   const [isChecking, setIsChecking] = useState(false);
+  const [lastError, setLastError] = useState<PlankFrameAnalysisError | null>(null);
 
   const inFlightRef = useRef(false);
   const scheduleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,6 +114,7 @@ export function usePlankSetupGate({
     captureFailuresRef.current = 0;
     setConsecutiveValid(0);
     setHints([]);
+    setLastError(null);
     setIsChecking(false);
     setStatus(cameraReadyRef.current && enabledRef.current ? 'checking' : 'idle');
   }, []);
@@ -151,7 +156,13 @@ export function usePlankSetupGate({
       captureFailuresRef.current = 0;
       const result = await analyzePlankFrameUri(uri);
 
-      if (result.error === 'network' || result.error === 'quota' || result.error === 'service') {
+      if (
+        result.error === 'network' ||
+        result.error === 'quota' ||
+        result.error === 'service' ||
+        result.error === 'auth'
+      ) {
+        setLastError(result.error);
         setStatus('unavailable');
         setHints([]);
         consecutiveRef.current = 0;
@@ -159,6 +170,8 @@ export function usePlankSetupGate({
         scheduleNextSample(PLANK_SETUP_SAMPLE_INTERVAL_MS * 2);
         return;
       }
+
+      setLastError(null);
 
       if (result.valid) {
         consecutiveRef.current += 1;
@@ -214,6 +227,7 @@ export function usePlankSetupGate({
     captureFailuresRef.current = 0;
     setConsecutiveValid(0);
     setHints([]);
+    setLastError(null);
     setStatus('checking');
 
     scheduleNextSample(800);
@@ -229,24 +243,33 @@ export function usePlankSetupGate({
       return 'Dev mode: position check skipped.';
     }
     if (status === 'locked') {
-      return 'Position locked — tap to start recording.';
+      return 'Plank detected — starting recording.';
     }
     if (status === 'unavailable') {
+      if (lastError === 'auth') {
+        return 'Sign in expired. Go back, sign in again, then retry.';
+      }
+      if (lastError === 'quota') {
+        return 'Vision check quota exceeded. Wait a few minutes and try again.';
+      }
+      if (lastError === 'service') {
+        return 'Kale form check is temporarily unavailable. Try again in a moment.';
+      }
       return 'Cannot reach Kale to check your form. Check your connection and try again.';
     }
     if (status === 'capture_error') {
-      return 'Could not grab a preview frame. Hold still, then tap Check position.';
+      return 'Could not grab a preview frame. Hold still for the next scan.';
     }
     if (isChecking) {
-      return 'Checking your position…';
+      return 'Looking for your plank…';
     }
     if (status === 'adjusting') {
-      return 'Adjust using the guide, then tap Check position or wait for the next scan.';
+      return 'Adjust using the guide — recording starts when a plank is detected.';
     }
     if (consecutiveValid > 0) {
       return `Hold still… ${consecutiveValid}/${requiredValid}`;
     }
-    return 'Prop the phone to your side, get into a forearm plank, then tap Check position.';
+    return 'Prop the phone to your side and get into a forearm plank.';
   })();
 
   return {

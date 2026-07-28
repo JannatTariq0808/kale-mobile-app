@@ -149,51 +149,54 @@ export function SettingsProfileScreen({ navigation }: Props) {
             ) : null}
           </View>
 
-          <LumenField
-            label="Name"
-            value={name}
-            onChangeText={(value) => {
-              setName(value);
-              if (error) setError(null);
-            }}
-            placeholder="Your name"
-            autoCapitalize="words"
-            returnKeyType="next"
-            onSubmitEditing={() => weightRef.current?.focus()}
-          />
+          <View style={styles.form}>
+            <LumenField
+              label="Name"
+              value={name}
+              onChangeText={(value) => {
+                setName(value);
+                if (error) setError(null);
+              }}
+              placeholder="Your name"
+              autoCapitalize="words"
+              returnKeyType="next"
+              onSubmitEditing={() => weightRef.current?.focus()}
+            />
 
-          <LumenField
-            label="Weight"
-            ref={weightRef}
-            value={weight}
-            onChangeText={(value) => {
-              setWeight(value);
-              if (error) setError(null);
-            }}
-            placeholder={weightUnit === 'kg' ? '72' : '160'}
-            keyboardType="decimal-pad"
-            validate={(value) => isValidWeight(value, weightUnit)}
-            style={styles.weightField}
-          />
-          <View style={styles.unitRow}>
-            {(['kg', 'lbs'] as const).map((unit) => {
-              const selected = weightUnit === unit;
-              return (
-                <Pressable
-                  key={unit}
-                  onPress={() => {
-                    setWeightUnit(unit);
-                    if (settings.weightKg) {
-                      setWeight(formatWeightKg(settings.weightKg, unit));
-                    }
-                    if (error) setError(null);
-                  }}
-                  style={[styles.unitPill, selected && styles.unitPillActive]}
-                >
-                  <Text style={[styles.unitLabel, selected && styles.unitLabelActive]}>{unit}</Text>
-                </Pressable>
-              );
-            })}
+            <View style={styles.weightSection}>
+              <LumenField
+                label="Weight"
+                ref={weightRef}
+                value={weight}
+                onChangeText={(value) => {
+                  setWeight(value);
+                  if (error) setError(null);
+                }}
+                placeholder={weightUnit === 'kg' ? '72' : '160'}
+                keyboardType="decimal-pad"
+                validate={(value) => isValidWeight(value, weightUnit)}
+              />
+              <View style={styles.unitRow}>
+                {(['kg', 'lbs'] as const).map((unit) => {
+                  const selected = weightUnit === unit;
+                  return (
+                    <Pressable
+                      key={unit}
+                      onPress={() => {
+                        setWeightUnit(unit);
+                        if (settings.weightKg) {
+                          setWeight(formatWeightKg(settings.weightKg, unit));
+                        }
+                        if (error) setError(null);
+                      }}
+                      style={[styles.unitPill, selected && styles.unitPillActive]}
+                    >
+                      <Text style={[styles.unitLabel, selected && styles.unitLabelActive]}>{unit}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           </View>
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -206,7 +209,10 @@ export function SettingsProfileScreen({ navigation }: Props) {
                     void handleSave();
                   }
             }
-            style={saving || settings.loading ? styles.saveDisabled : undefined}
+            style={[
+              styles.saveButton,
+              saving || settings.loading ? styles.saveDisabled : undefined,
+            ]}
           >
             {saving ? 'Saving…' : 'Save changes'}
           </LumenButton>
@@ -276,13 +282,15 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     color: lumen.fgMuted,
   },
-  weightField: {
-    marginBottom: 10,
+  form: {
+    gap: 18,
+  },
+  weightSection: {
+    gap: 12,
   },
   unitRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 8,
+    gap: 14,
   },
   unitPill: {
     paddingVertical: 12,
@@ -312,6 +320,9 @@ const styles = StyleSheet.create({
   },
   loader: {
     marginTop: 16,
+  },
+  saveButton: {
+    marginTop: 22,
   },
   saveDisabled: {
     opacity: 0.55,

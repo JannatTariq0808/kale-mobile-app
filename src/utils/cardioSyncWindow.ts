@@ -12,8 +12,8 @@ export type CardioSyncWindow = {
 };
 
 /**
- * Quarterly cardio sync: from the last `cardios` doc through today.
- * Garmin is capped to the last 30 days when the gap is longer.
+ * Quarterly cardio sync: from the last completed assessment's cardio doc
+ * `created_at` through today. Garmin is capped to the last 30 days when longer.
  */
 export function resolveCardioSyncWindow(
   lastCardioCreatedAt: Date | null,

@@ -10,7 +10,37 @@ import {
 } from '../services/tracker/connectIssueCopy';
 import { finishTrackerConnection } from '../services/tracker/connect';
 import { isPendingTokenInFlight } from '../services/tracker/connectSession';
+import { getActiveAssessmentFlowAsync } from '../services/assessment/assessmentFlowSession';
 import type { AssessStravaOptions } from '../services/tracker/assess';
+
+async function resolveAssessOptionsFromConnect(
+  params: ConnectTrackerRouteParams,
+): Promise<AssessStravaOptions | undefined> {
+  const flow = await getActiveAssessmentFlowAsync();
+  const options: AssessStravaOptions = {};
+  if (params.activitiesSince) options.activitiesSince = params.activitiesSince;
+  if (params.assessmentId) options.assessmentId = params.assessmentId;
+  if (!options.activitiesSince && flow?.activitiesSince) {
+    options.activitiesSince = flow.activitiesSince;
+  }
+  if (!options.assessmentId && flow?.assessmentId) {
+    options.assessmentId = flow.assessmentId;
+  }
+  if (__DEV__) {
+    console.log('[cardio-sync] oauth return assess options', {
+      fromRoute: {
+        activitiesSince: params.activitiesSince ?? null,
+        assessmentId: params.assessmentId ?? null,
+      },
+      fromStorage: {
+        activitiesSince: flow?.activitiesSince ?? null,
+        assessmentId: flow?.assessmentId ?? null,
+      },
+      merged: options,
+    });
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
+}
 
 export function useConnectTrackerFlow(options: {
   setConnecting: (brand: 'strava' | 'garmin' | 'apple' | null) => void;
@@ -60,9 +90,7 @@ export function useConnectTrackerFlow(options: {
           }
           options.setConnecting(params.oauthProvider);
           options.setConnectIssue(null);
-          const assessOptions: AssessStravaOptions | undefined = params.activitiesSince
-            ? { activitiesSince: params.activitiesSince }
-            : undefined;
+          const assessOptions = await resolveAssessOptionsFromConnect(params);
           const result = await finishTrackerConnection(
             params.oauthProvider,
             params.pendingToken,

@@ -5,13 +5,38 @@ import { lumen, sora, typography } from '../../theme';
 type SettingsToggleProps = {
   label: string;
   sub?: string;
+  /** Controlled value — prefer this when wired to Firestore. */
+  value?: boolean;
   defaultOn?: boolean;
+  disabled?: boolean;
+  saving?: boolean;
   last?: boolean;
+  onChange?: (next: boolean) => void;
 };
 
 /** K3SettingsToggle — kale-mobile-design/screens/KaleApp2.jsx */
-export function SettingsToggle({ label, sub, defaultOn = false, last = false }: SettingsToggleProps) {
-  const [on, setOn] = useState(defaultOn);
+export function SettingsToggle({
+  label,
+  sub,
+  value,
+  defaultOn = false,
+  disabled = false,
+  saving = false,
+  last = false,
+  onChange,
+}: SettingsToggleProps) {
+  const [uncontrolled, setUncontrolled] = useState(defaultOn);
+  const on = value ?? uncontrolled;
+  const locked = disabled || saving;
+
+  const toggle = () => {
+    if (locked) return;
+    const next = !on;
+    if (value === undefined) {
+      setUncontrolled(next);
+    }
+    onChange?.(next);
+  };
 
   return (
     <View style={[styles.row, !last && styles.rowBorder]}>
@@ -20,10 +45,10 @@ export function SettingsToggle({ label, sub, defaultOn = false, last = false }: 
         {sub ? <Text style={styles.sub}>{sub}</Text> : null}
       </View>
       <Pressable
-        onPress={() => setOn((prev) => !prev)}
-        style={[styles.track, on && styles.trackOn]}
+        onPress={toggle}
+        style={[styles.track, on && styles.trackOn, locked && styles.trackDisabled]}
         accessibilityRole="switch"
-        accessibilityState={{ checked: on }}
+        accessibilityState={{ checked: on, disabled: locked }}
       >
         <View style={[styles.thumb, on && styles.thumbOn]} />
       </Pressable>
@@ -67,6 +92,9 @@ const styles = StyleSheet.create({
   },
   trackOn: {
     backgroundColor: lumen.mint,
+  },
+  trackDisabled: {
+    opacity: 0.45,
   },
   thumb: {
     width: 20,

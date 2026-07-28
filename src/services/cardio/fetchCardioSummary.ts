@@ -6,6 +6,13 @@ import { resolveCardioDocLevel } from '../../utils/resolveCardioDocLevel';
 
 export type CardioPlatform = 'strava' | 'garmin' | 'appleHealth';
 
+export type Vo2SubmaximalMeta = {
+  computedAt: Date | null;
+  confidence: number | null;
+  source: string | null;
+  sampleCount: number | null;
+};
+
 export type CardioSummary = {
   assessmentStatus: string | null;
   level: number;
@@ -25,6 +32,16 @@ export type CardioSummary = {
   runLevel: number | null;
   cycleLevel: number | null;
   deviceName: string | null;
+  /** Garmin device VO₂max when stored separately from Kale formula estimate. */
+  garminVo2max: number | null;
+  /** Kale submaximal VO₂max calibrated from Garmin session heart rate. */
+  vo2maxSubmaximal: number | null;
+  vo2maxSubmaximalMeta: Vo2SubmaximalMeta | null;
+  /** When set, clarifies what `vo2max` represents (e.g. garmin, kale, pace_hr). */
+  vo2maxSource: string | null;
+  /** Resting heart rate from device sync when available. */
+  restingHr: number | null;
+  assessedAt: Date | null;
 };
 
 function readNumber(value: unknown): number | null {
@@ -44,6 +61,55 @@ function readLevelSource(value: unknown): CardioType | null {
 function readPlatform(value: unknown): CardioPlatform | null {
   if (value === 'strava' || value === 'garmin' || value === 'appleHealth') return value;
   return null;
+}
+
+function readTimestamp(value: unknown): Date | null {
+  if (value && typeof value === 'object' && 'toDate' in value) {
+    const date = (value as { toDate: () => Date }).toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  }
+  return null;
+}
+
+function readSubmaximalMeta(data: Record<string, unknown>): Vo2SubmaximalMeta | null {
+  const meta = data.vo2max_submaximal_meta ?? data.vo2maxSubmaximalMeta;
+  if (!meta || typeof meta !== 'object') return null;
+  const record = meta as Record<string, unknown>;
+  return {
+    computedAt:
+      readTimestamp(record.computedAt) ??
+      readTimestamp(record.computed_at),
+    confidence: readNumber(record.confidence),
+    source: typeof record.source === 'string' ? record.source : null,
+    sampleCount: readNumber(record.sampleCount) ?? readNumber(record.sample_count),
+  };
+}
+
+function readRestingHr(data: Record<string, unknown>): number | null {
+  return (
+    readNumber(data.resting_hr) ??
+    readNumber(data.restingHr) ??
+    readNumber(data.resting_heart_rate) ??
+    readNumber(data.restingHeartRate)
+  );
+}
+
+function readSubmaximalVo2(data: Record<string, unknown>): number | null {
+  return readNumber(data.vo2max_submaximal) ?? readNumber(data.vo2maxSubmaximal);
+}
+
+function readVo2maxSource(data: Record<string, unknown>): string | null {
+  const raw = data.vo2max_source ?? data.vo2maxSource;
+  return typeof raw === 'string' && raw.trim() ? raw.trim().toLowerCase() : null;
+}
+
+function readGarminVo2max(data: Record<string, unknown>): number | null {
+  return (
+    readNumber(data.garmin_vo2max) ??
+    readNumber(data.garminVo2max) ??
+    readNumber(data.vo2max_garmin) ??
+    readNumber(data.vo2maxGarmin)
+  );
 }
 
 function readDeviceName(value: unknown): string | null {
@@ -145,6 +211,12 @@ function parseCardioSummaryFromData(
     runLevel: readNumber(data.runLevel),
     cycleLevel: readNumber(data.cycleLevel),
     deviceName,
+    garminVo2max: readGarminVo2max(data),
+    restingHr: readRestingHr(data),
+    vo2maxSubmaximal: readSubmaximalVo2(data),
+    vo2maxSubmaximalMeta: readSubmaximalMeta(data),
+    vo2maxSource: readVo2maxSource(data),
+    assessedAt: readTimestamp(data.assessedAt) ?? readTimestamp(data.assessed_at),
   };
 }
 
@@ -172,18 +244,29 @@ export async function fetchCardioSummaryByDocId(
 }
 
 /**
- * Cardio summary for display — prefers the assessment-linked cardio doc
- * (`assessments.cardio_id`) so a later live sync does not overwrite a past cycle's level.
+ * Cardio doc used for display — prefers assessment-linked `cardio_id`, else live `cardios/{uid}`.
  */
-export async function fetchCardioSummaryForUser(uid: string): Promise<CardioSummary | null> {
+export async function resolveCardioDocIdForUser(uid: string): Promise<string> {
   try {
     const { assessments } = await fetchAssessmentsForUser(uid);
     const linkedId =
       assessments.find((item) => item.is_completed && item.cardio_id)?.cardio_id ??
       assessments.find((item) => item.cardio_id)?.cardio_id ??
       null;
+    return linkedId ?? uid;
+  } catch {
+    return uid;
+  }
+}
 
-    if (linkedId) {
+/**
+ * Cardio summary for display — prefers the assessment-linked cardio doc
+ * (`assessments.cardio_id`) so a later live sync does not overwrite a past cycle's level.
+ */
+export async function fetchCardioSummaryForUser(uid: string): Promise<CardioSummary | null> {
+  try {
+    const linkedId = await resolveCardioDocIdForUser(uid);
+    if (linkedId !== uid) {
       const fromAssessment = await fetchCardioSummaryByDocId(linkedId, uid);
       if (fromAssessment && fromAssessment.level > 0) return fromAssessment;
     }

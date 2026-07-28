@@ -1,5 +1,5 @@
 import {
-  cacheAssessmentForUser,
+  fetchAssessmentById,
   fetchAssessmentsForUser,
   fetchInProgressOnboardingAssessment,
   isKnowledgeCompleted,
@@ -9,6 +9,7 @@ import {
 import type { KaleAssessment } from '../../types/assessment';
 import { athleteLevelCalculation } from '../../utils/athleteLevel';
 import { syncAthleteLevelToUser } from '../user/athleteLevel';
+import { getActiveAssessmentFlow } from '../assessment/assessmentFlowSession';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
@@ -74,15 +75,27 @@ export async function fetchPreviousCompletedAssessmentLevel(
   return previous?.level ?? null;
 }
 
-/** Latest assessment with all three pillar refs (in-progress or just finished). */
+/** Assessment ready for LevelReveal — onboarding or quarterly with all three pillar refs. */
 export async function fetchAssessmentReadyForReveal(
   uid: string,
 ): Promise<KaleAssessment | null> {
+  const flow = getActiveAssessmentFlow();
+  if (flow?.assessmentId) {
+    const byFlow = await fetchAssessmentById(flow.assessmentId, uid);
+    if (byFlow?.cardio_id && byFlow.strength_id && byFlow.knowledge_id) {
+      return byFlow;
+    }
+  }
+
   const { assessments } = await fetchAssessmentsForUser(uid);
+  const withRefs = assessments.filter(
+    (item) => item.cardio_id && item.strength_id && item.knowledge_id,
+  );
   return (
-    assessments.find(
-      (item) => item.cardio_id && item.strength_id && item.knowledge_id,
-    ) ?? null
+    withRefs.find((item) => !item.is_completed) ??
+    withRefs.find((item) => item.isOnboarding) ??
+    withRefs[0] ??
+    null
   );
 }
 
@@ -115,11 +128,46 @@ export async function finalizeOnboardingAssessmentIfReady(
   return finalizeActiveAssessmentIfReady(uid);
 }
 
+async function logLevelRevealDiagnostics(uid: string, assessment: KaleAssessment): Promise<void> {
+  const [cardio, strength, knowledge, strengthDone, knowledgeDone] = await Promise.all([
+    assessment.cardio_id
+      ? readPillarLevelForAssessment('cardio', assessment.cardio_id, uid)
+      : Promise.resolve(null),
+    assessment.strength_id
+      ? readPillarLevelForAssessment('strength', assessment.strength_id, uid)
+      : Promise.resolve(null),
+    assessment.knowledge_id
+      ? readPillarLevelForAssessment('knowledge', assessment.knowledge_id, uid)
+      : Promise.resolve(null),
+    assessment.strength_id ? isStrengthCompleted(assessment.strength_id) : Promise.resolve(false),
+    assessment.knowledge_id ? isKnowledgeCompleted(assessment.knowledge_id) : Promise.resolve(false),
+  ]);
+
+  console.warn('[level-reveal] could not load pillar levels', {
+    assessmentId: assessment.id,
+    cardio_id: assessment.cardio_id,
+    strength_id: assessment.strength_id,
+    knowledge_id: assessment.knowledge_id,
+    cardioLevel: cardio,
+    strengthLevel: strength,
+    strengthCompleted: strengthDone,
+    knowledgeLevel: knowledge,
+    knowledgeCompleted: knowledgeDone,
+  });
+}
+
 export async function loadLevelRevealData(uid: string): Promise<LevelRevealData | null> {
   let assessment = await fetchAssessmentReadyForReveal(uid);
-  if (!assessment) return null;
+  if (!assessment) {
+    if (__DEV__) {
+      console.warn(
+        '[level-reveal] no assessment with cardio_id, strength_id, and knowledge_id',
+      );
+    }
+    return null;
+  }
 
-  if (!assessment.is_completed || assessment.level == null) {
+  if (!assessment.is_completed) {
     const finalized = await finalizeOnboardingAssessmentIfReady(uid);
     if (finalized) {
       assessment = finalized;
@@ -127,11 +175,30 @@ export async function loadLevelRevealData(uid: string): Promise<LevelRevealData 
   }
 
   const levels = await readPillarLevels(uid, assessment);
-  if (!levels) return null;
+  if (!levels) {
+    if (__DEV__) {
+      await logLevelRevealDiagnostics(uid, assessment);
+    }
+    return null;
+  }
 
-  const longevityLevel =
-    assessment.level ??
-    athleteLevelCalculation(levels.cardio, levels.strength, levels.knowledge);
+  let longevityLevel =
+    assessment.level ?? athleteLevelCalculation(levels.cardio, levels.strength, levels.knowledge);
+
+  if (assessment.level == null && assessment.is_completed) {
+    try {
+      await updateDoc(doc(getFirebaseFirestore(), ASSESSMENTS_COLLECTION, assessment.id), {
+        level: longevityLevel,
+        updated_at: serverTimestamp(),
+      });
+      await syncAthleteLevelToUser(uid, longevityLevel);
+      assessment = { ...assessment, level: longevityLevel };
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[level-reveal] could not backfill assessment level', error);
+      }
+    }
+  }
 
   const previousLevel = await fetchPreviousCompletedAssessmentLevel(uid, assessment.id);
 

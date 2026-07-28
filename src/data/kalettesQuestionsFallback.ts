@@ -1,37 +1,52 @@
 import type { KalettesQuestion } from '../types/kalettesQuestion';
 
-/** Used when Firestore is empty or unavailable — lum-16 KaleRewardsBalanceLumen */
 export const KALETTES_QUESTIONS_FALLBACK: KalettesQuestion[] = [
   {
-    id: 'how-to-earn',
-    question: 'How do I earn Kalettes?',
+    id: 'what-are-kalettes',
+    question: 'What are Kalettes?',
     answer:
-      'Complete your quarterly assessment to earn Kalettes from your active policy. Your Longevity Level sets your rebate: level 1 is 1% of your monthly premium back, level 10 is 10%. Each Kalette is worth 1p (£0.01). Points start as pending and move into your spendable balance when you complete your next assessment on time.',
+      "Kalettes are Kale's rewards currency. You earn them for staying fit, and you spend them on things that help you live longer. One Kalette is worth one penny.",
     sortOrder: 1,
     active: true,
   },
   {
-    id: 'why-assessment-to-bank',
-    question: 'Why must I complete an assessment to bank?',
+    id: 'how-to-earn',
+    question: 'How do I earn Kalettes?',
     answer:
-      "Banking only on assessment makes the link between training and reward concrete. Skip one and your accrued points reset — but your fitness doesn't, so the next cycle pays even more.",
+      'Your Longevity Level does the work. Your level (1 to 10) is the percentage of your monthly premium you earn back in Kalettes. At Level 5, you earn 5% back. At Level 10, you earn 10% back. The fitter you are, the more you earn.',
     sortOrder: 2,
     active: true,
   },
   {
-    id: 'when-expire',
-    question: 'When do points expire?',
+    id: 'what-is-pending',
+    question: 'What does "pending" mean?',
     answer:
-      "Banked points last 24 months from the date they were awarded. We'll nudge you well before any expire.",
+      'At the start of each quarter, we forecast how many Kalettes you can earn between now and your next assessment, typically three months away. That amount shows as pending. To bank it, all you have to do is turn up and complete your next assessment. Once banked, your Kalettes are yours to spend straight away.',
     sortOrder: 3,
     active: true,
   },
   {
-    id: 'gift-points',
-    question: 'Can I gift my points?',
+    id: 'miss-assessment',
+    question: 'What happens if I miss my assessment?',
     answer:
-      "Not yet — but it's coming. For now, points can only be redeemed at kale.co/rewards by the policyholder.",
+      "Your pending Kalettes aren't banked, so you lose that quarter's earnings. Complete the next assessment and you start earning again.",
     sortOrder: 4,
+    active: true,
+  },
+  {
+    id: 'spend-kalettes',
+    question: 'What can I spend Kalettes on?',
+    answer:
+      "Head to the Kale Store. You'll find health assessments, longevity gear, sports gear and plenty more, all chosen to support your health and fitness.",
+    sortOrder: 5,
+    active: true,
+  },
+  {
+    id: 'request-items',
+    question: "What if the Kale Store doesn't have what I want?",
+    answer:
+      "Tell us. You can request items from within the store, and we'll work on adding them soon.",
+    sortOrder: 6,
     active: true,
   },
 ];

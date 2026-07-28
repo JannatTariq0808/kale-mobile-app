@@ -2,7 +2,7 @@
 
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from './LumenButton';
 import { lumen, sora } from '../../theme';
@@ -13,6 +13,7 @@ type AssessmentLiveCardProps = {
   quarterLabel: string;
   kaletteReward: number;
   onStartPress?: () => void;
+  starting?: boolean;
 };
 
 function TimeUnit({
@@ -21,25 +22,31 @@ function TimeUnit({
   muted,
   valueSize,
   unitSize,
+  valueLineHeight,
+  unitLineHeight,
 }: {
   value: number;
   unit: string;
   muted?: boolean;
   valueSize: number;
   unitSize: number;
+  valueLineHeight: number;
+  unitLineHeight: number;
 }) {
   return (
     <View style={styles.timeUnit}>
       <Text
         style={[
           styles.timeValue,
-          { fontSize: valueSize, lineHeight: valueSize },
+          { fontSize: valueSize, lineHeight: valueLineHeight },
           muted && styles.timeValueMuted,
         ]}
       >
         {String(value).padStart(2, '0')}
       </Text>
-      <Text style={[styles.timeLabel, { fontSize: unitSize }]}>{unit}</Text>
+      <Text style={[styles.timeLabel, { fontSize: unitSize, lineHeight: unitLineHeight }]}>
+        {unit}
+      </Text>
     </View>
   );
 }
@@ -81,13 +88,19 @@ export function AssessmentLiveCard({
   quarterLabel,
   kaletteReward,
   onStartPress,
+  starting = false,
 }: AssessmentLiveCardProps) {
-  const { type } = useResponsiveLayout();
+  const { type, leading } = useResponsiveLayout();
   const labelSize = type(10);
   const headlineSize = type(22);
   const timeSize = type(32);
   const timeUnitSize = type(9);
+  const sepSize = type(28);
   const footerSize = type(10);
+  const timeLineHeight = leading(timeSize, 1.12);
+  const sepLineHeight = leading(sepSize, 1.12);
+  const unitLineHeight = leading(timeUnitSize, 1.35);
+  const sepPaddingBottom = unitLineHeight + 6;
 
   return (
     <View style={styles.wrap}>
@@ -109,18 +122,62 @@ export function AssessmentLiveCard({
         </Text>
 
         <View style={styles.countdownRow}>
-          <TimeUnit value={window.daysUntilClose} unit="days" valueSize={timeSize} unitSize={timeUnitSize} />
-          <Text style={[styles.countdownSep, { fontSize: type(28) }]}>:</Text>
-          <TimeUnit value={window.hoursUntilClose} unit="hrs" valueSize={timeSize} unitSize={timeUnitSize} />
-          <Text style={[styles.countdownSep, { fontSize: type(28) }]}>:</Text>
-          <TimeUnit value={window.minutesUntilClose} unit="min" valueSize={timeSize} unitSize={timeUnitSize} />
-          <Text style={[styles.countdownSep, { fontSize: type(28) }]}>:</Text>
+          <TimeUnit
+            value={window.daysUntilClose}
+            unit="days"
+            valueSize={timeSize}
+            unitSize={timeUnitSize}
+            valueLineHeight={timeLineHeight}
+            unitLineHeight={unitLineHeight}
+          />
+          <Text
+            style={[
+              styles.countdownSep,
+              { fontSize: sepSize, lineHeight: sepLineHeight, paddingBottom: sepPaddingBottom },
+            ]}
+          >
+            :
+          </Text>
+          <TimeUnit
+            value={window.hoursUntilClose}
+            unit="hrs"
+            valueSize={timeSize}
+            unitSize={timeUnitSize}
+            valueLineHeight={timeLineHeight}
+            unitLineHeight={unitLineHeight}
+          />
+          <Text
+            style={[
+              styles.countdownSep,
+              { fontSize: sepSize, lineHeight: sepLineHeight, paddingBottom: sepPaddingBottom },
+            ]}
+          >
+            :
+          </Text>
+          <TimeUnit
+            value={window.minutesUntilClose}
+            unit="min"
+            valueSize={timeSize}
+            unitSize={timeUnitSize}
+            valueLineHeight={timeLineHeight}
+            unitLineHeight={unitLineHeight}
+          />
+          <Text
+            style={[
+              styles.countdownSep,
+              { fontSize: sepSize, lineHeight: sepLineHeight, paddingBottom: sepPaddingBottom },
+            ]}
+          >
+            :
+          </Text>
           <TimeUnit
             value={window.secondsUntilClose}
             unit="sec"
             muted
             valueSize={timeSize}
             unitSize={timeUnitSize}
+            valueLineHeight={timeLineHeight}
+            unitLineHeight={unitLineHeight}
           />
         </View>
 
@@ -132,9 +189,16 @@ export function AssessmentLiveCard({
           <Text style={[styles.progressLabel, { fontSize: footerSize }]}>{window.closeLabel}</Text>
         </View>
 
-        <LumenButton onPress={onStartPress} style={styles.cta}>
-          Start assessment
-        </LumenButton>
+        {starting ? (
+          <View style={styles.startingButton}>
+            <ActivityIndicator color={lumen.bgDark} />
+            <Text style={styles.startingLabel}>Starting assessment…</Text>
+          </View>
+        ) : (
+          <LumenButton onPress={onStartPress} style={styles.cta}>
+            Start assessment
+          </LumenButton>
+        )}
 
         <Text style={[styles.reward, { fontSize: type(13) }]}>
           Complete it to bank{' '}
@@ -202,18 +266,19 @@ const styles = StyleSheet.create({
   },
   countdownRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
+    paddingBottom: 2,
   },
   countdownSep: {
     ...sora('extrabold'),
     color: lumen.fgFaint,
     letterSpacing: -0.8,
     marginHorizontal: 4,
-    lineHeight: 32,
   },
   timeUnit: {
     flex: 1,
     alignItems: 'center',
+    minWidth: 0,
   },
   timeValue: {
     ...sora('extrabold'),
@@ -258,6 +323,22 @@ const styles = StyleSheet.create({
   cta: {
     marginTop: 16,
     height: 48,
+  },
+  startingButton: {
+    marginTop: 16,
+    height: 48,
+    borderRadius: 9999,
+    backgroundColor: lumen.mint,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    opacity: 0.85,
+  },
+  startingLabel: {
+    ...sora('bold'),
+    color: lumen.bgDark,
+    fontSize: 16,
   },
   reward: {
     ...sora('semibold'),

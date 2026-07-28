@@ -23,6 +23,7 @@ type BuildStrengthResultInput = {
   analysis: PlankAnalysisResult;
   profile: DemographicsForAssess | null;
   previousLevel?: number | null;
+  nextBtn?: string;
 };
 
 function dobFromProfile(profile: DemographicsForAssess): Date {
@@ -64,6 +65,7 @@ export function buildStrengthResultConfig({
   analysis: _analysis,
   profile,
   previousLevel,
+  nextBtn = 'Next — Knowledge',
 }: BuildStrengthResultInput): LumenResultConfig {
   const scored = scoreStrengthPlank(elapsed_time, profile);
   const { level, percentile, usedNorms } = scored;
@@ -112,6 +114,6 @@ export function buildStrengthResultConfig({
     nextLevel,
     nextActions: [],
     levelUpMessage,
-    nextBtn: 'Next — Knowledge',
+    nextBtn,
   };
 }

@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import { enableScreens } from 'react-native-screens';
 import { registerRootComponent } from 'expo';
+import Constants from 'expo-constants';
 
 enableScreens(true);
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,7 +11,9 @@ import './src/bootstrap/firebaseBootstrap';
 import App from './App';
 
 void SplashScreen.preventAutoHideAsync();
-SplashScreen.setOptions({ duration: 0, fade: false });
+if (Constants.appOwnership !== 'expo') {
+  SplashScreen.setOptions({ duration: 0, fade: false });
+}
 void SystemUI.setBackgroundColorAsync('#004C4C');
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

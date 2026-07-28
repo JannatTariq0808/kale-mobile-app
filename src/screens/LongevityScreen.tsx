@@ -1,15 +1,16 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { useAssessmentCycle } from '../hooks/useAssessmentCycle';
 import { useAssessmentWindow } from '../hooks/useAssessmentWindow';
-import { useHomeLongevityData } from '../hooks/useHomeLongevityData';
+import { useArticles } from '../hooks/useArticles';
+import { invalidateHomeLongevityData, useHomeLongevityData } from '../hooks/useHomeLongevityData';
 import { useKalettesRewards } from '../hooks/useKalettesRewards';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AssessmentLiveCard } from '../components/lumen/AssessmentLiveCard';
-import { AssessmentQuarterCompleteCard } from '../components/lumen/AssessmentQuarterCompleteCard';
-import { FirstAssessmentCard } from '../components/lumen/FirstAssessmentCard';
+import { ArticlesSection } from '../components/lumen/ArticlesSection';
+import { RunningYearsPromoCard } from '../components/runningYears/RunningYearsPromoCard';
 import { HealthYearsTrendChart } from '../components/lumen/HealthYearsTrendChart';
 import { LegendDot, QuickStatPillar } from '../components/lumen/HomeMetrics';
 import { LongevityLevelTrendChart } from '../components/lumen/LongevityLevelTrendChart';
@@ -20,6 +21,7 @@ import { TrendChartScroll } from '../components/lumen/TrendChartScroll';
 import type { NavigationProp, ParamListBase } from '@react-navigation/native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { startQuarterlyAssessmentFromHome } from '../services/assessment/startQuarterlyAssessment';
+import { openRunningYears } from '../services/runningYears/openRunningYears';
 import { getAssessmentQuarterDisplay } from '../utils/assessmentCycle';
 import { lumen, lumenPillar, sora } from '../theme';
 
@@ -64,27 +66,30 @@ export function LongevityScreen() {
   const { scale, type, leading, isCompact, isNarrow, isTight, cardPadding, contentWidth } =
     useResponsiveLayout();
   const home = useHomeLongevityData();
+  const articlesState = useArticles();
   const homeRefresh = home.refresh;
-  const didInitialFocus = useRef(false);
+  const articlesRefresh = articlesState.refresh;
   useFocusEffect(
     useCallback(() => {
-      if (!didInitialFocus.current) {
-        didInitialFocus.current = true;
-        return;
-      }
+      invalidateHomeLongevityData();
       homeRefresh();
-    }, [homeRefresh]),
+      articlesRefresh();
+    }, [homeRefresh, articlesRefresh]),
   );
-  const isFirstAssessment = home.assessmentCount <= 1;
   const chartSeries = home.chartSeries;
   const assessmentCycle = useAssessmentCycle();
   const assessmentWindow = useAssessmentWindow();
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const quarterLabel = getAssessmentQuarterDisplay();
   const kalettesRewards = useKalettesRewards();
+  const [startingAssessment, setStartingAssessment] = useState(false);
   const handleStartAssessment = useCallback(() => {
-    void startQuarterlyAssessmentFromHome(navigation);
-  }, [navigation]);
+    if (startingAssessment) return;
+    setStartingAssessment(true);
+    void startQuarterlyAssessmentFromHome(navigation).finally(() => {
+      setStartingAssessment(false);
+    });
+  }, [navigation, startingAssessment]);
   const kaletteReward = kalettesRewards.hasQuote
     ? kalettesRewards.pendingKalettes || kalettesRewards.monthlyKalettes
     : Math.round(home.level * 81);
@@ -145,23 +150,14 @@ export function LongevityScreen() {
           <QuickStatPillar pillar="Knowledge" level={home.pillarLevels.knowledge} color={lumenPillar.knowledge} />
         </View>
 
-        {assessmentWindow.live ? (
-          home.completedAssessmentThisQuarter ? (
-            <AssessmentQuarterCompleteCard
-              window={assessmentWindow}
-              quarterLabel={quarterLabel}
-              pendingKalettes={
-                kalettesRewards.hasQuote ? kalettesRewards.pendingKalettes : undefined
-              }
-            />
-          ) : (
-            <AssessmentLiveCard
-              window={assessmentWindow}
-              quarterLabel={quarterLabel}
-              kaletteReward={kaletteReward}
-              onStartPress={handleStartAssessment}
-            />
-          )
+        {assessmentWindow.live && !home.completedAssessmentThisQuarter ? (
+          <AssessmentLiveCard
+            window={assessmentWindow}
+            quarterLabel={quarterLabel}
+            kaletteReward={kaletteReward}
+            onStartPress={handleStartAssessment}
+            starting={startingAssessment}
+          />
         ) : (
           <LumenCard accent={lumen.coral} style={styles.nextCard}>
             <View style={styles.nextHeader}>
@@ -174,22 +170,36 @@ export function LongevityScreen() {
               <Text
                 style={[
                   styles.countdownNum,
-                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.08) },
+                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.15) },
                 ]}
               >
                 {assessmentCycle.weeksToAssessment}
               </Text>
-              <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>weeks</Text>
+              <Text
+                style={[
+                  styles.countdownUnit,
+                  { fontSize: type(14), lineHeight: leading(type(14), 1.35) },
+                ]}
+              >
+                weeks
+              </Text>
               <Text
                 style={[
                   styles.countdownNum,
                   styles.countdownGap,
-                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.08) },
+                  { fontSize: countdownSize, lineHeight: leading(countdownSize, 1.15) },
                 ]}
               >
                 {assessmentCycle.daysToAssessment}
               </Text>
-              <Text style={[styles.countdownUnit, { fontSize: type(14) }]}>days</Text>
+              <Text
+                style={[
+                  styles.countdownUnit,
+                  { fontSize: type(14), lineHeight: leading(type(14), 1.35) },
+                ]}
+              >
+                days
+              </Text>
             </View>
             <View style={styles.progressTrack}>
               <View
@@ -211,25 +221,23 @@ export function LongevityScreen() {
           </LumenCard>
         )}
 
-        {isFirstAssessment ? (
-          <FirstAssessmentCard
-            level={home.level}
-            lifespanYears={home.lifespanYears}
-            healthspanYears={home.healthspanYears}
-          />
-        ) : chartSeries ? (
+        {chartSeries ? (
           <>
             <LumenCard style={styles.chartCard}>
-              <SectionEyebrow trailing="5y outlook" trailingMuted>
+              <SectionEyebrow
+                trailing={chartSeries.projected ? 'PROJECTED' : '5y outlook'}
+                trailingMuted={!chartSeries.projected}
+              >
                 Health Years over time
               </SectionEyebrow>
-              <TrendChartScroll pointCount={chartSeries.count} height={120}>
+              <TrendChartScroll pointCount={chartSeries.labels.length} height={120}>
                 {(width) => (
                   <HealthYearsTrendChart
                     width={width}
-                    labels={chartSeries.labels}
+                    labels={chartSeries.healthLabels}
                     lifespan={chartSeries.lifespan}
                     healthspan={chartSeries.healthspan}
+                    projectedFromIndex={chartSeries.projected ? chartSeries.projectedFromIndex : -1}
                   />
                 )}
               </TrendChartScroll>
@@ -242,26 +250,60 @@ export function LongevityScreen() {
                     value={`+${home.healthspanYears}y`}
                   />
                 </View>
-                <Text style={styles.levelTag}>at Level {home.level}</Text>
+                <Text style={styles.levelTag}>
+                  {chartSeries.projected
+                    ? `sharpens after ${chartSeries.nextCycleLabel}`
+                    : `at Level ${home.level}`}
+                </Text>
               </View>
             </LumenCard>
 
             <LumenCard style={styles.chartCard}>
-              <SectionEyebrow trailing={`${chartSeries.count} CYCLES`}>
+              <SectionEyebrow
+                trailing={
+                  chartSeries.projected
+                    ? `${chartSeries.nextCycleLabel} IN PROGRESS`
+                    : `${chartSeries.count} CYCLES`
+                }
+              >
                 Longevity Level over time
               </SectionEyebrow>
-              <TrendChartScroll pointCount={chartSeries.count} height={130}>
+              <TrendChartScroll pointCount={chartSeries.labels.length} height={130}>
                 {(width) => (
                   <LongevityLevelTrendChart
                     width={width}
                     levels={chartSeries.levels}
                     labels={chartSeries.labels}
+                    projectedFromIndex={chartSeries.projected ? chartSeries.projectedFromIndex : -1}
                   />
                 )}
               </TrendChartScroll>
+              {chartSeries.projected ? (
+                <Text style={[styles.projectedCopy, { fontSize: type(13) }]}>
+                  We&apos;ve plotted your onboarding baseline and where you&apos;re trending. Your first
+                  full cycle locks in at{' '}
+                  <Text style={styles.projectedCopyAccent}>{chartSeries.nextCycleLabel}</Text>.
+                </Text>
+              ) : null}
             </LumenCard>
           </>
         ) : null}
+
+        <RunningYearsPromoCard
+          runningYears={home.runningYearsAhead}
+          source={home.runningYearsSource}
+          hasDevice={home.runningYearsHasDevice}
+          goalSet={home.runningYearsGoalSet}
+          goalId={home.runningYearsGoalId}
+          onPress={() =>
+            openRunningYears(navigation, {
+              goalSet: home.runningYearsGoalSet,
+              hasDevice: home.runningYearsHasDevice,
+            })
+          }
+        />
+
+        <ArticlesSection articles={articlesState.articles} loading={articlesState.loading} />
         </ScreenScroll>
     </View>
   );
@@ -357,8 +399,9 @@ const styles = StyleSheet.create({
   },
   countdownRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'flex-end',
     flexWrap: 'nowrap',
+    paddingBottom: 2,
   },
   countdownRowWrap: {
     flexWrap: 'wrap',
@@ -375,6 +418,7 @@ const styles = StyleSheet.create({
   countdownUnit: {
     ...sora('bold'),
     marginLeft: 6,
+    marginBottom: 2,
     color: lumen.fgMuted,
   },
   progressTrack: {
@@ -452,6 +496,16 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
     flexShrink: 0,
     textAlign: 'right',
+  },
+  projectedCopy: {
+    ...sora('regular'),
+    marginTop: 14,
+    color: lumen.fgMuted,
+    lineHeight: 20,
+  },
+  projectedCopyAccent: {
+    ...sora('bold'),
+    color: lumen.lime,
   },
   quickStats: {
     flexDirection: 'row',

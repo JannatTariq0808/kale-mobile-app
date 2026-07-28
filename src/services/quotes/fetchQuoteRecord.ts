@@ -1,52 +1,69 @@
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
-import { getFirebaseFirestore } from '../auth/firebaseApp';
+import { getFirebaseAuth, getFirebaseFirestore } from '../auth/firebaseApp';
 
 export type QuoteRecord = {
+  id: string;
   status: string;
   answers: Record<string, unknown>;
 };
 
-export async function fetchQuoteRecord(uid: string): Promise<QuoteRecord | null> {
-  const db = getFirebaseFirestore();
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function toQuoteRecord(id: string, data: Record<string, unknown>): QuoteRecord {
+  const answers =
+    data.answers && typeof data.answers === 'object'
+      ? (data.answers as Record<string, unknown>)
+      : {};
+  return {
+    id,
+    status: typeof data.status === 'string' ? data.status : '',
+    answers,
+  };
+}
+
+async function resolveAuthEmail(uid: string): Promise<string | null> {
+  const authEmail = getFirebaseAuth().currentUser?.email;
+  if (authEmail?.trim()) return normalizeEmail(authEmail);
 
   try {
-    const directSnap = await getDoc(doc(db, 'quotes', uid));
-    if (directSnap.exists()) {
-      const data = directSnap.data() as Record<string, unknown>;
-      const answers =
-        data.answers && typeof data.answers === 'object'
-          ? (data.answers as Record<string, unknown>)
-          : {};
-      return {
-        status: typeof data.status === 'string' ? data.status : '',
-        answers,
-      };
+    const snap = await getDoc(doc(getFirebaseFirestore(), 'users', uid));
+    const fromDoc = snap.data()?.email;
+    if (typeof fromDoc === 'string' && fromDoc.trim()) {
+      return normalizeEmail(fromDoc);
     }
-  } catch (error) {
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
+/**
+ * Quote for home / policy display.
+ * Rules only allow email-scoped reads — do not query by uid.
+ */
+export async function fetchQuoteRecord(uid: string): Promise<QuoteRecord | null> {
+  const db = getFirebaseFirestore();
+  const email = await resolveAuthEmail(uid);
+
+  if (!email) {
     if (__DEV__) {
-      console.warn('[quotes] fetchQuoteRecord getDoc failed', error);
+      console.warn('[quotes] fetchQuoteRecord: no auth/user email');
     }
+    return null;
   }
 
   try {
-    const snap = await getDocs(query(collection(db, 'quotes'), where('uid', '==', uid)));
-    const records = snap.docs.map((item) => {
-      const data = item.data() as Record<string, unknown>;
-      const answers =
-        data.answers && typeof data.answers === 'object'
-          ? (data.answers as Record<string, unknown>)
-          : {};
-      return {
-        status: typeof data.status === 'string' ? data.status : '',
-        answers,
-      };
-    });
-
+    const snap = await getDocs(query(collection(db, 'quotes'), where('email', '==', email)));
+    const records = snap.docs.map((item) =>
+      toQuoteRecord(item.id, item.data() as Record<string, unknown>),
+    );
     const active = records.find((item) => item.status === 'active');
     return active ?? records[0] ?? null;
   } catch (error) {
     if (__DEV__) {
-      console.warn('[quotes] fetchQuoteRecord query failed', error);
+      console.warn('[quotes] fetchQuoteRecord email query failed', error);
     }
     return null;
   }

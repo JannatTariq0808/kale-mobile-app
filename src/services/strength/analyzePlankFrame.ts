@@ -1,4 +1,4 @@
-import { getAuth } from 'firebase/auth';
+import { getFirebaseAuth } from '../auth/firebaseApp';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { getKaleApiBase, kaleApiUrl } from '../../config/kaleApi';
 import type { PlankFrameAnalysisError, PlankPoseFrameResult } from './plankPoseSession';
@@ -55,7 +55,7 @@ async function encodeFrameForVision(uri: string): Promise<string | null> {
 /** Calls kale-website vision API to detect a plank in a still frame. */
 export async function analyzePlankFrameUri(uri: string): Promise<PlankPoseFrameResult> {
   try {
-    const user = getAuth().currentUser;
+    const user = getFirebaseAuth().currentUser;
     if (!user) {
       return { valid: false, confidence: 0, hints: [], error: 'auth' };
     }
@@ -86,6 +86,49 @@ export async function analyzePlankFrameUri(uri: string): Promise<PlankPoseFrameR
         mimeType: 'image/jpeg',
       }),
     });
+
+    if (res.status === 401 || res.status === 403) {
+      // Retry once with a forced token refresh — common after long camera sessions.
+      try {
+        const refreshed = await user.getIdToken(true);
+        const retry = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${refreshed}`,
+          },
+          body: JSON.stringify({
+            imageBase64,
+            mimeType: 'image/jpeg',
+          }),
+        });
+        if (retry.status === 401 || retry.status === 403) {
+          return { valid: false, confidence: 0, hints: [], error: 'auth' };
+        }
+        if (retry.status === 503) {
+          const errorBody = (await retry.json().catch(() => null)) as { error?: string } | null;
+          if (errorBody?.error === 'quota_exceeded') {
+            return { valid: false, confidence: 0, hints: [], error: 'quota' };
+          }
+          return { valid: false, confidence: 0, hints: [], error: 'service' };
+        }
+        if (!retry.ok) {
+          return { valid: false, confidence: 0, hints: [], error: 'service' };
+        }
+        const data = (await retry.json()) as AnalyzePlankFrameResponse;
+        const hints = parsePlankHintCodes(data.hints);
+        return {
+          valid: data.valid === true,
+          confidence:
+            typeof data.confidence === 'number'
+              ? Math.max(0, Math.min(1, data.confidence))
+              : 0,
+          hints: data.valid === true ? [] : hints,
+        };
+      } catch {
+        return { valid: false, confidence: 0, hints: [], error: 'auth' };
+      }
+    }
 
     if (res.status === 503) {
       const errorBody = (await res.json().catch(() => null)) as { error?: string } | null;

@@ -11,7 +11,6 @@ import { KNOWLEDGE_SECONDS_PER_QUESTION } from '../../config/knowledgeAssessment
 import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
 import { resetToKnowledgeAnalysing } from '../../navigation/knowledgeFlow';
-import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import {
   appendKnowledgeResponse,
   ensureKnowledgeAssessment,
@@ -284,7 +283,6 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
                 onExpire={handleTimeout}
               />
             </View>
-            <OnboardingLogoutLink navigation={navigation} compact />
           </View>
           <View style={styles.progressTrack}>
             <View

@@ -5,6 +5,7 @@ import {
 } from './index';
 import { doc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { getFirebaseFirestore } from './firebaseApp';
+import { defaultNotificationPreferencesField } from '../settings/notificationPreferences';
 
 export type UserGender = 'female' | 'male';
 export type WeightUnit = 'kg' | 'lbs';
@@ -49,6 +50,7 @@ export async function signUpWithProfile(input: SignUpProfileInput) {
       gender: input.gender,
       dateOfBirth: toDobTimestamp(input.dateOfBirth),
       weightKg: toWeightKg(input.weight, input.weightUnit),
+      ...defaultNotificationPreferencesField(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

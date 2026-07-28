@@ -8,6 +8,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
+import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import {
   buildKnowledgeAssessmentMeta,
   formatKnowledgeQuestionCount,
@@ -25,7 +26,6 @@ import type { RootStackParamList } from '../../navigation/types';
 import { resetToKnowledgeResult } from '../../navigation/knowledgeFlow';
 import { onboardingSkipTarget } from '../../services/onboarding/resolveOnboardingNavigation';
 import { ensureKnowledgeAssessment, fetchKnowledgeAssessmentById } from '../../services/knowledge/knowledgeAssessmentSession';
-import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'KnowledgeIntro'>;

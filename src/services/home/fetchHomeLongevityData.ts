@@ -1,9 +1,21 @@
 import { getLifeSpan } from '../../utils/getLifeSpan';
+import { athleteLevelCalculation } from '../../utils/athleteLevel';
 import { hasCompletedAssessmentThisQuarter } from '../../utils/assessmentCycle';
-import { fetchAssessmentsForUser } from '../assessment/assessmentSession';
+import {
+  assessmentTrendLabel,
+  nextCycleLabel,
+  projectHealthYearsValue,
+  projectLevelValue,
+} from '../../utils/longevityTrendChart';
+import {
+  fetchAssessmentsForUser,
+  readPillarLevelForAssessment,
+} from '../assessment/assessmentSession';
 import { getFirebaseAuth, getFirebaseFirestore } from '../auth/firebaseApp';
 import { fetchFitnessPillarLevels, type FitnessPillarLevels } from '../fitness/fetchFitnessPillarData';
 import { fetchAthleteLevel } from '../user/athleteLevel';
+import { fetchRunningYearsProjection } from '../runningYears/fetchRunningYearsProjection';
+import { readRunningYearsGoal } from '../runningYears/runningYearsStorage';
 import {
   fetchQuoteRecord,
   readCoverType,
@@ -14,7 +26,12 @@ import type { KaleAssessment } from '../../types/assessment';
 
 export type HomeChartSeries = {
   count: number;
+  projected: boolean;
+  /** Index where dashed projection begins (Now → target). */
+  projectedFromIndex: number;
+  nextCycleLabel: string;
   labels: string[];
+  healthLabels: string[];
   levels: number[];
   lifespan: number[];
   healthspan: number[];
@@ -30,6 +47,14 @@ export type HomeLongevityData = {
   lifespanYears: number;
   healthspanYears: number;
   runningYearsAhead: number;
+  /** `projection` = computed from age + VO₂/HR on device; `estimate` = longevity level fallback. */
+  runningYearsSource: 'projection' | 'estimate';
+  /** True when Garmin/Strava/resting HR can power a real projection. */
+  runningYearsHasDevice: boolean;
+  /** True after the user has saved a Running Years goal. */
+  runningYearsGoalSet: boolean;
+  /** Saved goal preset id — drives running vs cycling copy on the home promo. */
+  runningYearsGoalId: string | null;
   policyTermYears: number | null;
   policyCoverType: string | null;
   pillarLevels: FitnessPillarLevels;
@@ -68,64 +93,130 @@ async function fetchUserFirstName(uid: string): Promise<string> {
   return 'Member';
 }
 
-function assessmentCycleLabel(assessment: KaleAssessment): string {
-  if (assessment.isOnboarding) return 'Onb';
-  const label = assessment.quarter?.label;
-  if (typeof label === 'string' && label.trim()) return label.trim();
-  if (typeof label === 'number' && label > 0) return `Q${label}`;
-  const type = assessment.quarter?.type;
-  if (typeof type === 'string' && type.trim()) return type.trim();
-  return 'Cycle';
-}
-
 function sortAssessmentsChronological(assessments: KaleAssessment[]): KaleAssessment[] {
   return [...assessments].sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
 }
 
-function buildChartSeries(completed: KaleAssessment[]): HomeChartSeries | null {
-  if (completed.length < 2) return null;
+/**
+ * Chart points = assessments that finished all three pillars.
+ * If finalize failed (is_completed/level missing), compute level from pillar docs
+ * so home graphs unlock after the 2nd cycle.
+ */
+async function resolveChartAssessments(
+  uid: string,
+  assessments: KaleAssessment[],
+): Promise<KaleAssessment[]> {
+  const sorted = sortAssessmentsChronological(assessments);
+  const resolved: KaleAssessment[] = [];
 
-  const labels = completed.map(assessmentCycleLabel);
+  for (const item of sorted) {
+    if (item.is_completed && item.level != null) {
+      resolved.push(item);
+      continue;
+    }
+
+    if (!item.cardio_id || !item.strength_id || !item.knowledge_id) {
+      continue;
+    }
+
+    const [cardio, strength, knowledge] = await Promise.all([
+      readPillarLevelForAssessment('cardio', item.cardio_id, uid),
+      readPillarLevelForAssessment('strength', item.strength_id, uid),
+      readPillarLevelForAssessment('knowledge', item.knowledge_id, uid),
+    ]);
+
+    if (cardio == null || strength == null || knowledge == null) {
+      continue;
+    }
+
+    const level =
+      item.level ?? athleteLevelCalculation(cardio, strength, knowledge);
+    resolved.push({
+      ...item,
+      level,
+      is_completed: true,
+    });
+  }
+
+  return resolved;
+}
+
+function buildProjectedChartSeries(assessment: KaleAssessment): HomeChartSeries {
+  const level = assessment.level ?? 1;
+  const { lifeSpan, healthSpan } = getLifeSpan(level);
+  const projectedLevel = projectLevelValue(level);
+  const projectedLife = projectHealthYearsValue(lifeSpan);
+  const projectedHealth = projectHealthYearsValue(healthSpan);
+  const targetCycle = nextCycleLabel(0);
+
+  return {
+    count: 1,
+    projected: true,
+    projectedFromIndex: 1,
+    nextCycleLabel: targetCycle,
+    labels: ['Onboarding', 'Now', targetCycle],
+    healthLabels: ['Onboarding', 'Now', 'Projected →'],
+    levels: [level, level, projectedLevel],
+    lifespan: [lifeSpan, lifeSpan, projectedLife],
+    healthspan: [healthSpan, healthSpan, projectedHealth],
+  };
+}
+
+function buildChartSeries(completed: KaleAssessment[]): HomeChartSeries | null {
+  if (completed.length === 0) return null;
+  if (completed.length === 1) return buildProjectedChartSeries(completed[0]);
+
+  let quarterlyIndex = 0;
+  const labels = completed.map((item) => {
+    if (item.isOnboarding) return assessmentTrendLabel(item, 0);
+    quarterlyIndex += 1;
+    return assessmentTrendLabel(item, quarterlyIndex);
+  });
+
   const levels = completed.map((item) => item.level ?? 1);
   const lifespan = levels.map((level) => getLifeSpan(level).lifeSpan);
   const healthspan = levels.map((level) => getLifeSpan(level).healthSpan);
 
   return {
     count: completed.length,
+    projected: false,
+    projectedFromIndex: -1,
+    nextCycleLabel: nextCycleLabel(quarterlyIndex),
     labels,
+    healthLabels: labels,
     levels,
     lifespan,
     healthspan,
   };
 }
 
-function readRunningYearsFromCardio(data: Record<string, unknown>): number | null {
-  const raw = data.running_years ?? data.runningYears ?? data.running_years_ahead;
-  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
-    return Math.round(raw);
-  }
-  if (typeof raw === 'string' && raw.trim()) {
-    const parsed = Number(raw);
-    if (Number.isFinite(parsed) && parsed > 0) return Math.round(parsed);
-  }
-  return null;
-}
-
-async function fetchRunningYearsAhead(uid: string): Promise<number | null> {
-  try {
-    const snap = await getDoc(doc(getFirebaseFirestore(), 'cardios', uid));
-    if (snap.exists()) {
-      return readRunningYearsFromCardio(snap.data() as Record<string, unknown>);
+function resolveRunningYearsForHome(
+  projection: Awaited<ReturnType<typeof fetchRunningYearsProjection>> | null,
+  level: number,
+  healthSpanYears: number,
+): { value: number; source: 'projection' | 'estimate' } {
+  if (projection?.hasDevice) {
+    if (
+      projection.runningYearsLow != null &&
+      projection.runningYearsHigh != null
+    ) {
+      return {
+        value: Math.round((projection.runningYearsLow + projection.runningYearsHigh) / 2),
+        source: 'projection',
+      };
     }
-  } catch (error) {
-    if (__DEV__) {
-      console.warn('[home] fetchRunningYearsAhead failed', error);
+    if (projection.runningYears > 0) {
+      return { value: projection.runningYears, source: 'projection' };
     }
   }
-  return null;
+
+  return {
+    value: Math.max(1, estimateRunningYearsAhead(level, healthSpanYears)),
+    source: 'estimate',
+  };
 }
 
-/** Fallback when cardios doc has no running_years field yet. */
+/** Fallback when Running Years projection is unavailable. */
 function estimateRunningYearsAhead(level: number, healthSpanYears: number): number {
   if (healthSpanYears > 0) {
     return Math.max(1, Math.round(healthSpanYears * 9 + 5));
@@ -134,18 +225,22 @@ function estimateRunningYearsAhead(level: number, healthSpanYears: number): numb
 }
 
 export async function fetchHomeLongevityData(uid: string): Promise<HomeLongevityData> {
-  const [{ assessments }, firstName, pillarLevels, runningYearsAhead, quoteRecord] =
+  const [{ assessments }, firstName, pillarLevels, runningYearsProjection, savedGoal, quoteRecord] =
     await Promise.all([
       fetchAssessmentsForUser(uid),
       fetchUserFirstName(uid),
       fetchFitnessPillarLevels(uid),
-      fetchRunningYearsAhead(uid),
+      fetchRunningYearsProjection(uid).catch((error) => {
+        if (__DEV__) {
+          console.warn('[home] fetchRunningYearsProjection failed', error);
+        }
+        return null;
+      }),
+      readRunningYearsGoal(uid),
       fetchQuoteRecord(uid),
     ]);
 
-  const completed = sortAssessmentsChronological(
-    assessments.filter((item) => item.is_completed && item.level != null),
-  );
+  const completed = await resolveChartAssessments(uid, assessments);
 
   const assessmentCount = completed.length;
   const latest = completed[completed.length - 1];
@@ -166,10 +261,8 @@ export async function fetchHomeLongevityData(uid: string): Promise<HomeLongevity
   const policyTermYears = quoteRecord ? readPolicyTermYears(quoteAnswers) : null;
   const policyCoverType = quoteRecord ? readCoverType(quoteAnswers) : null;
 
-  const resolvedRunningYearsAhead =
-    policyTermYears ??
-    runningYearsAhead ??
-    estimateRunningYearsAhead(level, healthSpan);
+  const { value: resolvedRunningYearsAhead, source: runningYearsSource } =
+    resolveRunningYearsForHome(runningYearsProjection, level, healthSpan);
 
   return {
     firstName,
@@ -181,10 +274,14 @@ export async function fetchHomeLongevityData(uid: string): Promise<HomeLongevity
     lifespanYears: lifeSpan,
     healthspanYears: healthSpan,
     runningYearsAhead: resolvedRunningYearsAhead,
+    runningYearsSource,
+    runningYearsHasDevice: runningYearsProjection?.hasDevice ?? false,
+    runningYearsGoalSet: savedGoal != null,
+    runningYearsGoalId: savedGoal?.goalId ?? null,
     policyTermYears,
     policyCoverType,
     pillarLevels,
     chartSeries: buildChartSeries(completed),
-    completedAssessmentThisQuarter: hasCompletedAssessmentThisQuarter(completed, new Date()),
+    completedAssessmentThisQuarter: hasCompletedAssessmentThisQuarter(assessments, new Date()),
   };
 }

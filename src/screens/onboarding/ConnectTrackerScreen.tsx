@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRoute } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +19,7 @@ import {
 } from '../../components/lumen/ConnectionBrandIcon';
 import { ConnectIssuePanel } from '../../components/lumen/ConnectIssuePanel';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
+import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import { useConnectTrackerFlow } from '../../hooks/useConnectTrackerFlow';
 import type { RootStackParamList } from '../../navigation/types';
 import { connectTracker } from '../../services/tracker/connect';
@@ -27,7 +28,8 @@ import {
   type ConnectIssueContent,
 } from '../../services/tracker/connectIssueCopy';
 import { lumen, sora } from '../../theme';
-import { isQuarterlyAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
+import { isQuarterlyAssessmentFlow, setActiveAssessmentFlow, getActiveAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
+import type { AssessStravaOptions } from '../../services/tracker/assess';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ConnectTracker'>;
 
@@ -52,6 +54,16 @@ function getTrackerOptions(): TrackerOption[] {
   return [...BASE_TRACKERS];
 }
 
+function buildAssessOptionsFromRoute(
+  routeParams: RootStackParamList['ConnectTracker'],
+): AssessStravaOptions | undefined {
+  if (!routeParams) return undefined;
+  const options: AssessStravaOptions = {};
+  if (routeParams.activitiesSince) options.activitiesSince = routeParams.activitiesSince;
+  if (routeParams.assessmentId) options.assessmentId = routeParams.assessmentId;
+  return Object.keys(options).length > 0 ? options : undefined;
+}
+
 export function ConnectTrackerScreen({ navigation }: Props) {
   const route = useRoute();
   const routeParams = (route.params ?? {}) as RootStackParamList['ConnectTracker'];
@@ -66,6 +78,29 @@ export function ConnectTrackerScreen({ navigation }: Props) {
     setConnectIssue,
     onSuccess: () => navigation.replace('CardioAnalysing'),
   });
+
+  useEffect(() => {
+    if (routeParams?.flow !== 'quarterly') return;
+    const flow = getActiveAssessmentFlow();
+    const activitiesSince = routeParams.activitiesSince;
+    const assessmentId = routeParams.assessmentId;
+    if (!activitiesSince && !assessmentId) return;
+
+    if (!flow?.activitiesSince || !flow.assessmentId) {
+      setActiveAssessmentFlow({
+        mode: 'quarterly',
+        assessmentId: assessmentId ?? flow?.assessmentId ?? '',
+        activitiesSince: activitiesSince ?? flow?.activitiesSince,
+        cardioDocId: flow?.cardioDocId,
+      });
+      if (__DEV__) {
+        console.log('[cardio-sync] restored flow from route params', {
+          assessmentId: assessmentId ?? flow?.assessmentId ?? null,
+          activitiesSince: activitiesSince ?? flow?.activitiesSince ?? null,
+        });
+      }
+    }
+  }, [routeParams?.activitiesSince, routeParams?.assessmentId, routeParams?.flow]);
 
   const clearIssue = useCallback(() => {
     setConnectIssue(null);
@@ -84,7 +119,8 @@ export function ConnectTrackerScreen({ navigation }: Props) {
       setConnectIssue(null);
       setConnecting(brand);
       try {
-        const result = await connectTracker(brand);
+        const assessOptions = buildAssessOptionsFromRoute(routeParams);
+        const result = await connectTracker(brand, assessOptions);
         if (!result.ok) {
           if (result.cancelled) return;
           setConnectIssue(
@@ -101,7 +137,7 @@ export function ConnectTrackerScreen({ navigation }: Props) {
         setConnecting(null);
       }
     },
-    [connecting, navigation],
+    [connecting, navigation, routeParams],
   );
 
   const showPicker = !connectIssue;
@@ -216,6 +252,10 @@ export function ConnectTrackerScreen({ navigation }: Props) {
             </>
           )}
         </ScrollView>
+
+        <View style={styles.footer}>
+          <OnboardingLogoutLink navigation={navigation} />
+        </View>
       </View>
     </View>
   );
@@ -250,6 +290,13 @@ const styles = StyleSheet.create({
   scrollContentIssue: {
     flexGrow: 1,
     paddingTop: 24,
+  },
+  footer: {
+    flexShrink: 0,
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   headline: {
     ...sora('extrabold'),

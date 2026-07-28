@@ -57,6 +57,7 @@ export function HealthYearsScreen({ navigation }: Props) {
   }
 
   const { lifeSpan, healthSpan } = getLifeSpan(athleteLevel);
+  const healthyYearsAdded = lifeSpan + healthSpan;
   const nextLevelGain = getNextLevelHealthSpanGain(athleteLevel);
   const nextLevel = Math.min(10, athleteLevel + 1);
 
@@ -90,7 +91,7 @@ export function HealthYearsScreen({ navigation }: Props) {
             <Text style={styles.heroLabel}>Healthy years added</Text>
             <View style={styles.heroValueRow}>
               <Text style={displayTextStyle(heroValueSize, lumen.lime)}>
-                {formatYearsAdded(healthSpan)}
+                {formatYearsAdded(healthyYearsAdded)}
               </Text>
               <Text style={styles.heroUnit}>years</Text>
             </View>

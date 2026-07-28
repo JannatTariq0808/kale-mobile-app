@@ -7,6 +7,7 @@ import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { ActivityLogFilters } from '../components/fitness/ActivityLogFilters';
 import { ActivityLogList } from '../components/fitness/ActivityLogList';
 import { ActivityLogSummary } from '../components/fitness/ActivityLogSummary';
+import { FitnessFaqSection } from '../components/fitness/FitnessFaqSection';
 import { StrengthPanel } from '../components/fitness/StrengthPanel';
 import { KnowledgePanel } from '../components/fitness/KnowledgePanel';
 import { Vo2MaxPanel } from '../components/fitness/Vo2MaxPanel';
@@ -17,8 +18,10 @@ import {
 } from '../components/fitness/FitnessShell';
 import { LumenHeader } from '../components/lumen/LumenHeader';
 import { filterActivities, type CountFilter, type SportFilter } from '../data/fitnessDemo';
+import { useCardioQuestions } from '../hooks/useCardioQuestions';
 import { useFitnessPillarData } from '../hooks/useFitnessPillarData';
 import type { CardioActivityLog } from '../services/cardio/fetchCardioActivities';
+import { lumenPillar } from '../theme';
 
 function ActivityLogPanel({
   summary,
@@ -29,6 +32,7 @@ function ActivityLogPanel({
 }) {
   const [sportFilter, setSportFilter] = useState<SportFilter>('All sports');
   const [countFilter, setCountFilter] = useState<CountFilter>('All');
+  const { items: faqItems, loading: faqLoading } = useCardioQuestions();
 
   const visibleActivities = useMemo(
     () => filterActivities(activities, countFilter, sportFilter),
@@ -56,6 +60,7 @@ function ActivityLogPanel({
         periodLabel={summary.periodLabel}
         hasAnyActivities={activities.length > 0}
       />
+      <FitnessFaqSection items={faqItems} loading={faqLoading} accentColor={lumenPillar.cardio} />
     </>
   );
 }

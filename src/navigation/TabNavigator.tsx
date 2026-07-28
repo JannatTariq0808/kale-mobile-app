@@ -3,11 +3,13 @@ import {
   createBottomTabNavigator,
   type BottomTabBarButtonProps,
 } from '@react-navigation/bottom-tabs';
+import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { PlatformPressable } from '@react-navigation/elements';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumTabIcon, LumTabIconName } from '../components/lumen/LumTabIcon';
+import { prefetchArticles } from '../hooks/useArticles';
 import { prefetchFitnessPillarData } from '../hooks/useFitnessPillarData';
 import { prefetchHomeLongevityData } from '../hooks/useHomeLongevityData';
 import { prefetchKalettesRewards } from '../hooks/useKalettesRewards';
@@ -16,7 +18,8 @@ import { useAuthSession } from '../hooks/useAuthSession';
 import { lumen, sora } from '../theme';
 import { FitnessScreen } from '../screens/FitnessScreen';
 import { KalettesStackNavigator } from './KalettesStackNavigator';
-import { LongevityScreen } from '../screens/LongevityScreen';
+import { LongevityStackNavigator } from './LongevityStackNavigator';
+import { shouldHideTabBarForLongevityRoute } from './longevityTabBar';
 import { SettingsStackNavigator } from './SettingsStackNavigator';
 
 export type TabParamList = {
@@ -103,6 +106,7 @@ function FitnessDataPrefetch() {
   useEffect(() => {
     prefetchFitnessPillarData(user?.uid);
     prefetchHomeLongevityData(user?.uid);
+    prefetchArticles();
     prefetchSettingsData(user?.uid);
     prefetchKalettesRewards(user?.uid);
     void import('../services/kalettes/fetchRewardsProducts').then(({ fetchRewardsProducts }) =>
@@ -121,6 +125,17 @@ export function TabNavigator() {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, 0);
   const tabBarLayout = getTabBarLayout(bottomInset);
+  const defaultTabBarStyle = {
+    backgroundColor: TAB_BAR_BG,
+    borderTopColor: lumen.hairline,
+    borderTopWidth: 1,
+    height: tabBarLayout.height,
+    paddingTop: tabBarLayout.paddingTop,
+    paddingBottom: tabBarLayout.paddingBottom,
+    paddingHorizontal: 12,
+    elevation: 0,
+    shadowOpacity: 0,
+  } as const;
 
   return (
     <View style={styles.shell}>
@@ -140,17 +155,7 @@ export function TabNavigator() {
             paddingVertical: 0,
             marginVertical: 0,
           },
-          tabBarStyle: {
-            backgroundColor: TAB_BAR_BG,
-            borderTopColor: lumen.hairline,
-            borderTopWidth: 1,
-            height: tabBarLayout.height,
-            paddingTop: tabBarLayout.paddingTop,
-            paddingBottom: tabBarLayout.paddingBottom,
-            paddingHorizontal: 12,
-            elevation: 0,
-            shadowOpacity: 0,
-          },
+          tabBarStyle: defaultTabBarStyle,
           tabBarIcon: ({ focused }) => (
             <View style={styles.iconWrap}>
               <LumTabIcon name={tabIcons[route.name]} color={tabItemColor(focused)} />
@@ -169,7 +174,19 @@ export function TabNavigator() {
           ),
         })}
       >
-        <Tab.Screen name="Longevity" component={LongevityScreen} />
+        <Tab.Screen
+          name="Longevity"
+          component={LongevityStackNavigator}
+          options={({ route }) => {
+            const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'Home';
+            const hideTabBar = shouldHideTabBarForLongevityRoute(focusedRoute);
+            return {
+              tabBarStyle: hideTabBar
+                ? { display: 'none', height: 0, minHeight: 0, overflow: 'hidden' }
+                : defaultTabBarStyle,
+            };
+          }}
+        />
         <Tab.Screen name="Fitness" component={FitnessScreen} />
         <Tab.Screen name="Kalettes" component={KalettesStackNavigator} />
         <Tab.Screen name="Settings" component={SettingsStackNavigator} />

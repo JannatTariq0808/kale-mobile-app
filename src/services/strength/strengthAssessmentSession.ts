@@ -17,8 +17,11 @@ import {
   type StrengthAssessment,
 } from '../../types/strengthAssessment';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
-import { linkStrengthToOnboardingAssessment } from '../assessment/assessmentSession';
-import { finalizeActiveAssessmentIfReady } from '../assessment/assessmentSession';
+import {
+  fetchAssessmentsForUser,
+  finalizeActiveAssessmentIfReady,
+  linkStrengthToOnboardingAssessment,
+} from '../assessment/assessmentSession';
 
 const STRENGTH_COLLECTION = 'strength';
 const USERS_COLLECTION = 'users';
@@ -35,12 +38,26 @@ function toDate(value: Timestamp | undefined): Date | undefined {
   return value?.toDate?.();
 }
 
+function readUserId(data: Record<string, unknown>): string | null {
+  const raw = data.user_id;
+  if (raw && typeof raw === 'object' && 'id' in raw && typeof (raw as DocumentReference).id === 'string') {
+    return (raw as DocumentReference).id;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const segments = raw.trim().split('/').filter(Boolean);
+    return segments[segments.length - 1] ?? raw.trim();
+  }
+  return null;
+}
+
 function parseStrengthAssessment(
   id: string,
   data: Record<string, unknown>,
+  expectedUid?: string,
 ): StrengthAssessment | null {
-  const userRefValue = data.user_id as DocumentReference | undefined;
-  if (!userRefValue?.id) return null;
+  const ownerId = readUserId(data);
+  if (!ownerId) return null;
+  if (expectedUid && ownerId !== expectedUid) return null;
 
   return {
     id,
@@ -60,23 +77,73 @@ function sortByCreatedAtDesc(a: StrengthAssessment, b: StrengthAssessment) {
   return b.created_at.getTime() - a.created_at.getTime();
 }
 
+function mergeStrengthDocs(docs: Array<StrengthAssessment | null>): StrengthAssessment[] {
+  const byId = new Map<string, StrengthAssessment>();
+  for (const item of docs) {
+    if (item) byId.set(item.id, item);
+  }
+  return [...byId.values()].sort(sortByCreatedAtDesc);
+}
+
+/** Prefer getDoc by assessment strength_id — avoids fragile collection-query decoding. */
+async function fetchStrengthByAssessmentRefs(uid: string): Promise<StrengthAssessment[]> {
+  const { assessments } = await fetchAssessmentsForUser(uid);
+  const ids = [
+    ...new Set(
+      assessments
+        .map((item) => item.strength_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  ];
+
+  const docs = await Promise.all(ids.map((id) => fetchStrengthAssessmentById(id)));
+  return mergeStrengthDocs(docs);
+}
+
+async function fetchStrengthByUserQuery(uid: string): Promise<StrengthAssessment[]> {
+  const snap = await getDocs(
+    query(
+      collection(getFirebaseFirestore(), STRENGTH_COLLECTION),
+      where('user_id', '==', userRef(uid)),
+    ),
+  );
+
+  const parsed: StrengthAssessment[] = [];
+  for (const item of snap.docs) {
+    try {
+      const row = parseStrengthAssessment(
+        item.id,
+        item.data() as Record<string, unknown>,
+        uid,
+      );
+      if (row) parsed.push(row);
+    } catch (error) {
+      if (__DEV__) {
+        logStrengthError(`skip bad strength doc ${item.id}`, error);
+      }
+    }
+  }
+  return parsed;
+}
+
 export async function fetchStrengthAssessmentsForUser(
   uid: string,
 ): Promise<StrengthAssessment[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isFirebaseConfigured() || typeof uid !== 'string' || !uid) return [];
+
+  // getDoc-by-id is reliable on this app; collection queries have thrown
+  // `path.split is not a function (it is undefined)` on some devices/docs.
+  const fromRefs = await fetchStrengthByAssessmentRefs(uid).catch((error) => {
+    if (__DEV__) {
+      logStrengthError('assessment-ref fetch failed', error);
+    }
+    return [] as StrengthAssessment[];
+  });
+
+  if (fromRefs.length > 0) return fromRefs;
 
   try {
-    const snap = await getDocs(
-      query(
-        collection(getFirebaseFirestore(), STRENGTH_COLLECTION),
-        where('user_id', '==', userRef(uid)),
-      ),
-    );
-
-    return snap.docs
-      .map((item) => parseStrengthAssessment(item.id, item.data() as Record<string, unknown>))
-      .filter((item): item is StrengthAssessment => item !== null)
-      .sort(sortByCreatedAtDesc);
+    return await fetchStrengthByUserQuery(uid);
   } catch (error) {
     logStrengthError('fetchStrengthAssessmentsForUser failed', error);
     return [];
@@ -116,7 +183,9 @@ export async function fetchLatestCompletedPlankAssessment(
 export async function fetchStrengthAssessmentById(
   assessmentId: string,
 ): Promise<StrengthAssessment | null> {
-  if (!isFirebaseConfigured()) return null;
+  if (!isFirebaseConfigured() || typeof assessmentId !== 'string' || !assessmentId) {
+    return null;
+  }
 
   try {
     const snap = await getDoc(strengthDocRef(assessmentId));

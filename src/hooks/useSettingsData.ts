@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchSettingsData, type SettingsData } from '../services/settings/fetchSettingsData';
+import type { NotificationPreferences } from '../services/settings/notificationPreferences';
 import { useAuthSession } from './useAuthSession';
 
 const EMPTY: SettingsData = {
@@ -8,6 +9,10 @@ const EMPTY: SettingsData = {
   memberSince: null,
   photoUrl: null,
   weightKg: null,
+  notificationPreferences: {
+    assessmentAndCycleUpdates: true,
+    marketing: true,
+  },
 };
 
 export type SettingsDataState = SettingsData & {
@@ -35,11 +40,23 @@ function payloadFromCache(uid: string): SettingsData | null {
   return payload;
 }
 
-async function loadSettingsData(uid: string): Promise<SettingsData> {
-  const cached = payloadFromCache(uid);
-  if (cached) return cached;
+function payloadFromLatest(uid: string): SettingsData | null {
+  const latest = latestStateByUid.get(uid);
+  if (!latest) return null;
+  const { loading: _loading, ...payload } = latest;
+  return payload;
+}
 
-  publish(uid, stateFromData(EMPTY, true));
+async function loadSettingsData(
+  uid: string,
+  options?: { force?: boolean },
+): Promise<SettingsData> {
+  const cached = payloadFromCache(uid);
+  if (cached && !options?.force) return cached;
+
+  const previous = cached ?? payloadFromLatest(uid);
+  // Keep prior prefs on screen while refreshing — never flash EMPTY defaults.
+  publish(uid, stateFromData(previous ?? EMPTY, true));
 
   const data = await fetchSettingsData(uid);
   settingsCache = { uid, ...data };
@@ -85,8 +102,24 @@ export function prefetchSettingsData(uid: string | undefined): void {
 export async function refreshSettingsData(uid: string): Promise<SettingsData> {
   settingsCache = null;
   inflightLoads.delete(uid);
-  latestStateByUid.delete(uid);
-  return loadSettingsData(uid);
+  // Keep latestStateByUid so the UI does not flash default toggle values.
+  return loadSettingsData(uid, { force: true });
+}
+
+/** Instant local update for preference toggles (optimistic UI). */
+export function patchNotificationPreferences(
+  uid: string,
+  patch: Partial<NotificationPreferences>,
+): NotificationPreferences {
+  const base = payloadFromCache(uid) ?? payloadFromLatest(uid) ?? EMPTY;
+  const notificationPreferences: NotificationPreferences = {
+    ...base.notificationPreferences,
+    ...patch,
+  };
+  const data: SettingsData = { ...base, notificationPreferences };
+  settingsCache = { uid, ...data };
+  publish(uid, stateFromData(data, false));
+  return notificationPreferences;
 }
 
 export function useSettingsData(): SettingsDataState {

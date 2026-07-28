@@ -19,6 +19,14 @@ export async function assessStravaActivities(
   profile: HealthProfileForAssess,
   options?: AssessStravaOptions,
 ): Promise<AssessStravaResult> {
+  if (__DEV__) {
+    console.log('[cardio-sync] POST /api/strava/assess', {
+      activities_since: options?.activitiesSince ?? null,
+      assessment_id: options?.assessmentId ?? null,
+      cardio_doc_id: options?.cardioDocId ?? null,
+    });
+  }
+
   const res = await kaleApiFetch('/api/strava/assess', idToken, {
     method: 'POST',
     body: JSON.stringify({

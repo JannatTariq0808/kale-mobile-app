@@ -24,6 +24,7 @@ import {
   loadLevelRevealData,
   type LevelRevealData,
 } from '../../services/onboarding/onboardingPillarStatus';
+import { notifyLevelRevealed } from '../../services/notifications/levelRevealLocalNotification';
 import { lumen, lumenPillar, sora } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelReveal'>;
@@ -71,7 +72,16 @@ export function LevelRevealScreen({ navigation }: Props) {
   const { leading } = useResponsiveLayout();
   const [stage, setStage] = useState<RevealStage>(0);
   const [revealData, setRevealData] = useState<LevelRevealData | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const headlineSize = 26;
+
+  const retryLoad = () => {
+    setLoadError(false);
+    setRevealData(null);
+    setStage(0);
+    setRetryKey((value) => value + 1);
+  };
 
   const glowOpacity = useSharedValue(0);
   const bigRingScale = useSharedValue(0.6);
@@ -85,13 +95,19 @@ export function LevelRevealScreen({ navigation }: Props) {
 
     let cancelled = false;
     void loadLevelRevealData(user.uid).then((data) => {
-      if (!cancelled) setRevealData(data);
+      if (cancelled) return;
+      if (data) {
+        setRevealData(data);
+        setLoadError(false);
+      } else {
+        setLoadError(true);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [user?.uid]);
+  }, [user?.uid, retryKey]);
 
   useEffect(() => {
     if (!revealData) return;
@@ -114,6 +130,10 @@ export function LevelRevealScreen({ navigation }: Props) {
           -1,
           false,
         );
+        void notifyLevelRevealed({
+          assessmentId: revealData.assessmentId,
+          level: revealData.longevityLevel,
+        });
       }, 3100),
     ];
     return () => timers.forEach(clearTimeout);
@@ -139,6 +159,22 @@ export function LevelRevealScreen({ navigation }: Props) {
   const footerStyle = useAnimatedStyle(() => ({
     opacity: footerOpacity.value,
   }));
+
+  if (loadError) {
+    return (
+      <View style={[styles.screen, styles.loading]}>
+        <Text style={styles.errorTitle}>Couldn&apos;t load your level reveal</Text>
+        <Text style={styles.errorCopy}>
+          Your onboarding assessment needs all three pillars linked and completed: cardio, strength,
+          and knowledge. Each pillar doc needs is_completed: true (and a level for strength and
+          knowledge).
+        </Text>
+        <LumenButton onPress={retryLoad} style={styles.errorButton}>
+          Try again
+        </LumenButton>
+      </View>
+    );
+  }
 
   if (!revealData) {
     return (
@@ -326,6 +362,26 @@ const styles = StyleSheet.create({
   loading: {
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  errorTitle: {
+    ...sora('bold'),
+    fontSize: 18,
+    color: lumen.fg,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  errorCopy: {
+    ...sora('regular'),
+    fontSize: 14,
+    lineHeight: 20,
+    color: lumen.fgMuted,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  errorButton: {
+    alignSelf: 'stretch',
+    maxWidth: 280,
   },
   content: {
     flex: 1,

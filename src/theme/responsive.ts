@@ -53,7 +53,9 @@ export function getLayoutMetrics(
   const isNarrow = usableWidth < 400;
   const isLargeText = fontScale > 1.05;
   const isTight = isCompact || isNarrow || isLargeText || contentWidth < 310;
-  const isTablet = fullWindowWidth >= 600;
+  // Use the short edge so landscape phones are not treated as tablets
+  // (which would letterbox the camera with green side gutters).
+  const isTablet = Math.min(fullWindowWidth, windowHeight) >= 600;
   const scale = (size: number) => Math.round(size * widthScale);
   const type = (size: number) => Math.max(9, Math.round(size * uiScale));
   const leading = (fontSize: number, ratio = 1.35) =>

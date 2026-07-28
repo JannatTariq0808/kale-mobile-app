@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   column: {
-    overflow: 'hidden',
+    overflow: 'visible',
     alignSelf: 'center',
   },
 });

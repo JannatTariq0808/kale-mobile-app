@@ -1,24 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 import { ScreenGutter } from '../layout/ScreenGutter';
+import { NotificationBellButton } from '../notifications/NotificationBellButton';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
-import { useSettingsData } from '../../hooks/useSettingsData';
 import { KaleWordmarkWhite } from './KaleWordmarkWhite';
-import { ProfileAvatar } from './ProfileAvatar';
 
 /** LumHeader — kale-mobile-design/screens/KaleLumenApp.jsx */
 export function LumenHeader() {
   const { type } = useResponsiveLayout();
-  const settings = useSettingsData();
 
   return (
     <ScreenGutter style={styles.gutter}>
       <View style={styles.row}>
         <KaleWordmarkWhite height={type(20)} />
-        <ProfileAvatar
-          name={settings.displayName}
-          photoUrl={settings.photoUrl}
-          size={type(36)}
-        />
+        <NotificationBellButton size={type(36)} />
       </View>
     </ScreenGutter>
   );

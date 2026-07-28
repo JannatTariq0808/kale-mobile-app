@@ -3,26 +3,62 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeepAwake } from 'expo-keep-awake';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MAX_PLANK_RECORDING_SEC,
-} from '../../config/strengthRecording';
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAX_PLANK_RECORDING_SEC } from '../../config/strengthRecording';
 import { PlankRecordingReviewModal } from '../../components/strength/PlankRecordingReviewModal';
 import { PlankSetupOverlay } from '../../components/strength/PlankSetupOverlay';
 import { usePlankSetupGate } from '../../hooks/usePlankSetupGate';
+import { useStrengthRecordingOrientation } from '../../hooks/useStrengthRecordingOrientation';
 import type { RootStackParamList } from '../../navigation/types';
 import { reviewPlankVideo } from '../../services/strength/reviewPlankVideo';
 import type { PlankPoseSessionStats } from '../../services/strength/plankPoseSession';
 import type { PlankValidationResult } from '../../services/strength/validatePlankRecording';
-import { lumen, lumenPillar, sora } from '../../theme';
+import { fetchDemographicsForAssess } from '../../services/user/fetchHealthProfile';
+import { lumen, sora } from '../../theme';
 import { formatPlankDuration } from '../../utils/formatPlankDuration';
+import { nextPlankLevelTip } from '../../utils/plankLevelTip';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StrengthRecord'>;
 
 type Facing = 'front' | 'back';
-type CameraPhase = 'setup' | 'record';
+type CameraMode = 'picture' | 'video';
+
+/**
+ * iOS: remount into video mode before recordAsync (in-place switch often yields no file).
+ * Android: switch mode on the same CameraView — remounting blacks out the preview.
+ */
+const REMOUNT_FOR_VIDEO = Platform.OS === 'ios';
+const VIDEO_MODE_SETTLE_MS = Platform.OS === 'ios' ? 350 : 400;
+const CAMERA_READY_TIMEOUT_MS = Platform.OS === 'ios' ? 6000 : 4000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForFlag(
+  isReady: () => boolean,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (isReady()) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    await delay(50);
+    if (isReady()) return true;
+  }
+  return isReady();
+}
 
 type RecordingResult = {
   uri: string;
@@ -36,32 +72,45 @@ type PendingReview = {
 };
 
 export function StrengthRecordScreen({ navigation }: Props) {
+  // Prevent Auto-Lock / dim during setup + plank hold (client devices often use 30s lock).
+  useKeepAwake('strength-record');
+
+  const {
+    mode: captureOrientation,
+    cameraOrientation,
+    previewMounted,
+    cameraSessionId,
+    isLandscape,
+    switching,
+    toggle: toggleOrientation,
+    restorePortrait,
+    remountPreview,
+  } = useStrengthRecordingOrientation();
   const insets = useSafeAreaInsets();
   const cameraRef = useRef<CameraView>(null);
   const recordPromiseRef = useRef<Promise<RecordingResult> | null>(null);
+  const autoStartRef = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
   const [facing, setFacing] = useState<Facing>('back');
-  const [cameraPhase, setCameraPhase] = useState<CameraPhase>('setup');
+  const [cameraMode, setCameraMode] = useState<CameraMode>('picture');
   const [setupPaused, setSetupPaused] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [elapsedSec, setElapsedSec] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [demoDob, setDemoDob] = useState<Date | null>(null);
+  const [demoGender, setDemoGender] = useState<string | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const recordingRef = useRef(false);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cameraReadyRef = useRef(false);
-  const cameraReadyWaitersRef = useRef<Array<() => void>>([]);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const notifyCameraReady = useCallback(() => {
     cameraReadyRef.current = true;
     setCameraReady(true);
-    for (const resolve of cameraReadyWaitersRef.current) {
-      resolve();
-    }
-    cameraReadyWaitersRef.current = [];
   }, []);
 
   const markCameraNotReady = useCallback(() => {
@@ -69,24 +118,63 @@ export function StrengthRecordScreen({ navigation }: Props) {
     setCameraReady(false);
   }, []);
 
-  const waitForCameraReady = useCallback(async (timeoutMs = 6000) => {
-    if (cameraReadyRef.current) return;
+  useEffect(() => {
+    markCameraNotReady();
+  }, [cameraSessionId, facing, previewMounted, markCameraNotReady]);
 
-    await new Promise<void>((resolve, reject) => {
-      const onReady = () => {
-        clearTimeout(timeout);
-        resolve();
-      };
+  // iOS can mount CameraView without ever firing onCameraReady (green / frozen preview).
+  // Never remount while preparing/recording — that kills recordAsync and yields no file.
+  useEffect(() => {
+    if (
+      !previewMounted ||
+      cameraReady ||
+      switching ||
+      setupPaused ||
+      recording ||
+      finishing
+    ) {
+      return;
+    }
 
-      const timeout = setTimeout(() => {
-        cameraReadyWaitersRef.current = cameraReadyWaitersRef.current.filter(
-          (item) => item !== onReady,
-        );
-        reject(new Error('Camera did not become ready in time.'));
-      }, timeoutMs);
+    const timer = setTimeout(() => {
+      if (!cameraReadyRef.current) {
+        if (__DEV__) {
+          console.warn('[strength] camera ready timeout — remounting preview');
+        }
+        remountPreview();
+      }
+    }, Platform.OS === 'ios' ? 2200 : 3500);
 
-      cameraReadyWaitersRef.current.push(onReady);
-    });
+    return () => clearTimeout(timer);
+  }, [
+    previewMounted,
+    cameraReady,
+    cameraSessionId,
+    switching,
+    setupPaused,
+    recording,
+    finishing,
+    remountPreview,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const profile = await fetchDemographicsForAssess();
+        if (cancelled || !profile) return;
+        const parsed = new Date(`${profile.date_of_birth}T12:00:00`);
+        if (!Number.isNaN(parsed.getTime())) {
+          setDemoDob(parsed);
+          setDemoGender(profile.gender);
+        }
+      } catch {
+        // Tips fall back to a simple schedule without demographics.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const clearTick = useCallback(() => {
@@ -98,13 +186,39 @@ export function StrengthRecordScreen({ navigation }: Props) {
 
   useEffect(() => () => clearTick(), [clearTick]);
 
+  useEffect(() => {
+    if (!recording) {
+      pulseAnim.setValue(1);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.2,
+          duration: 450,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim, recording]);
+
   const permissionsReady =
     cameraPermission?.granted === true && microphonePermission?.granted === true;
 
   const setupGateEnabled =
     permissionsReady &&
     cameraReady &&
-    cameraPhase === 'setup' &&
+    previewMounted &&
+    !switching &&
+    cameraMode === 'picture' &&
     !setupPaused &&
     !recording &&
     !finishing &&
@@ -136,26 +250,45 @@ export function StrengthRecordScreen({ navigation }: Props) {
 
     const granted = await requestMediaPermissions();
     if (!granted) {
+      autoStartRef.current = false;
       Alert.alert(
         'Permissions needed',
-        'Kale needs camera and microphone access to record your plank. Android requires microphone permission even when audio is not saved.',
+        'Kale needs camera and microphone access to record your plank. Audio is not saved.',
       );
       return;
     }
 
+    // Pause still captures, then enter video mode for recordAsync.
     setSetupPaused(true);
-    markCameraNotReady();
-    setCameraPhase('record');
 
-    try {
-      await waitForCameraReady();
-    } catch (error) {
-      setSetupPaused(false);
-      setCameraPhase('setup');
-      if (__DEV__) {
-        console.warn('[strength] camera switch to video failed', error);
+    if (REMOUNT_FOR_VIDEO) {
+      // iOS: remount so the session is a real video capture pipeline.
+      markCameraNotReady();
+      setCameraMode('video');
+
+      const ready = await waitForFlag(
+        () => cameraReadyRef.current && cameraRef.current != null,
+        CAMERA_READY_TIMEOUT_MS,
+      );
+      if (!ready || !cameraRef.current) {
+        autoStartRef.current = false;
+        setSetupPaused(false);
+        setCameraMode('picture');
+        Alert.alert('Camera not ready', 'Could not start recording. Please try again.');
+        return;
       }
-      Alert.alert('Camera not ready', 'Could not switch to recording mode. Please try again.');
+    } else {
+      // Android: keep the same CameraView mounted — remount flashes/blacks the preview.
+      setCameraMode('video');
+    }
+
+    await delay(VIDEO_MODE_SETTLE_MS);
+
+    if (!cameraRef.current) {
+      autoStartRef.current = false;
+      setSetupPaused(false);
+      setCameraMode('picture');
+      Alert.alert('Camera not ready', 'Could not start recording. Please try again.');
       return;
     }
 
@@ -175,11 +308,12 @@ export function StrengthRecordScreen({ navigation }: Props) {
         maxDuration: MAX_PLANK_RECORDING_SEC,
       });
     } catch (error) {
+      autoStartRef.current = false;
       clearTick();
       recordingRef.current = false;
       setRecording(false);
-      setCameraPhase('setup');
       setSetupPaused(false);
+      setCameraMode('picture');
       startedAtRef.current = null;
       recordPromiseRef.current = null;
       if (__DEV__) {
@@ -191,21 +325,44 @@ export function StrengthRecordScreen({ navigation }: Props) {
     cameraReady,
     clearTick,
     finishing,
+    markCameraNotReady,
     recording,
     requestMediaPermissions,
     setupGate.isLocked,
-    waitForCameraReady,
-    markCameraNotReady,
+  ]);
+
+  // Auto-start as soon as a plank is detected / locked.
+  useEffect(() => {
+    if (
+      !setupGate.isLocked ||
+      recording ||
+      finishing ||
+      setupPaused ||
+      pendingReview != null ||
+      autoStartRef.current
+    ) {
+      return;
+    }
+
+    autoStartRef.current = true;
+    void handleStartRecording();
+  }, [
+    finishing,
+    handleStartRecording,
+    pendingReview,
+    recording,
+    setupGate.isLocked,
+    setupPaused,
   ]);
 
   const resetRecordingUi = useCallback(() => {
+    autoStartRef.current = false;
     setFinishing(false);
     recordingRef.current = false;
     setRecording(false);
     setElapsedSec(0);
-    setCameraPhase('setup');
     setSetupPaused(false);
-    markCameraNotReady();
+    setCameraMode('picture');
     startedAtRef.current = null;
     recordPromiseRef.current = null;
   }, []);
@@ -219,22 +376,27 @@ export function StrengthRecordScreen({ navigation }: Props) {
   const handleSubmitReview = useCallback(() => {
     if (!pendingReview?.validation.ok) return;
 
-    navigation.replace('StrengthAnalysing', {
-      videoUri: pendingReview.videoUri,
-      recordedDurationSec: pendingReview.durationSec,
-      poseStats: pendingReview.poseStats,
-    });
+    // Navigate immediately — awaiting restorePortrait blocked the loading screen
+    // (orientation lock can hang after landscape capture).
+    const { videoUri, durationSec, poseStats } = pendingReview;
     setPendingReview(null);
-  }, [navigation, pendingReview]);
+    navigation.replace('StrengthAnalysing', {
+      videoUri,
+      recordedDurationSec: durationSec,
+      poseStats,
+    });
+    void restorePortrait();
+  }, [navigation, pendingReview, restorePortrait]);
 
   const handleStopRecording = useCallback(async () => {
     if (!recording || finishing || !recordPromiseRef.current) return;
 
     setFinishing(true);
+    const pendingRecord = recordPromiseRef.current;
     cameraRef.current?.stopRecording();
 
     try {
-      const video = await recordPromiseRef.current;
+      const video = await pendingRecord;
       clearTick();
 
       const durationSec = startedAtRef.current
@@ -246,24 +408,38 @@ export function StrengthRecordScreen({ navigation }: Props) {
       recordingRef.current = false;
       setRecording(false);
 
-      if (video?.uri) {
-        const review = await reviewPlankVideo(video.uri, durationSec);
-
-        setPendingReview(review);
-        setFinishing(false);
-      } else {
+      const uri = video?.uri;
+      if (!uri) {
+        if (__DEV__) {
+          console.warn('[strength] recordAsync returned no uri', video);
+        }
         resetRecordingUi();
+        void restorePortrait();
         Alert.alert('Recording failed', 'Could not save your video. Please try again.');
+        return;
       }
+
+      // Review before rotating — orientation remount must not race the saved file.
+      const review = await reviewPlankVideo(uri, durationSec);
+      setPendingReview(review);
+      setFinishing(false);
+      void restorePortrait();
     } catch (error) {
       clearTick();
       resetRecordingUi();
+      void restorePortrait();
       if (__DEV__) {
         console.warn('[strength] record failed', error);
       }
       Alert.alert('Recording failed', 'Could not save your video. Please try again.');
     }
-  }, [clearTick, finishing, recording, resetRecordingUi]);
+  }, [clearTick, finishing, recording, resetRecordingUi, restorePortrait]);
+
+  const plankDetected = setupGate.isLocked || recording || setupPaused;
+  const levelTip = useMemo(
+    () => (recording ? nextPlankLevelTip(elapsedSec, demoDob, demoGender) : null),
+    [demoDob, demoGender, elapsedSec, recording],
+  );
 
   if (!cameraPermission || !microphonePermission) {
     return (
@@ -278,8 +454,8 @@ export function StrengthRecordScreen({ navigation }: Props) {
       <View style={[styles.centered, styles.screen, styles.permission]}>
         <Text style={styles.permissionTitle}>Camera & mic access needed</Text>
         <Text style={styles.permissionBody}>
-          Kale records your plank in-app. Android requires microphone permission to capture video,
-          but we do not save audio.
+          Kale records your plank in-app. Microphone access is needed for video recording, but we do
+          not save audio.
         </Text>
         <Pressable style={styles.permissionBtn} onPress={() => void requestMediaPermissions()}>
           <Text style={styles.permissionBtnText}>Allow access</Text>
@@ -293,130 +469,178 @@ export function StrengthRecordScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <CameraView
-        ref={cameraRef}
-        style={StyleSheet.absoluteFill}
-        facing={facing}
-        mode={cameraPhase === 'setup' ? 'picture' : 'video'}
-        mute
-        onCameraReady={notifyCameraReady}
-      />
+      {previewMounted ? (
+        <CameraView
+          // Include cameraMode in the key only on iOS (forces a video-session remount).
+          // On Android, remounting for picture→video blacks out the live preview.
+          key={
+            REMOUNT_FOR_VIDEO
+              ? `camera-${facing}-${cameraOrientation}-${cameraSessionId}-${cameraMode}`
+              : `camera-${facing}-${cameraOrientation}-${cameraSessionId}`
+          }
+          ref={cameraRef}
+          style={StyleSheet.absoluteFill}
+          facing={facing}
+          mode={cameraMode}
+          mute
+          // Portrait only — in landscape this fights the lock and can invert/freeze iOS preview.
+          responsiveOrientationWhenOrientationLocked={cameraOrientation === 'portrait'}
+          onCameraReady={notifyCameraReady}
+          onMountError={(error) => {
+            if (__DEV__) {
+              console.warn('[strength] camera mount error', error);
+            }
+            if (!recordingRef.current && !setupPaused) {
+              remountPreview();
+            }
+          }}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.cameraPlaceholder]}>
+          <ActivityIndicator color={lumen.lime} size="large" />
+        </View>
+      )}
 
       <View
         style={[
           styles.overlay,
-          { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16 },
+          {
+            paddingTop: Math.max(insets.top, isLandscape ? 4 : 0) + (isLandscape ? 4 : 8),
+            paddingBottom: Math.max(insets.bottom, 0) + (isLandscape ? 4 : 12),
+            paddingLeft: Math.max(insets.left, isLandscape ? 6 : 0) + (isLandscape ? 4 : 0),
+            paddingRight: Math.max(insets.right, isLandscape ? 6 : 0) + (isLandscape ? 4 : 0),
+          },
         ]}
         pointerEvents="box-none"
       >
         <View style={styles.topBar}>
-          <Pressable
-            onPress={() => navigation.goBack()}
-            style={styles.iconButton}
-            disabled={recording || finishing}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="close" size={22} color={lumen.fg} />
-          </Pressable>
+          {recording || finishing ? (
+            <View style={styles.iconButtonSpacer} />
+          ) : (
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.iconButton}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+            >
+              <Ionicons name="close" size={22} color={lumen.fg} />
+            </Pressable>
+          )}
 
-          <View style={styles.timerPill}>
-            <View style={[styles.recDot, recording ? styles.recDotActive : null]} />
-            <Text style={styles.timerText}>{formatPlankDuration(elapsedSec)}</Text>
+          <View style={styles.topActions}>
+            {recording || finishing ? null : (
+              <>
+                <Pressable
+                  onPress={toggleOrientation}
+                  style={[styles.iconButton, switching && styles.iconButtonDisabled]}
+                  disabled={switching}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    captureOrientation === 'portrait'
+                      ? 'Switch to landscape'
+                      : 'Switch to portrait'
+                  }
+                >
+                  <Ionicons
+                    name={
+                      captureOrientation === 'portrait'
+                        ? 'phone-landscape-outline'
+                        : 'phone-portrait-outline'
+                    }
+                    size={20}
+                    color={lumen.fg}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => setFacing((value) => (value === 'back' ? 'front' : 'back'))}
+                  style={styles.iconButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Flip camera"
+                >
+                  <Ionicons name="camera-reverse-outline" size={22} color={lumen.fg} />
+                </Pressable>
+              </>
+            )}
           </View>
+        </View>
 
-          <Pressable
-            onPress={() => setFacing((value) => (value === 'back' ? 'front' : 'back'))}
-            style={styles.iconButton}
-            disabled={recording || finishing}
-            accessibilityRole="button"
-            accessibilityLabel="Flip camera"
+        <View
+          style={[styles.statusBlock, isLandscape && styles.statusBlockLandscape]}
+          pointerEvents="none"
+        >
+          <Text
+            style={[
+              styles.detectLine,
+              plankDetected ? styles.detectLineOn : styles.detectLineOff,
+            ]}
           >
-            <Ionicons name="camera-reverse-outline" size={22} color={lumen.fg} />
-          </Pressable>
-        </View>
-
-        <PlankSetupOverlay
-          visible={!recording && !finishing && pendingReview == null}
-          status={setupGate.status}
-          hints={setupGate.hints}
-          consecutiveValid={setupGate.consecutiveValid}
-          requiredValid={setupGate.requiredValid}
-          statusMessage={setupGate.statusMessage}
-        />
-
-        <View style={styles.hintCard}>
-          <Text style={styles.hintEyebrow}>Plank recording</Text>
-          <Text style={styles.hintText}>
-            {setupGate.isLocked
-              ? 'Position locked. Tap record, hold your plank, then stop — we double-check form after you finish.'
-              : setupGate.statusMessage}
+            {plankDetected ? 'Plank detected' : 'Plank not detected'}
           </Text>
+
+          {recording || finishing || setupPaused ? (
+            <View style={styles.recordingRow}>
+              <Animated.View
+                style={[
+                  styles.recDot,
+                  recording ? { opacity: pulseAnim } : null,
+                  finishing ? styles.recDotIdle : null,
+                ]}
+              />
+              <Text style={styles.recordingText}>
+                {finishing
+                  ? 'Checking form…'
+                  : recording
+                    ? `Recording  ${formatPlankDuration(elapsedSec)}`
+                    : 'Starting…'}
+              </Text>
+            </View>
+          ) : null}
+
+          {levelTip ? <Text style={styles.levelTip}>{levelTip.message}</Text> : null}
+
+          {!plankDetected && setupGate.status === 'unavailable' ? (
+            <Text style={styles.hintMuted}>{setupGate.statusMessage}</Text>
+          ) : null}
         </View>
 
-        <View style={styles.controls}>
+        <View style={[styles.middle, isLandscape && styles.middleLandscape]}>
+          <PlankSetupOverlay
+            visible={!recording && !finishing && pendingReview == null}
+            status={setupGate.status}
+            hints={setupGate.hints}
+            consecutiveValid={setupGate.consecutiveValid}
+            requiredValid={setupGate.requiredValid}
+            statusMessage={setupGate.statusMessage}
+            isLandscape={isLandscape}
+          />
+        </View>
+
+        <View style={[styles.controls, isLandscape && styles.controlsLandscape]}>
           {finishing ? (
             <ActivityIndicator color={lumen.lime} size="large" />
           ) : recording ? (
-            <Pressable
-              onPress={() => void handleStopRecording()}
-              style={styles.stopButton}
-              accessibilityRole="button"
-              accessibilityLabel="Stop recording"
-            >
-              <View style={styles.stopInner} />
-            </Pressable>
-          ) : (
             <>
-              {!setupGate.isLocked ? (
-                <Pressable
-                  onPress={setupGate.checkNow}
-                  disabled={!cameraReady || setupGate.isChecking}
-                  style={[
-                    styles.checkButton,
-                    (!cameraReady || setupGate.isChecking) && styles.checkButtonDisabled,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Check position"
-                >
-                  <Text style={styles.checkButtonText}>
-                    {setupGate.isChecking ? 'Checking…' : 'Check position'}
-                  </Text>
-                </Pressable>
-              ) : null}
               <Pressable
-                onPress={() => void handleStartRecording()}
-                style={[
-                  styles.recordButton,
-                  (!cameraReady || !setupGate.isLocked) && styles.recordButtonDisabled,
-                  setupGate.isLocked && styles.recordButtonReady,
-                ]}
-                disabled={!cameraReady || !setupGate.isLocked}
+                onPress={() => void handleStopRecording()}
+                style={styles.stopButton}
                 accessibilityRole="button"
-                accessibilityLabel="Start recording"
+                accessibilityLabel="Stop recording"
               >
-                <View
-                  style={[
-                    styles.recordInner,
-                    setupGate.isLocked ? styles.recordInnerReady : null,
-                  ]}
-                />
+                <View style={styles.stopInner} />
               </Pressable>
+              <Text style={styles.controlLabel}>Tap to stop</Text>
             </>
+          ) : (
+            <Text style={styles.controlLabel}>
+              {setupPaused && !recording
+                ? 'Starting recording…'
+                : setupGate.status === 'unavailable'
+                  ? 'Position check unavailable'
+                  : cameraReady
+                    ? 'Get into a forearm plank'
+                    : 'Starting camera…'}
+            </Text>
           )}
-          <Text style={styles.controlLabel}>
-            {finishing
-              ? 'Checking form…'
-              : recording
-                ? 'Tap to stop'
-                : setupGate.isLocked
-                  ? 'Tap to record'
-                  : setupGate.status === 'unavailable'
-                    ? 'Position check unavailable'
-                    : cameraReady
-                      ? 'Align position first'
-                      : 'Starting camera…'}
-          </Text>
         </View>
       </View>
 
@@ -438,6 +662,11 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: lumen.bgDeep,
+  },
+  cameraPlaceholder: {
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   centered: {
     alignItems: 'center',
@@ -483,13 +712,19 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    flexShrink: 0,
+  },
+  topActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconButton: {
     width: 44,
@@ -499,99 +734,92 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
-  timerPill: {
+  iconButtonSpacer: {
+    width: 44,
+    height: 44,
+  },
+  iconButtonDisabled: {
+    opacity: 0.45,
+  },
+  statusBlock: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    gap: 6,
+  },
+  statusBlockLandscape: {
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 0,
+    gap: 2,
+  },
+  detectLine: {
+    ...sora('bold'),
+    fontSize: 18,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+  },
+  detectLineOn: {
+    color: lumen.green,
+  },
+  detectLineOff: {
+    color: lumen.coral,
+  },
+  recordingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    marginTop: 2,
   },
   recDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: lumen.fgMuted,
-  },
-  recDotActive: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: lumen.coral,
   },
-  timerText: {
+  recDotIdle: {
+    opacity: 0.55,
+  },
+  recordingText: {
     ...sora('bold'),
-    fontSize: 18,
+    fontSize: 16,
     color: lumen.fg,
     fontVariant: ['tabular-nums'],
   },
-  hintCard: {
-    marginHorizontal: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderWidth: 1,
-    borderColor: lumen.hairline,
-  },
-  hintEyebrow: {
-    ...sora('bold'),
-    fontSize: 11,
-    letterSpacing: 1.8,
-    textTransform: 'uppercase',
-    color: lumenPillar.strength,
-  },
-  hintText: {
+  levelTip: {
     ...sora('semibold'),
-    marginTop: 6,
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 14,
     color: lumen.fg,
+    textAlign: 'center',
+    opacity: 0.92,
+  },
+  hintMuted: {
+    ...sora('semibold'),
+    fontSize: 12,
+    color: lumen.fgMuted,
+    textAlign: 'center',
+    marginTop: 2,
+    paddingHorizontal: 12,
+  },
+  middle: {
+    flex: 1,
+    minHeight: 0,
+  },
+  middleLandscape: {
+    marginTop: 0,
+    flexGrow: 1,
   },
   controls: {
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    flexShrink: 0,
+    paddingTop: 4,
   },
-  checkButton: {
-    paddingHorizontal: 22,
-    paddingVertical: 12,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderWidth: 1,
-    borderColor: lumen.lime,
-  },
-  checkButtonDisabled: {
-    opacity: 0.5,
-  },
-  checkButtonText: {
-    ...sora('bold'),
-    fontSize: 13,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: lumen.lime,
-  },
-  recordButton: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    borderWidth: 4,
-    borderColor: lumen.fg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  recordButtonDisabled: {
-    opacity: 0.45,
-  },
-  recordButtonReady: {
-    borderColor: lumen.lime,
-  },
-  recordInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: lumen.coral,
-  },
-  recordInnerReady: {
-    backgroundColor: lumen.lime,
+  controlsLandscape: {
+    paddingHorizontal: 4,
+    gap: 4,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   stopButton: {
     width: 78,

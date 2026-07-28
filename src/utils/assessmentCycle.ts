@@ -210,18 +210,112 @@ export type AssessmentWindowLabelOptions = {
   completedThisQuarter?: boolean;
 };
 
+function isDateInAssessmentCycle(
+  value: Date | undefined,
+  cycleStartDate: Date,
+  nextAssessmentDate: Date,
+): boolean {
+  if (!value || Number.isNaN(value.getTime())) return false;
+  return value >= cycleStartDate && value < nextAssessmentDate;
+}
+
+function assessmentBelongsToCurrentQuarter(
+  assessment: {
+    year?: number;
+    quarter?: { month?: number; startMonth?: number };
+    updated_at?: Date;
+    created_at?: Date;
+  },
+  year: number,
+  currentQuarter: { month: number; startMonth: number },
+  cycleStartDate: Date,
+  nextAssessmentDate: Date,
+): boolean {
+  if (assessment.year === year) {
+    if (assessment.quarter?.month === currentQuarter.month) return true;
+    if (assessment.quarter?.startMonth === currentQuarter.startMonth) return true;
+  }
+
+  return (
+    isDateInAssessmentCycle(assessment.updated_at, cycleStartDate, nextAssessmentDate) ||
+    isDateInAssessmentCycle(assessment.created_at, cycleStartDate, nextAssessmentDate)
+  );
+}
+
+/**
+ * True when the user has already used their one assessment slot this quarter.
+ * When `EXPO_PUBLIC_ALLOW_MULTIPLE_ASSESSMENTS_PER_QUARTER=true` (dev only), always false
+ * so the home "Assessment live" card stays available for retesting.
+ *
+ * Slot is used when a parent assessment in this quarter is `is_completed`, or has all
+ * three pillar refs (finished attempt waiting on reveal / finalize).
+ */
 export function hasCompletedAssessmentThisQuarter(
-  assessments: { is_completed: boolean; updated_at: Date; created_at: Date }[],
+  assessments: {
+    is_completed: boolean;
+    updated_at: Date;
+    created_at: Date;
+    year?: number;
+    quarter?: { month?: number; startMonth?: number };
+    cardio_id?: string | null;
+    strength_id?: string | null;
+    knowledge_id?: string | null;
+  }[],
   now = new Date(),
 ): boolean {
-  if (allowMultipleAssessmentsPerQuarter()) return false;
+  if (allowMultipleAssessmentsPerQuarter()) {
+    if (__DEV__) {
+      console.log(
+        '[assessment-cycle] multiple-per-quarter enabled — treating slot as open (Assessment live stays)',
+      );
+    }
+    return false;
+  }
 
+  const currentQuarter = getCurrentKnowledgeQuarter(now);
+  const year = now.getFullYear();
   const { cycleStartDate, nextAssessmentDate } = getAssessmentCycle(now);
-  return assessments.some((assessment) => {
-    if (!assessment.is_completed) return false;
-    const completedAt = assessment.updated_at ?? assessment.created_at;
-    return completedAt >= cycleStartDate && completedAt < nextAssessmentDate;
+
+  const used = assessments.some((assessment) => {
+    if (
+      !assessmentBelongsToCurrentQuarter(
+        assessment,
+        year,
+        currentQuarter,
+        cycleStartDate,
+        nextAssessmentDate,
+      )
+    ) {
+      return false;
+    }
+
+    if (assessment.is_completed) return true;
+
+    // Finished all pillars this cycle but parent not marked completed yet.
+    return Boolean(assessment.cardio_id && assessment.strength_id && assessment.knowledge_id);
   });
+
+  if (__DEV__) {
+    console.log('[assessment-cycle] slot this quarter', {
+      used,
+      year,
+      quarterMonth: currentQuarter.month,
+      quarterStartMonth: currentQuarter.startMonth,
+      cycleStart: cycleStartDate.toISOString(),
+      nextCycle: nextAssessmentDate.toISOString(),
+      candidates: assessments.map((item) => ({
+        is_completed: item.is_completed,
+        year: item.year,
+        quarterMonth: item.quarter?.month,
+        startMonth: item.quarter?.startMonth,
+        created_at: item.created_at?.toISOString?.(),
+        updated_at: item.updated_at?.toISOString?.(),
+        hasAllPillars: Boolean(item.cardio_id && item.strength_id && item.knowledge_id),
+      })),
+    });
+  }
+
+  return used;
 }
 
 /** Copy for Kalettes / rewards — assessment window, not “weeks until quarter boundary”. */

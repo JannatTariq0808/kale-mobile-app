@@ -50,6 +50,7 @@ const EMPTY_KNOWLEDGE: FitnessKnowledgeData = {
   trendLabel: null,
   showTrend: false,
   scoreHistory: null,
+  levelTrend: null,
   assessmentCount: 0,
   current: null,
   pastAssessments: [],
@@ -60,9 +61,15 @@ const EMPTY_CARDIO: FitnessCardioVo2Data = {
   bestEstimate: null,
   unit: 'ml/kg/min',
   ratingLabel: null,
+  cohortLabel: null,
   summary: 'Complete cardio assessment to see your estimate.',
   levelSource: null,
   deviceName: null,
+  sources: [],
+  formula: 'VO₂max ≈ 15 × (HRmax / HRrest)',
+  formulaNote:
+    'The Heart Rate Reserve method. Two data points, no effort required, reliable for tracking trends.',
+  sportLabel: 'RUNNING',
   current: null,
 };
 

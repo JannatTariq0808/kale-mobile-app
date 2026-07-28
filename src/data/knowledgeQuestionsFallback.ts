@@ -1,37 +1,28 @@
 import type { KnowledgeQuestion } from '../types/knowledgeQuestion';
 
-/** Used when Firestore is empty or unavailable — nu-8 KaleFitnessKnowledge */
 export const KNOWLEDGE_QUESTIONS_FALLBACK: KnowledgeQuestion[] = [
   {
-    id: 'how-level-calculated',
-    question: 'How is the Knowledge Level calculated?',
+    id: 'knowledge-topics',
+    question: 'What topics does the Knowledge section cover?',
     answer:
-      'Your level (1–10) is calculated from your latest quiz score, weighted by topic difficulty. The 20-question quiz refreshes each cycle so the level reflects current knowledge, not your best ever.',
+      'During onboarding we cycle through five topics:\n\n• General longevity\n• Nutrition\n• Exercise\n• Mental health\n• Biology and screening',
     sortOrder: 1,
     active: true,
   },
   {
-    id: 'why-different-topic',
-    question: 'Why focus on a different topic next time?',
+    id: 'why-knowledge-matters',
+    question: 'Why does knowledge matter for longevity?',
     answer:
-      "We weight your next quiz toward your weakest area. Improving where you're weakest moves your Knowledge Level fastest — and gives the biggest healthspan return.",
+      "Strong science shows that improving your health knowledge leads to behaviour change and lasting health outcomes. Put simply: when you know why you're doing something, you're far more likely to stick with it.",
     sortOrder: 2,
     active: true,
   },
   {
-    id: 'where-questions-from',
-    question: 'Where do the questions come from?',
+    id: 'why-unmeasured-topics',
+    question: "Why cover topics you don't directly measure?",
     answer:
-      'Every question is written or vetted by our science team and reviewed against peer-reviewed sources. No marketing claims, no folklore.',
+      "Your Longevity Level is built on cardio and strength, but longevity is bigger than that. Sleep, nutrition and mental health all support your performance and your long term health. Knowledge is how we help you improve the parts of longevity we don't measure directly.",
     sortOrder: 3,
-    active: true,
-  },
-  {
-    id: 'skip-quiz',
-    question: 'What happens to my level if I skip a quiz?',
-    answer:
-      'Knowledge Level pauses at its last value until you take the next quiz. Your overall Longevity Level still ticks, but Knowledge stops contributing until you re-engage.',
-    sortOrder: 4,
     active: true,
   },
 ];

@@ -1,11 +1,13 @@
 // Design: kale-mobile-design — lum-01 KaleWelcomeLumen (screens/KaleLumen.jsx)
 
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { InteractionManager, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { InteractionManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
+import { KaleWordmarkWhite } from '../../components/lumen/KaleWordmarkWhite';
 import { StepGlowDot } from '../../components/lumen/StepGlowDot';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import { WelcomeHeroLoader } from '../../components/lumen/WelcomeHeroLoader';
@@ -14,6 +16,7 @@ import {
   markWelcomeSurfaceReady,
   welcomeSurfaceReady,
 } from '../../navigation/welcomeSurface';
+import { consumeAuthNotice, setAuthNotice } from '../../services/auth/authNotice';
 import { lumen, lumenPillar, sora, typography } from '../../theme';
 import { headlineLineHeight } from '../../theme/textMetrics';
 
@@ -21,7 +24,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Welcome'>;
 
 const HERO_SIZE = 152;
 const HEADLINE_SIZE = typography.hero;
-const kaleLogotype = require('../../../assets/kale-logotype-lime.png');
+const LOGO_ASPECT = 91 / 38;
 
 /** Shrink headline on narrow screens so "Welcome to Kale" stays on one row. */
 function getWelcomeHeadlineMetrics(
@@ -33,7 +36,7 @@ function getWelcomeHeadlineMetrics(
 
   while (fontSize >= minSize) {
     const logotypeHeight = fontSize * 0.72;
-    const logotypeWidth = (91 / 37) * logotypeHeight;
+    const logotypeWidth = LOGO_ASPECT * logotypeHeight;
     const textWidth = fontSize * 5.65;
     if (textWidth + logotypeWidth <= contentWidth) {
       return { fontSize, logotypeHeight, logotypeWidth };
@@ -45,7 +48,7 @@ function getWelcomeHeadlineMetrics(
   return {
     fontSize: minSize,
     logotypeHeight,
-    logotypeWidth: (91 / 37) * logotypeHeight,
+    logotypeWidth: LOGO_ASPECT * logotypeHeight,
   };
 }
 
@@ -81,6 +84,7 @@ export function WelcomeScreen({ navigation }: Props) {
   const widePad = pad(30);
   const headline = getWelcomeHeadlineMetrics(usableWidth - widePad * 2, type);
   const [heroReady, setHeroReady] = useState(welcomeSurfaceReady);
+  const [authNotice, setAuthNoticeState] = useState<string | null>(null);
 
   useEffect(() => {
     if (welcomeSurfaceReady) {
@@ -95,6 +99,21 @@ export function WelcomeScreen({ navigation }: Props) {
 
     return () => task.cancel();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void consumeAuthNotice().then((notice) => {
+        if (notice) setAuthNoticeState(notice);
+      });
+    }, []),
+  );
+
+  const openSignIn = () => {
+    if (authNotice) {
+      void setAuthNotice(authNotice);
+    }
+    navigation.navigate('SignIn');
+  };
 
   return (
     <View style={styles.screen}>
@@ -132,27 +151,27 @@ export function WelcomeScreen({ navigation }: Props) {
             >
               Welcome to{' '}
             </Text>
-            <View
-              style={[
-                styles.logotypeWrap,
-                { height: headlineLineHeight(headline.fontSize) },
-              ]}
-            >
-              <Image
-                source={kaleLogotype}
-                style={{
-                  width: headline.logotypeWidth,
-                  height: headline.logotypeHeight,
-                  marginTop: Platform.OS === 'ios' ? headline.fontSize * 0.06 : 0,
-                }}
-                resizeMode="contain"
-                accessible={false}
-                importantForAccessibility="no"
-              />
-            </View>
+              <View
+                style={[
+                  styles.logotypeWrap,
+                  {
+                    height: headlineLineHeight(headline.fontSize),
+                    marginTop: Platform.OS === 'ios' ? headline.fontSize * 0.06 : 0,
+                  },
+                ]}
+              >
+                <KaleWordmarkWhite height={headline.logotypeHeight} />
+              </View>
           </View>
           <Text style={styles.subhead}>The longevity programme inside your Kale policy.</Text>
         </View>
+
+        {authNotice ? (
+          <View style={[styles.noticeBox, { marginHorizontal: widePad }]}>
+            <Text style={styles.noticeTitle}>Not a policy holder</Text>
+            <Text style={styles.noticeBody}>{authNotice}</Text>
+          </View>
+        ) : null}
 
         <View style={[styles.steps, { paddingHorizontal: widePad }]}>
           {STEPS.map((step, index) => (
@@ -170,7 +189,7 @@ export function WelcomeScreen({ navigation }: Props) {
         </View>
 
         <View style={[styles.cta, { paddingHorizontal: widePad }]}>
-          <LumenButton onPress={() => navigation.navigate('SignIn')}>Log in to Kale</LumenButton>
+          <LumenButton onPress={openSignIn}>Log in to Kale</LumenButton>
           <Pressable
             style={styles.resetLink}
             onPress={() => navigation.navigate('ResetPassword')}
@@ -205,6 +224,27 @@ const styles = StyleSheet.create({
   hero: {
     paddingTop: 20,
     alignItems: 'center',
+  },
+  noticeBox: {
+    marginTop: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(232,130,110,0.45)',
+    backgroundColor: 'rgba(232,130,110,0.12)',
+    gap: 4,
+  },
+  noticeTitle: {
+    ...sora('bold'),
+    color: lumen.coral,
+    fontSize: 13,
+  },
+  noticeBody: {
+    ...sora('regular'),
+    color: lumen.fg,
+    fontSize: 13,
+    lineHeight: 19,
   },
   heroPlaceholder: {
     borderWidth: 8,

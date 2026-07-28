@@ -185,9 +185,11 @@ Parent doc for onboarding / quarterly cycles. Created by the **website Admin SDK
 | `is_completed`  | boolean   | `true` when all pillars + level are done |
 | `quarter`       | map       | Onboarding or Q1–Q4 metadata            |
 
-Without an **update** rule, `linkStrengthToOnboardingAssessment` fails with `Missing or insufficient permissions` (strength save still succeeds).
+Without an **update** rule, `linkStrengthToOnboardingAssessment` fails with `Missing or insufficient permissions` (strength save still succeeds — only the parent `assessments/{id}.strength_id` link fails).
 
 **Important:** `allow read` must include **completed** assessments (`is_completed: true`). If read is restricted to in-progress docs only, the list query `where user_id == …` fails as soon as the user finishes onboarding — you will see `fetchAssessmentsForUser failed` in the app log.
+
+Publish this block in the Firebase console (Rules → Publish). Prefer `get('is_completed', false)` so docs missing the field still allow linking; avoid an overly strict `hasOnly` if you see false permission denials on pillar link:
 
 ```
 match /assessments/{assessmentId} {
@@ -198,14 +200,19 @@ match /assessments/{assessmentId} {
   // Server / admin creates assessments
   allow create, delete: if isAdmin();
 
-  // Mobile links pillar refs during onboarding (in-progress only)
+  // Mobile links pillar refs + finalizes level while in progress
   allow update: if request.auth != null
     && resource.data.user_id == /databases/$(database)/documents/users/$(request.auth.uid)
-    && resource.data.is_completed != true
+    && resource.data.get('is_completed', false) == false
+    && request.resource.data.user_id == resource.data.user_id
     && request.resource.data.diff(resource.data).affectedKeys()
         .hasOnly(['cardio_id', 'strength_id', 'knowledge_id', 'level', 'is_completed', 'updated_at']);
 }
 ```
+
+If linking still fails after Publish, temporarily drop the `hasOnly(...)` line (keep owner + not-completed checks), retest, then add `hasOnly` back once confirmed.
+
+Quarterly assessment docs created by Admin/CF should set `is_completed: false` explicitly.
 
 Do **not** add `&& resource.data.is_completed != true` to the **read** rule.
 

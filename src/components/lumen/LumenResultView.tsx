@@ -2,7 +2,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { Fragment, memo } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LevelRing } from './LevelRing';
@@ -58,6 +58,8 @@ type LumenResultViewProps = {
   onBack?: () => void;
   /** Show header back control. Result screens are forward-only — default false. */
   showBackButton?: boolean;
+  /** True while linking/finalizing before LevelReveal (or next pillar). */
+  nextLoading?: boolean;
 };
 
 function ordinal(n: number) {
@@ -104,6 +106,7 @@ export const LumenResultView = memo(function LumenResultView({
   onBack,
   onNext,
   showBackButton = false,
+  nextLoading = false,
 }: LumenResultViewProps) {
   const accent = lumenPillar[config.pillar];
   const { horizontalPadding, pad } = useResponsiveLayout();
@@ -253,7 +256,14 @@ export const LumenResultView = memo(function LumenResultView({
         </ScrollView>
 
         <View style={[styles.footer, { paddingHorizontal: pad(26) }]}>
-          <LumenButton onPress={onNext}>{config.nextBtn}</LumenButton>
+          {nextLoading ? (
+            <View style={styles.nextLoading}>
+              <ActivityIndicator color={lumen.mint} />
+              <Text style={styles.nextLoadingLabel}>Opening your level…</Text>
+            </View>
+          ) : (
+            <LumenButton onPress={onNext}>{config.nextBtn}</LumenButton>
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -506,5 +516,20 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: 18,
     paddingBottom: 8,
+  },
+  nextLoading: {
+    minHeight: 58,
+    borderRadius: 9999,
+    backgroundColor: 'rgba(0,200,150,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+  },
+  nextLoadingLabel: {
+    ...sora('bold'),
+    color: lumen.mint,
+    fontSize: 15,
   },
 });

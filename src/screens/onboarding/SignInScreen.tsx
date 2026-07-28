@@ -2,7 +2,8 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -20,11 +21,14 @@ import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
 import type { RootStackParamList } from '../../navigation/types';
+import { consumeAuthNotice, setAuthNotice } from '../../services/auth/authNotice';
 import { mapFirebaseAuthError, signInWithEmail } from '../../services/auth/passwordReset';
 import { getFirebaseAuth, signOut } from '../../services/auth/index';
 import {
   fetchUserProfile,
   POLICY_HOLDER_REQUIRED_MESSAGE,
+  PROFILE_OFFLINE_MESSAGE,
+  ProfileFetchError,
 } from '../../services/user/userProfile';
 import { lumen, sora, typography } from '../../theme';
 import { headlineTextStyle } from '../../theme/textMetrics';
@@ -57,6 +61,14 @@ export function SignInScreen({ navigation }: Props) {
     setAuthError(null);
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      void consumeAuthNotice().then((notice) => {
+        if (notice) setAuthError(notice);
+      });
+    }, []),
+  );
+
   const handleSignIn = async () => {
     if (busy) return;
     clearErrors();
@@ -81,15 +93,20 @@ export function SignInScreen({ navigation }: Props) {
       const credential = await signInWithEmail(email, password);
       const profile = await fetchUserProfile(credential.user.uid);
       if (!profile.policyHolder) {
-        await signOut(getFirebaseAuth());
         Keyboard.dismiss();
+        await setAuthNotice(POLICY_HOLDER_REQUIRED_MESSAGE);
         setAuthError(POLICY_HOLDER_REQUIRED_MESSAGE);
+        await signOut(getFirebaseAuth());
         return;
       }
       // Post-login routing is handled by useInitialAuthRoute + useAuthNavigationSync
       // when the authenticated NavigationContainer remounts.
     } catch (err) {
       Keyboard.dismiss();
+      if (err instanceof ProfileFetchError && err.reason === 'offline') {
+        setAuthError(PROFILE_OFFLINE_MESSAGE);
+        return;
+      }
       setAuthError(mapFirebaseAuthError(err));
     } finally {
       setBusy(false);

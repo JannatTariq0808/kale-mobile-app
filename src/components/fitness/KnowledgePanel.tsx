@@ -6,6 +6,8 @@ import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { FitnessKnowledgeData } from '../../services/fitness/fetchFitnessPillarData';
 import { FaqAccordion } from '../lumen/FaqAccordion';
 import { LumenCard } from '../lumen/LumenCard';
+import { PillarLevelOverTimeChart } from '../lumen/PillarLevelOverTimeChart';
+import { TrendChartScroll } from '../lumen/TrendChartScroll';
 import { PillarAssessmentCard } from './PillarAssessmentCard';
 import { lumen, lumenPillar, sora } from '../../theme';
 
@@ -38,6 +40,22 @@ export function KnowledgePanel({
           </Text>
         </LumenCard>
       )}
+
+      {data.levelTrend ? (
+        <LumenCard style={styles.chartCard}>
+          <Text style={[styles.chartTitle, { fontSize: type(11) }]}>LEVEL OVER TIME</Text>
+          <TrendChartScroll pointCount={data.levelTrend.labels.length} height={140}>
+            {(width) => (
+              <PillarLevelOverTimeChart
+                width={width}
+                levels={data.levelTrend!.levels}
+                labels={data.levelTrend!.labels}
+                color={lumenPillar.knowledge}
+              />
+            )}
+          </TrendChartScroll>
+        </LumenCard>
+      ) : null}
 
       {data.pastAssessments.length > 0 ? (
         <View style={styles.historySection}>
@@ -78,6 +96,15 @@ const styles = StyleSheet.create({
     ...sora('semibold'),
     color: lumen.fgMuted,
     textAlign: 'center',
+  },
+  chartCard: {
+    marginBottom: 14,
+  },
+  chartTitle: {
+    ...sora('bold'),
+    color: lumen.fgMuted,
+    letterSpacing: 1.2,
+    marginBottom: 8,
   },
   historySection: {
     marginBottom: 8,

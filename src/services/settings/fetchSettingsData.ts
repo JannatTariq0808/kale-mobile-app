@@ -1,6 +1,10 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { getFirebaseAuth, getFirebaseFirestore } from '../auth/firebaseApp';
 import { formatMemberSince } from '../../utils/policyDisplay';
+import {
+  parseNotificationPreferences,
+  type NotificationPreferences,
+} from './notificationPreferences';
 
 export type SettingsData = {
   displayName: string;
@@ -8,6 +12,7 @@ export type SettingsData = {
   memberSince: string | null;
   photoUrl: string | null;
   weightKg: number | null;
+  notificationPreferences: NotificationPreferences;
 };
 
 function readDisplayName(
@@ -75,5 +80,6 @@ export async function fetchSettingsData(uid: string): Promise<SettingsData> {
       formatMemberSince(authUser?.metadata?.creationTime ?? null),
     photoUrl: readPhotoUrl(userData, authUser?.photoURL),
     weightKg: readWeightKg(userData),
+    notificationPreferences: parseNotificationPreferences(userData),
   };
 }

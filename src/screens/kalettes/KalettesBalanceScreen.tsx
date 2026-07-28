@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BalanceCardGlow } from '../../components/kalettes/BalanceCardGlow';
 import { ScreenScroll } from '../../components/layout/ScreenScroll';
@@ -10,8 +11,9 @@ import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenCard } from '../../components/lumen/LumenCard';
 import { LumenHeader } from '../../components/lumen/LumenHeader';
 import { kalettesDemo } from '../../data/kalettesDemo';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import { useKalettesQuestions } from '../../hooks/useKalettesQuestions';
-import { useKalettesRewards } from '../../hooks/useKalettesRewards';
+import { refreshKalettesRewards, useKalettesRewards } from '../../hooks/useKalettesRewards';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { KalettesStackParamList } from '../../navigation/KalettesStackNavigator';
 import { openRewardsWeb } from '../../services/kalettes/openRewardsWeb';
@@ -22,6 +24,7 @@ type Props = NativeStackScreenProps<KalettesStackParamList, 'Balance'>;
 
 export function KalettesBalanceScreen({ navigation }: Props) {
   const { type, scale, leading } = useResponsiveLayout();
+  const { user } = useAuthSession();
   const { items: faqItems, loading: faqLoading } = useKalettesQuestions();
   const rewards = useKalettesRewards();
   const heroSize = scale(56);
@@ -30,6 +33,12 @@ export function KalettesBalanceScreen({ navigation }: Props) {
   const windowProgressPct = rewards.hasQuote
     ? rewards.windowProgressPct
     : kalettesDemo.cycleProgressPct;
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshKalettesRewards(user?.uid);
+    }, [user?.uid]),
+  );
 
   useEffect(() => {
     void fetchRewardsProducts();
@@ -131,7 +140,7 @@ export function KalettesBalanceScreen({ navigation }: Props) {
               {rewards.hasQuote ? rewards.cycleHeadline : 'Assessment window'}
             </Text>
             <Text style={[styles.cycleWeeks, { fontSize: type(12) }]}>
-              {rewards.hasQuote ? rewards.cycleSubline : kalettesDemo.cycleWeeksLeft}
+              {kalettesDemo.cycleWeeksLeft}
             </Text>
           </View>
 

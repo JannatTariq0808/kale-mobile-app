@@ -98,10 +98,10 @@ async function loadKalettesRewards(uid: string): Promise<KalettesRewardsState> {
   };
 }
 
-function startKalettesLoad(uid: string): void {
-  if (inflightLoads.has(uid)) return;
+function startKalettesLoad(uid: string, force = false): void {
+  if (!force && inflightLoads.has(uid)) return;
 
-  const cached = payloadFromCache(uid);
+  const cached = force ? null : payloadFromCache(uid);
   publish(uid, { ...(cached ?? EMPTY), loading: !cached });
 
   const promise = loadKalettesRewards(uid).then((data) => {
@@ -135,9 +135,28 @@ function subscribe(uid: string, listener: Listener): void {
   startKalettesLoad(uid);
 }
 
+/** Drop cache so the next subscribe / prefetch reloads from Firestore. */
+export function invalidateKalettesRewards(uid?: string): void {
+  if (uid) {
+    if (kalettesCache?.uid === uid) kalettesCache = null;
+    latestStateByUid.delete(uid);
+    inflightLoads.delete(uid);
+    return;
+  }
+  kalettesCache = null;
+  latestStateByUid.clear();
+  inflightLoads.clear();
+}
+
 export function prefetchKalettesRewards(uid: string | undefined): void {
   if (!uid) return;
   startKalettesLoad(uid);
+}
+
+export function refreshKalettesRewards(uid: string | undefined): void {
+  if (!uid) return;
+  invalidateKalettesRewards(uid);
+  startKalettesLoad(uid, true);
 }
 
 export function useKalettesRewards(): KalettesRewardsState {

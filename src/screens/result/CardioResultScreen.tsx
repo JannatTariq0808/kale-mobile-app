@@ -10,7 +10,11 @@ import {
   fetchActiveInProgressAssessment,
   fetchAssessmentsForUser,
   fetchPreviousPillarLevelFromAssessments,
+  finalizeActiveAssessmentIfReady,
 } from '../../services/assessment/assessmentSession';
+import { resolveOnboardingResumeRoute, resolveResultNextButtonLabel } from '../../services/onboarding/resolveOnboardingNavigation';
+import { invalidateHomeLongevityData } from '../../hooks/useHomeLongevityData';
+import { invalidateFitnessPillarData } from '../../hooks/useFitnessPillarData';
 import { fetchCardioSummary } from '../../services/cardio/fetchCardioSummary';
 import { fetchHealthProfileForAssess } from '../../services/user/fetchHealthProfile';
 import { clearFirstTimeLogin } from '../../services/user/userProfile';
@@ -44,6 +48,7 @@ const FALLBACK_CONFIG: LumenResultConfig = {
 export function CardioResultScreen({ navigation }: Props) {
   const { user } = useAuthSession();
   const [config, setConfig] = useState<LumenResultConfig | null>(null);
+  const [nextLoading, setNextLoading] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -78,6 +83,12 @@ export function CardioResultScreen({ navigation }: Props) {
         assessmentId: currentAssessment?.id,
       });
 
+      const nextBtn = await resolveResultNextButtonLabel(
+        user.uid,
+        'cardio',
+        currentAssessment?.cardio_id,
+      );
+
       if (cancelled) return;
 
       setConfig(
@@ -85,6 +96,7 @@ export function CardioResultScreen({ navigation }: Props) {
           summary,
           profile,
           previousLevel,
+          nextBtn,
         }),
       );
     })();
@@ -106,7 +118,29 @@ export function CardioResultScreen({ navigation }: Props) {
     <LumenResultView
       config={config}
       showBackButton={false}
-      onNext={() => navigation.navigate('StrengthIntro')}
+      nextLoading={nextLoading}
+      onNext={() => {
+        if (nextLoading) return;
+        void (async () => {
+          setNextLoading(true);
+          try {
+            if (user?.uid) {
+              await finalizeActiveAssessmentIfReady(user.uid);
+              invalidateHomeLongevityData(user.uid);
+              invalidateFitnessPillarData(user.uid);
+
+              const next = await resolveOnboardingResumeRoute(user.uid);
+              navigation.replace(
+                next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main',
+              );
+              return;
+            }
+            navigation.navigate('StrengthIntro');
+          } catch {
+            setNextLoading(false);
+          }
+        })();
+      }}
     />
   );
 }

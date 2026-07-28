@@ -41,13 +41,25 @@ export async function claimStravaConnection(
   return { ok: true, athleteId: data.strava.athleteId };
 }
 
+export type GarminClaimOptions = {
+  activitiesSince?: string;
+  assessmentId?: string;
+  cardioDocId?: string;
+};
+
 export async function claimGarminConnection(
   idToken: string,
   pendingToken: string,
+  options?: GarminClaimOptions,
 ): Promise<ClaimGarminResult> {
   const res = await kaleApiFetch('/api/oauth/garmin/claim', idToken, {
     method: 'POST',
-    body: JSON.stringify({ pendingToken }),
+    body: JSON.stringify({
+      pendingToken,
+      ...(options?.activitiesSince ? { activities_since: options.activitiesSince } : {}),
+      ...(options?.assessmentId ? { assessment_id: options.assessmentId } : {}),
+      ...(options?.cardioDocId ? { cardio_doc_id: options.cardioDocId } : {}),
+    }),
   });
 
   const data = (await res.json().catch(() => ({}))) as {

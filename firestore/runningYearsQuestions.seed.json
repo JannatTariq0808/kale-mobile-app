@@ -1,0 +1,40 @@
+{
+  "collection": "runningYearsQuestions",
+  "documents": [
+    {
+      "id": "how-calculated",
+      "question": "How is the Running Years number calculated?",
+      "answer": "We start from your VO₂max and age, then project two curves forward: one if you keep training, one if you do nothing. The big number is how many years until the keep-training curve crosses the still-running threshold (VO₂ 35). The +years gap is the extra time training buys you versus doing nothing.",
+      "sortOrder": 0,
+      "active": true
+    },
+    {
+      "id": "vo2-decline",
+      "question": "Does VO₂max always fall with age?",
+      "answer": "Yes — for everyone, VO₂max declines as we get older. Training doesn't stop the decline, but it changes how fast you lose capacity. That's the gap this chart shows.",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "id": "not-promise",
+      "question": "Is this a medical prediction?",
+      "answer": "No. It's a fitness projection built from your activity data — a band, not a promise. Your training moves it.",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "id": "gap-years",
+      "question": "What does the +years gap mean?",
+      "answer": "It's the extra time your fitness stays above the still-running threshold if you keep training, compared with doing nothing. Training changes how fast you decline — not whether you decline.",
+      "sortOrder": 3,
+      "active": true
+    },
+    {
+      "id": "estimated-band",
+      "question": "Why do I see a range instead of one number?",
+      "answer": "Strava and thin data give us activity but not native VO₂max. We show a band until Garmin or richer data narrows the projection.",
+      "sortOrder": 4,
+      "active": true
+    }
+  ]
+}

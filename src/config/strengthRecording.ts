@@ -11,7 +11,7 @@ export const PLANK_FRAME_SAMPLE_INTERVAL_MS = 1000;
 export const PLANK_SETUP_SAMPLE_INTERVAL_MS = 2800;
 
 /** Consecutive valid preview frames required before recording can start. */
-export const PLANK_SETUP_CONSECUTIVE_VALID_FRAMES = 2;
+export const PLANK_SETUP_CONSECUTIVE_VALID_FRAMES = 1;
 
 /** At least this many valid frames from post-recording stills. */
 export const MIN_VALID_PLANK_FRAMES_ABSOLUTE = 1;

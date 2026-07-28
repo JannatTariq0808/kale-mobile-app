@@ -70,6 +70,7 @@ type BuildKnowledgeResultInput = {
   totalQuestions: number;
   meta: KnowledgeAssessmentMeta;
   previousLevel?: number | null;
+  nextBtn?: string;
 };
 
 export function buildKnowledgeResultConfig({
@@ -77,6 +78,7 @@ export function buildKnowledgeResultConfig({
   totalQuestions,
   meta,
   previousLevel,
+  nextBtn = 'See your Longevity Level',
 }: BuildKnowledgeResultInput): LumenResultConfig {
   const level = calculateKnowledgeLevel(correctCount, totalQuestions);
   const relativePerformancePercent = knowledgeRelativePerformancePercent(
@@ -113,7 +115,7 @@ export function buildKnowledgeResultConfig({
     nextLevel,
     nextActions: [],
     levelUpMessage,
-    nextBtn: 'See your Longevity Level',
+    nextBtn,
   };
 }
 

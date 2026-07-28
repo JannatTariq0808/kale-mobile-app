@@ -6,8 +6,21 @@ export type UserProfile = {
   firstTimeLogin: boolean;
 };
 
+export class ProfileFetchError extends Error {
+  readonly reason: 'offline' | 'unknown';
+
+  constructor(reason: 'offline' | 'unknown') {
+    super(reason);
+    this.name = 'ProfileFetchError';
+    this.reason = reason;
+  }
+}
+
 export const POLICY_HOLDER_REQUIRED_MESSAGE =
-  'Kale is available to policy holders. Connect Strava or Garmin on kale.insure first, then sign in with the email on your policy.';
+  'This account is not a Kale policy holder. Sign in with the email on your policy, or get started at kale.insure.';
+
+export const PROFILE_OFFLINE_MESSAGE =
+  'Could not reach Kale. Check your internet connection and try again.';
 
 function readFirstTimeLogin(data: Record<string, unknown> | undefined): boolean {
   if (!data) return false;
@@ -15,6 +28,14 @@ function readFirstTimeLogin(data: Record<string, unknown> | undefined): boolean 
   if (value === true) return true;
   if (value === 'yes') return true;
   return false;
+}
+
+function isFirestoreOfflineError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const code = 'code' in error ? String((error as { code: unknown }).code) : '';
+  if (code === 'unavailable') return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes('offline');
 }
 
 export async function fetchUserProfile(uid: string): Promise<UserProfile> {
@@ -26,10 +47,13 @@ export async function fetchUserProfile(uid: string): Promise<UserProfile> {
       firstTimeLogin: readFirstTimeLogin(data),
     };
   } catch (error) {
+    if (isFirestoreOfflineError(error)) {
+      throw new ProfileFetchError('offline');
+    }
     if (__DEV__) {
       console.warn('[user] fetchUserProfile failed', error);
     }
-    return { policyHolder: false, firstTimeLogin: false };
+    throw new ProfileFetchError('unknown');
   }
 }
 

@@ -30,6 +30,7 @@ type BuildCardioResultInput = {
   summary: CardioSummary;
   profile: HealthProfileForAssess;
   previousLevel?: number | null;
+  nextBtn?: string;
 };
 
 function resolveFtpPerKg(
@@ -116,6 +117,7 @@ export function buildCardioResultConfig({
   summary,
   profile,
   previousLevel,
+  nextBtn = 'Next — Strength',
 }: BuildCardioResultInput): LumenResultConfig {
   const dob = new Date(`${profile.date_of_birth}T00:00:00`);
   const age = calculateAge(dob);
@@ -209,6 +211,6 @@ export function buildCardioResultConfig({
     nextLevel,
     nextActions: [],
     levelUpMessage,
-    nextBtn: 'Next — Strength',
+    nextBtn,
   };
 }

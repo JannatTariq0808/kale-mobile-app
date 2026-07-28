@@ -1,53 +1,13 @@
 /**
- * Seed `kalettesQuestions` into staging or production Firestore.
- *
- * Usage:
- *   export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
- *   node scripts/seed-kalettesQuestions.mjs staging
+ * Seed `kalettesQuestions` — replaces entire collection.
+ * Usage: node scripts/seed-kalettesQuestions.mjs <staging|production>
  */
 
-import { readFileSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { initFirestoreAdmin, loadSeedFile, replaceFaqCollection } from './firestoreSeedHelper.mjs';
 
-const require = createRequire(import.meta.url);
-const { initializeApp, applicationDefault, getApps } = require('firebase-admin/app');
-const { getFirestore, FieldValue } = require('firebase-admin/firestore');
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 const target = process.argv[2];
+const seed = loadSeedFile('kalettesQuestions.seed.json');
+const db = initFirestoreAdmin(target);
 
-const PROJECTS = {
-  staging: 'kale-staging-17edd',
-  production: 'kale-production-ce86c',
-};
-
-if (!target || !PROJECTS[target]) {
-  console.error('Usage: node scripts/seed-kalettesQuestions.mjs <staging|production>');
-  process.exit(1);
-}
-
-const seedPath = join(__dirname, '../firestore/kalettesQuestions.seed.json');
-const seed = JSON.parse(readFileSync(seedPath, 'utf8'));
-
-if (getApps().length === 0) {
-  initializeApp({
-    credential: applicationDefault(),
-    projectId: PROJECTS[target],
-  });
-}
-
-const db = getFirestore();
-const batch = db.batch();
-
-for (const doc of seed.documents) {
-  const { id, ...fields } = doc;
-  batch.set(db.collection('kalettesQuestions').doc(id), {
-    ...fields,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
-}
-
-await batch.commit();
-console.log(`Seeded ${seed.documents.length} kalettesQuestions docs → ${PROJECTS[target]}`);
+await replaceFaqCollection(db, seed.collection, seed.documents);
+console.log(`Seeded ${seed.documents.length} kalettesQuestions docs → ${target}`);

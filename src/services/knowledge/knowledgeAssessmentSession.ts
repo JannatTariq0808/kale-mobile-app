@@ -18,11 +18,12 @@ import { optionIndexFromKey, optionKeyFromIndex } from '../../utils/questionSetQ
 import { calculateKnowledgeLevel } from '../../utils/knowledgeLevel';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
 import {
+  fetchAssessmentsForUser,
   fetchInProgressOnboardingAssessment,
   fetchInProgressQuarterlyAssessment,
+  finalizeActiveAssessmentIfReady,
+  linkKnowledgeToOnboardingAssessment,
 } from '../assessment/assessmentSession';
-import { linkKnowledgeToOnboardingAssessment } from '../assessment/assessmentSession';
-import { finalizeActiveAssessmentIfReady } from '../assessment/assessmentSession';
 
 const KNOWLEDGE_COLLECTION = 'knowledge';
 const QUESTION_SETS_COLLECTION = 'questionSets';
@@ -53,12 +54,22 @@ function parseSelectedOption(raw: unknown): KnowledgeResponse['selectedOption'] 
   return { key, text, isCorrect };
 }
 
+function readRefId(raw: unknown): string {
+  if (raw && typeof raw === 'object' && 'id' in raw && typeof (raw as DocumentReference).id === 'string') {
+    return (raw as DocumentReference).id;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const segments = raw.trim().split('/').filter(Boolean);
+    return segments[segments.length - 1] ?? raw.trim();
+  }
+  return '';
+}
+
 function parseResponse(raw: unknown): KnowledgeResponse | null {
   if (!raw || typeof raw !== 'object') return null;
   const data = raw as Record<string, unknown>;
   const isCorrect = data.isCorrect === true;
-  const questionRefValue = data.question_ref as DocumentReference | undefined;
-  const questionId = questionRefValue?.id ?? '';
+  const questionId = readRefId(data.question_ref);
   const selectedOption = parseSelectedOption(data.selectedOption);
   if (!questionId || !selectedOption) return null;
 
@@ -94,24 +105,69 @@ function sortByCreatedAtDesc(a: KnowledgeAssessment, b: KnowledgeAssessment) {
   return b.created_at.getTime() - a.created_at.getTime();
 }
 
-/** Single-field query only — no composite Firestore index required. */
+function mergeKnowledgeDocs(docs: Array<KnowledgeAssessment | null>): KnowledgeAssessment[] {
+  const byId = new Map<string, KnowledgeAssessment>();
+  for (const item of docs) {
+    if (item) byId.set(item.id, item);
+  }
+  return [...byId.values()].sort(sortByCreatedAtDesc);
+}
+
+async function fetchKnowledgeByAssessmentRefs(uid: string): Promise<KnowledgeAssessment[]> {
+  const { assessments } = await fetchAssessmentsForUser(uid);
+  const ids = [
+    ...new Set(
+      assessments
+        .map((item) => item.knowledge_id)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0),
+    ),
+  ];
+
+  const docs = await Promise.all(ids.map((id) => loadAssessmentById(id)));
+  return mergeKnowledgeDocs(docs);
+}
+
+async function fetchKnowledgeByUserQuery(uid: string): Promise<KnowledgeAssessment[]> {
+  const snap = await getDocs(
+    query(
+      collection(getFirebaseFirestore(), KNOWLEDGE_COLLECTION),
+      where('user_id', '==', userRef(uid)),
+    ),
+  );
+
+  const parsed: KnowledgeAssessment[] = [];
+  for (const item of snap.docs) {
+    try {
+      const row = parseAssessment(item.id, item.data() as Record<string, unknown>);
+      if (row) parsed.push(row);
+    } catch (error) {
+      if (__DEV__) {
+        logKnowledgeError(`skip bad knowledge doc ${item.id}`, error);
+      }
+    }
+  }
+  return parsed;
+}
+
+/** Prefer assessment knowledge_id getDocs — avoids fragile collection-query decoding. */
 export async function fetchKnowledgeAssessmentsForUser(
   uid: string,
 ): Promise<KnowledgeAssessment[]> {
-  if (!isFirebaseConfigured()) return [];
+  if (!isFirebaseConfigured() || typeof uid !== 'string' || !uid) return [];
+
+  // getDoc-by-id is reliable; collection queries have thrown
+  // `path.split is not a function (it is undefined)` on some devices/docs.
+  const fromRefs = await fetchKnowledgeByAssessmentRefs(uid).catch((error) => {
+    if (__DEV__) {
+      logKnowledgeError('assessment-ref fetch failed', error);
+    }
+    return [] as KnowledgeAssessment[];
+  });
+
+  if (fromRefs.length > 0) return fromRefs;
 
   try {
-    const snap = await getDocs(
-      query(
-        collection(getFirebaseFirestore(), KNOWLEDGE_COLLECTION),
-        where('user_id', '==', userRef(uid)),
-      ),
-    );
-
-    return snap.docs
-      .map((item) => parseAssessment(item.id, item.data() as Record<string, unknown>))
-      .filter((item): item is KnowledgeAssessment => item !== null)
-      .sort(sortByCreatedAtDesc);
+    return await fetchKnowledgeByUserQuery(uid);
   } catch (error) {
     logKnowledgeError('fetchKnowledgeAssessmentsForUser failed', error);
     return [];
@@ -165,6 +221,7 @@ export async function fetchInProgressKnowledgeAssessment(
 }
 
 async function loadAssessmentById(assessmentId: string): Promise<KnowledgeAssessment | null> {
+  if (typeof assessmentId !== 'string' || !assessmentId) return null;
   try {
     const snap = await getDoc(knowledgeDocRef(assessmentId));
     if (!snap.exists()) return null;

@@ -40,6 +40,9 @@ export function connectIssueHeadline(
   if (message.toLowerCase().includes('garmin')) {
     return 'Garmin connection failed';
   }
+  if (/missing or insufficient permissions/i.test(message)) {
+    return "We couldn't save your connection";
+  }
   if (message.toLowerCase().includes('strava')) {
     return 'Strava connection failed';
   }

@@ -1,0 +1,26 @@
+{
+  "collection": "vo2Questions",
+  "documents": [
+    {
+      "id": "where-vo2-from",
+      "question": "Where does my VO₂ max come from?",
+      "answer": "Right now we pull VO₂ max from the sources you connect, whether that's Garmin, Strava, COROS or others.",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "id": "kale-own-vo2",
+      "question": "Is Kale building its own VO₂ max reading?",
+      "answer": "Yes. We're developing our own VO₂ max estimate behind the scenes as we gather more data. Our current reading isn't accurate enough yet, so it isn't used to calculate any discounts. We're improving it all the time.",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "id": "why-own-not-garmin",
+      "question": "Why build your own instead of using Garmin's?",
+      "answer": "Everyone uses different devices, and each one calculates VO₂ max differently. To be fair to every member, we need one single source of truth. That's what we're building.",
+      "sortOrder": 3,
+      "active": true
+    }
+  ]
+}

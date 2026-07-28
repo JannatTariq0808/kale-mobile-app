@@ -1,0 +1,72 @@
+{
+  "collection": "runningYearsGoals",
+  "documents": [
+    {
+      "id": "10k-grandkids",
+      "presetId": "10k-grandkids",
+      "label": "Run a 10k with my grandkids",
+      "sport": "running",
+      "sortOrder": 1,
+      "active": true
+    },
+    {
+      "id": "run-marathon",
+      "presetId": "run-marathon",
+      "label": "Run a marathon",
+      "sport": "running",
+      "sortOrder": 2,
+      "active": true
+    },
+    {
+      "id": "cycle-30k-grandkids",
+      "presetId": "cycle-30k-grandkids",
+      "label": "Cycle 30km with my grandkids",
+      "sport": "cycling",
+      "sortOrder": 3,
+      "active": true
+    },
+    {
+      "id": "ride-sportive",
+      "presetId": "ride-sportive",
+      "label": "Ride a sportive",
+      "sport": "cycling",
+      "sortOrder": 4,
+      "active": true
+    },
+    {
+      "id": "keep-up-kids",
+      "presetId": "keep-up-kids",
+      "label": "Keep up with my kids",
+      "sortOrder": 5,
+      "active": false
+    },
+    {
+      "id": "cycling-hills",
+      "presetId": "cycling-hills",
+      "label": "Still cycling the hills",
+      "sortOrder": 6,
+      "active": false
+    },
+    {
+      "id": "hike-altitude",
+      "presetId": "hike-altitude",
+      "label": "Hike at altitude",
+      "sortOrder": 7,
+      "active": false
+    },
+    {
+      "id": "dance-wedding",
+      "presetId": "dance-wedding",
+      "label": "Dance at the wedding",
+      "sortOrder": 8,
+      "active": false
+    },
+    {
+      "id": "still-surfing",
+      "presetId": "still-surfing",
+      "label": "Still surfing",
+      "sortOrder": 9,
+      "active": false
+    }
+  ]
+}

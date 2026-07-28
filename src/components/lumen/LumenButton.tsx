@@ -8,13 +8,20 @@ type LumenButtonProps = {
   children: string;
   onPress?: () => void;
   style?: ViewStyle;
+  /** `lime` matches Running Years CTAs (#CCFA7D). Default is mint. */
+  tone?: 'mint' | 'lime';
 };
 
-export function LumenButton({ children, onPress, style }: LumenButtonProps) {
+export function LumenButton({ children, onPress, style, tone = 'mint' }: LumenButtonProps) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
+      style={({ pressed }) => [
+        styles.button,
+        tone === 'lime' ? styles.buttonLime : styles.buttonMint,
+        pressed && styles.pressed,
+        style,
+      ]}
       accessibilityRole="button"
     >
       <View style={styles.inner}>
@@ -38,9 +45,14 @@ const styles = StyleSheet.create({
     height: 58,
     paddingHorizontal: 20,
     borderRadius: 9999,
-    backgroundColor: lumen.mint,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  buttonMint: {
+    backgroundColor: lumen.mint,
+  },
+  buttonLime: {
+    backgroundColor: lumen.lime,
   },
   inner: {
     flexDirection: 'row',

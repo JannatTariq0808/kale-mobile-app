@@ -9,19 +9,13 @@ import { useAuthSession } from '../../hooks/useAuthSession';
 import {
   fetchAssessmentsForUser,
   fetchPreviousPillarLevelFromAssessments,
-} from '../../services/assessment/assessmentSession';
-import { resolveOnboardingResumeRoute } from '../../services/onboarding/resolveOnboardingNavigation';
-import {
-  clearActiveAssessmentFlow,
-  isQuarterlyAssessmentFlow,
-} from '../../services/assessment/assessmentFlowSession';
-import {
   finalizeActiveAssessmentIfReady,
   linkKnowledgeToOnboardingAssessment,
 } from '../../services/assessment/assessmentSession';
-import {
-  fetchKnowledgeAssessmentById,
-} from '../../services/knowledge/knowledgeAssessmentSession';
+import { resolveOnboardingResumeRoute, resolveResultNextButtonLabel } from '../../services/onboarding/resolveOnboardingNavigation';
+import { invalidateHomeLongevityData } from '../../hooks/useHomeLongevityData';
+import { invalidateFitnessPillarData } from '../../hooks/useFitnessPillarData';
+import { fetchKnowledgeAssessmentById } from '../../services/knowledge/knowledgeAssessmentSession';
 import { buildKnowledgeResultConfig } from '../../utils/knowledgeLevel';
 import { lumen } from '../../theme';
 
@@ -31,6 +25,7 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
   const { user } = useAuthSession();
   const { assessmentId, totalQuestions, meta } = route.params;
   const [config, setConfig] = useState<LumenResultConfig | null>(null);
+  const [nextLoading, setNextLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +46,10 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
           })
         : null;
 
+      const nextBtn = user?.uid
+        ? await resolveResultNextButtonLabel(user.uid, 'knowledge', assessmentId)
+        : 'See your Longevity Level';
+
       if (cancelled) return;
 
       setConfig(
@@ -59,6 +58,7 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
           totalQuestions,
           meta,
           previousLevel,
+          nextBtn,
         }),
       );
     })();
@@ -77,23 +77,26 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
   }
 
   const handleNext = () => {
+    if (nextLoading) return;
     void (async () => {
-      if (isQuarterlyAssessmentFlow()) {
+      setNextLoading(true);
+      try {
         if (user?.uid) {
           await linkKnowledgeToOnboardingAssessment(user.uid, assessmentId);
           await finalizeActiveAssessmentIfReady(user.uid);
-        }
-        clearActiveAssessmentFlow();
-        navigation.replace('Main');
-        return;
-      }
+          invalidateHomeLongevityData(user.uid);
+          invalidateFitnessPillarData(user.uid);
 
-      if (user?.uid) {
-        const next = await resolveOnboardingResumeRoute(user.uid);
-        navigation.replace(next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main');
-        return;
+          const next = await resolveOnboardingResumeRoute(user.uid);
+          navigation.replace(
+            next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main',
+          );
+          return;
+        }
+        navigation.replace('LevelReveal');
+      } catch {
+        setNextLoading(false);
       }
-      navigation.replace('LevelReveal');
     })();
   };
 
@@ -101,6 +104,7 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
     <LumenResultView
       config={config}
       showBackButton={false}
+      nextLoading={nextLoading}
       onNext={handleNext}
     />
   );

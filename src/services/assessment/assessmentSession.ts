@@ -51,6 +51,11 @@ function readDocRefId(data: Record<string, unknown>, field: string): string | nu
   if (ref && typeof ref === 'object' && 'id' in ref && typeof (ref as DocumentReference).id === 'string') {
     return (ref as DocumentReference).id;
   }
+  if (typeof ref === 'string' && ref.trim()) {
+    const trimmed = ref.trim();
+    const segments = trimmed.split('/').filter(Boolean);
+    return segments[segments.length - 1] ?? trimmed;
+  }
   return null;
 }
 
@@ -268,11 +273,10 @@ export async function fetchInProgressOnboardingAssessment(
 }
 
 /** In-progress quarterly assessment for the current calendar quarter (created by cloud function). */
-export async function fetchInProgressQuarterlyAssessment(
-  uid: string,
+export function findInProgressQuarterlyAssessment(
+  assessments: KaleAssessment[],
   now = new Date(),
-): Promise<KaleAssessment | null> {
-  const { assessments } = await fetchAssessmentsForUser(uid);
+): KaleAssessment | null {
   const quarter = getCurrentKnowledgeQuarter(now);
   const year = now.getFullYear();
 
@@ -290,6 +294,14 @@ export async function fetchInProgressQuarterlyAssessment(
   }
 
   return null;
+}
+
+export async function fetchInProgressQuarterlyAssessment(
+  uid: string,
+  now = new Date(),
+): Promise<KaleAssessment | null> {
+  const { assessments } = await fetchAssessmentsForUser(uid);
+  return findInProgressQuarterlyAssessment(assessments, now);
 }
 
 async function isAssessmentReadyForReveal(assessment: KaleAssessment): Promise<boolean> {
@@ -391,14 +403,16 @@ async function readPillarLevel(
     if (!(await isStrengthCompleted(refId))) return null;
     const snap = await getDoc(doc(getFirebaseFirestore(), STRENGTH_COLLECTION, refId));
     const level = snap.data()?.level;
-    return typeof level === 'number' ? level : null;
+    if (typeof level === 'number' && level > 0) return level;
+    return 1;
   }
 
   if (pillar === 'knowledge') {
     if (!(await isKnowledgeCompleted(refId))) return null;
     const snap = await getDoc(doc(getFirebaseFirestore(), KNOWLEDGE_COLLECTION, refId));
     const level = snap.data()?.level;
-    return typeof level === 'number' ? level : null;
+    if (typeof level === 'number' && level > 0) return level;
+    return 1;
   }
 
   // `refId` is a top-level `cardios/{id}` doc — auto id for frozen results, or `{uid}` for live.
@@ -457,7 +471,10 @@ export async function resolveOnboardingPillarStep(
 
 /**
  * Create (or reuse) a per-assessment `cardios/{autoId}` before tracker connect/assess.
- * The website writes assessment results to this doc — never to `cardios/{uid}`.
+ * Schema matches website cardio docs (`user_ref`, not `user_id`).
+ *
+ * Firestore rules often block client creates on `cardios` — in that case we still
+ * reserve an auto-id for `/api/strava/assess` (Admin SDK) to create.
  */
 export async function ensureAssessmentCardioDoc(uid: string): Promise<string | null> {
   const flow = getActiveAssessmentFlow();
@@ -477,21 +494,39 @@ export async function ensureAssessmentCardioDoc(uid: string): Promise<string | n
 
   const db = getFirebaseFirestore();
   const cardioRef = doc(collection(db, CARDIOS_COLLECTION));
-  await setDoc(cardioRef, {
-    user_ref: userRef(uid),
-    ...(assessment ? { assessment_id: assessment.id } : {}),
-    assessmentStatus: 'pending',
-    is_completed: false,
-    created_at: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+
+  try {
+    await setDoc(cardioRef, {
+      user_ref: userRef(uid),
+      ...(assessment ? { assessment_id: assessment.id } : {}),
+      assessmentStatus: 'pending',
+      is_completed: false,
+      created_at: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    if (!isFirestorePermissionDenied(error)) throw error;
+    // Client write blocked — keep the reserved id; website assess creates the doc.
+    if (__DEV__) {
+      console.warn(
+        '[assessment] client cannot create cardio doc (rules) — reserving id for API',
+        cardioRef.id,
+      );
+    }
+  }
 
   if (assessment) {
-    await updateDoc(doc(db, ASSESSMENTS_COLLECTION, assessment.id), {
-      cardio_id: cardioRef,
-      updated_at: serverTimestamp(),
-    });
-    await rememberAssessmentId(uid, assessment.id);
+    try {
+      await updateDoc(doc(db, ASSESSMENTS_COLLECTION, assessment.id), {
+        cardio_id: cardioRef,
+        updated_at: serverTimestamp(),
+      });
+      await rememberAssessmentId(uid, assessment.id);
+    } catch (error) {
+      if (__DEV__) {
+        console.warn('[assessment] could not link cardio_id on assessment', assessment.id, error);
+      }
+    }
   }
 
   if (flow) {
@@ -506,7 +541,7 @@ export async function ensureAssessmentCardioDoc(uid: string): Promise<string | n
 
   if (__DEV__) {
     console.log(
-      '[assessment] created cardio doc',
+      '[assessment] prepared cardio doc',
       cardioRef.id,
       assessment ? `→ ${assessment.id}` : '(no assessment yet)',
     );
@@ -558,7 +593,16 @@ export async function linkStrengthToOnboardingAssessment(
   strengthId: string,
 ): Promise<void> {
   const assessment = await resolveAssessmentForLinking(uid);
-  if (!assessment || assessment.is_completed) return;
+  if (!assessment || assessment.is_completed) {
+    if (__DEV__) {
+      console.warn('[assessment] linkStrength skipped', {
+        strengthId,
+        hasAssessment: assessment != null,
+        is_completed: assessment?.is_completed ?? null,
+      });
+    }
+    return;
+  }
 
   try {
     await updateDoc(doc(getFirebaseFirestore(), ASSESSMENTS_COLLECTION, assessment.id), {
@@ -572,8 +616,14 @@ export async function linkStrengthToOnboardingAssessment(
   } catch (error) {
     if (__DEV__) {
       console.warn(
-        '[assessment] linkStrengthToOnboardingAssessment failed — deploy assessments update rule or use a Cloud Function',
-        error,
+        '[assessment] linkStrengthToOnboardingAssessment failed — publish assessments owner update rule',
+        {
+          assessmentId: assessment.id,
+          strengthId,
+          isOnboarding: assessment.isOnboarding,
+          is_completed: assessment.is_completed,
+          error,
+        },
       );
     }
   }
@@ -585,7 +635,16 @@ export async function linkKnowledgeToOnboardingAssessment(
   knowledgeId: string,
 ): Promise<void> {
   const assessment = await resolveAssessmentForLinking(uid);
-  if (!assessment || assessment.is_completed) return;
+  if (!assessment || assessment.is_completed) {
+    if (__DEV__) {
+      console.warn('[assessment] linkKnowledge skipped', {
+        knowledgeId,
+        hasAssessment: assessment != null,
+        is_completed: assessment?.is_completed ?? null,
+      });
+    }
+    return;
+  }
 
   try {
     await updateDoc(doc(getFirebaseFirestore(), ASSESSMENTS_COLLECTION, assessment.id), {
@@ -598,7 +657,13 @@ export async function linkKnowledgeToOnboardingAssessment(
     }
   } catch (error) {
     if (__DEV__) {
-      console.warn('[assessment] linkKnowledgeToOnboardingAssessment failed', error);
+      console.warn('[assessment] linkKnowledgeToOnboardingAssessment failed', {
+        assessmentId: assessment.id,
+        knowledgeId,
+        isOnboarding: assessment.isOnboarding,
+        is_completed: assessment.is_completed,
+        error,
+      });
     }
   }
 }
@@ -610,10 +675,19 @@ export async function finalizeActiveAssessmentIfReady(
   const assessment = await resolveAssessmentForFinalize(uid);
   if (!assessment || assessment.is_completed) return null;
 
+  // Do NOT backfill strength/knowledge from "latest" pillar docs here.
+  // That incorrectly reuses onboarding (or prior-cycle) results onto a new
+  // quarterly assessment when the user only opens Longevity. Pillar refs must
+  // be written only when the user completes that pillar in this attempt
+  // (linkStrength / linkKnowledge / linkCardio).
+
   // Assessment cardio must be a separate `cardios/{autoId}` doc, not `cardios/{uid}`.
-  const cardioDocId = await resolveAssessmentCardioDocId(uid);
-  if (cardioDocId) {
-    assessment.cardio_id = cardioDocId;
+  // Only use a cardio id already on this assessment (or active flow for this attempt).
+  if (!assessment.cardio_id) {
+    const flowCardioId = getActiveAssessmentFlow()?.cardioDocId;
+    if (flowCardioId && isFrozenCardioDocId(uid, flowCardioId)) {
+      assessment.cardio_id = flowCardioId;
+    }
   }
 
   const levels = await readPillarLevelsForAssessment(uid, assessment);
@@ -640,6 +714,10 @@ export async function finalizeActiveAssessmentIfReady(
     }
     await cacheAssessmentForUser(uid, assessment.id);
     await syncAthleteLevelToUser(uid, longevityLevel);
+
+    // Local level-reveal notification fires from LevelRevealScreen for both
+    // onboarding and quarterly (deduped per assessment).
+
     return {
       ...assessment,
       level: longevityLevel,

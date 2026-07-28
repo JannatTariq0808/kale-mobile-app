@@ -7,6 +7,7 @@ type LongevityLevelTrendChartProps = {
   labels: string[];
   maxLevel?: number;
   width?: number;
+  projectedFromIndex?: number;
 };
 
 export function LongevityLevelTrendChart({
@@ -14,6 +15,7 @@ export function LongevityLevelTrendChart({
   labels,
   maxLevel = 10,
   width = 304,
+  projectedFromIndex = -1,
 }: LongevityLevelTrendChartProps) {
   const H = 130;
   const padL = 10;
@@ -24,14 +26,31 @@ export function LongevityLevelTrendChart({
   const x = (i: number) => padL + (n === 1 ? 0 : (i / (n - 1)) * (width - padL - padR));
   const y = (v: number) => padT + (1 - v / maxLevel) * (H - padT - padB);
   const pts = levels.map((v, i) => [x(i), y(v)] as const);
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-  const area = `${line} L ${x(n - 1).toFixed(1)} ${H - padB} L ${x(0).toFixed(1)} ${H - padB} Z`;
+
+  const splitIndex =
+    projectedFromIndex >= 0 && projectedFromIndex < n - 1 ? projectedFromIndex : n - 1;
+  const solidPts = pts.slice(0, splitIndex + 1);
+  const projectedPts = pts.slice(splitIndex);
+
+  const solidLine = solidPts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
+  const projectedLine = projectedPts
+    .map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`)
+    .join(' ');
+  const area = `${solidLine} L ${x(splitIndex).toFixed(1)} ${H - padB} L ${x(0).toFixed(1)} ${H - padB} Z`;
+  const projectedArea =
+    projectedPts.length >= 2
+      ? `${projectedLine} L ${x(n - 1).toFixed(1)} ${H - padB} L ${x(splitIndex).toFixed(1)} ${H - padB} Z`
+      : '';
 
   return (
     <Svg width={width} height={H} viewBox={`0 0 ${width} ${H}`}>
       <Defs>
         <LinearGradient id="lumLvlGrad" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor={lumen.lime} stopOpacity="0.28" />
+          <Stop offset="1" stopColor={lumen.lime} stopOpacity="0" />
+        </LinearGradient>
+        <LinearGradient id="lumLvlProjGrad" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={lumen.lime} stopOpacity="0.16" />
           <Stop offset="1" stopColor={lumen.lime} stopOpacity="0" />
         </LinearGradient>
       </Defs>
@@ -47,26 +66,51 @@ export function LongevityLevelTrendChart({
         />
       ))}
       <Path d={area} fill="url(#lumLvlGrad)" />
-      <Path d={line} fill="none" stroke={lumen.lime} strokeWidth={2.5} strokeLinecap="round" />
+      {projectedArea ? <Path d={projectedArea} fill="url(#lumLvlProjGrad)" /> : null}
+      <Path d={solidLine} fill="none" stroke={lumen.lime} strokeWidth={2.5} strokeLinecap="round" />
+      {projectedPts.length >= 2 ? (
+        <Path
+          d={projectedLine}
+          fill="none"
+          stroke={lumen.lime}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeDasharray="6 5"
+          opacity={0.8}
+        />
+      ) : null}
       {pts.map((p, i) => {
-        const last = i === n - 1;
+        const isOnboarding = i === 0;
+        const isNow = projectedFromIndex >= 0 ? i === projectedFromIndex : i === n - 1;
+        const isProjected = projectedFromIndex >= 0 && i > projectedFromIndex;
+        const hollow = isOnboarding || isProjected;
+
         return (
           <Fragment key={`${labels[i]}-${i}`}>
-            {last ? <Circle cx={p[0]} cy={p[1]} r={9} fill="rgba(0,200,150,0.18)" /> : null}
+            {isNow ? <Circle cx={p[0]} cy={p[1]} r={9} fill="rgba(0,200,150,0.18)" /> : null}
             <Circle
               cx={p[0]}
               cy={p[1]}
-              r={last ? 5.5 : 3.5}
-              fill={last ? lumen.lime : lumen.bgDark}
+              r={isNow ? 5.5 : isProjected ? 5 : 4}
+              fill={hollow ? lumen.bgDark : lumen.lime}
               stroke={lumen.lime}
-              strokeWidth={last ? 0 : 2}
+              strokeWidth={hollow ? 2 : isNow ? 0 : 2}
+              strokeDasharray={isProjected ? '3 3' : undefined}
+              opacity={isProjected ? 0.85 : 1}
             />
-            {last ? (
+            {isNow ? (
               <SvgText x={p[0]} y={p[1] - 12} fill={lumen.lime} fontSize={15} fontWeight="700" textAnchor="middle">
                 {levels[i]}
               </SvgText>
             ) : null}
-            <SvgText x={p[0]} y={H - 6} fill={lumen.fgMuted} fontSize={10} fontWeight="600" textAnchor="middle">
+            <SvgText
+              x={p[0]}
+              y={H - 6}
+              fill={isProjected ? lumen.fgFaint : lumen.fgMuted}
+              fontSize={10}
+              fontWeight="600"
+              textAnchor="middle"
+            >
               {labels[i]}
             </SvgText>
           </Fragment>

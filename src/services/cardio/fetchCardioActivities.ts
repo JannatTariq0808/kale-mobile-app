@@ -13,6 +13,8 @@ import type { CardioPlatform } from './fetchCardioSummary';
 export type FetchCardioActivitiesOptions = {
   /** When provided, skips reading `cardios/{uid}` for platform lookup. */
   platform?: CardioPlatform | null;
+  /** `cardios/{id}` to read runs/rides from — defaults to live `cardios/{uid}`. */
+  cardioDocId?: string | null;
 };
 
 export type CardioActivityLogSummary = {
@@ -194,13 +196,13 @@ function mapIneligibleActivity(
 }
 
 async function fetchCollectionActivities(
-  uid: string,
+  cardioDocId: string,
   collectionName: string,
   mapRow: (data: Record<string, unknown>) => FitnessActivity | null,
 ): Promise<FitnessActivity[]> {
   try {
     const snap = await getDocs(
-      collection(getFirebaseFirestore(), 'cardios', uid, collectionName),
+      collection(getFirebaseFirestore(), 'cardios', cardioDocId, collectionName),
     );
     return snap.docs
       .map((activityDoc) => mapRow(activityDoc.data() as Record<string, unknown>))
@@ -241,13 +243,14 @@ export async function fetchCardioActivities(
   uid: string,
   options?: FetchCardioActivitiesOptions,
 ): Promise<CardioActivityLog> {
-  let platform: CardioPlatform | null = null;
+  // Runs/rides live under `cardios/{uid}`; assessment copies use auto-ids the rules block.
+  const activityDocId = uid;
+  let platform: CardioPlatform | null = options?.platform ?? null;
 
-  if (options) {
-    platform = options.platform ?? null;
-  } else {
+  if (platform == null) {
+    const lookupId = options?.cardioDocId ?? uid;
     try {
-      const cardioSnap = await getDoc(doc(getFirebaseFirestore(), 'cardios', uid));
+      const cardioSnap = await getDoc(doc(getFirebaseFirestore(), 'cardios', lookupId));
       if (cardioSnap.exists()) {
         platform = readPlatform(cardioSnap.data().platform);
       }
@@ -261,12 +264,12 @@ export async function fetchCardioActivities(
   const lookbackMonths = cardioLookbackMonths(platform);
 
   const [runs, rides, ineligibleRuns, ineligibleRides] = await Promise.all([
-    fetchCollectionActivities(uid, 'runs', mapEligibleRun),
-    fetchCollectionActivities(uid, 'cycling', mapEligibleRide),
-    fetchCollectionActivities(uid, 'runs_ineligible', (data) =>
+    fetchCollectionActivities(activityDocId, 'runs', mapEligibleRun),
+    fetchCollectionActivities(activityDocId, 'cycling', mapEligibleRide),
+    fetchCollectionActivities(activityDocId, 'runs_ineligible', (data) =>
       mapIneligibleActivity('run', data),
     ),
-    fetchCollectionActivities(uid, 'cycling_ineligible', (data) =>
+    fetchCollectionActivities(activityDocId, 'cycling_ineligible', (data) =>
       mapIneligibleActivity('ride', data),
     ),
   ]);

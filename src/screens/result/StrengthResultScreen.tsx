@@ -9,8 +9,11 @@ import type { RootStackParamList } from '../../navigation/types';
 import {
   fetchAssessmentsForUser,
   fetchPreviousPillarLevelFromAssessments,
+  finalizeActiveAssessmentIfReady,
 } from '../../services/assessment/assessmentSession';
-import { resolveOnboardingResumeRoute } from '../../services/onboarding/resolveOnboardingNavigation';
+import { resolveOnboardingResumeRoute, resolveResultNextButtonLabel } from '../../services/onboarding/resolveOnboardingNavigation';
+import { invalidateHomeLongevityData } from '../../hooks/useHomeLongevityData';
+import { invalidateFitnessPillarData } from '../../hooks/useFitnessPillarData';
 import { fetchStrengthAssessmentById } from '../../services/strength/strengthAssessmentSession';
 import { fetchDemographicsForAssess } from '../../services/user/fetchHealthProfile';
 import type { PlankAnalysisResult } from '../../types/plankRecording';
@@ -31,6 +34,7 @@ export function StrengthResultScreen({ navigation, route }: Props) {
   const { analysis: routeAnalysis, elapsed_time: routeElapsed, strengthAssessmentId } =
     route.params;
   const [config, setConfig] = useState<LumenResultConfig | null>(null);
+  const [nextLoading, setNextLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +79,10 @@ export function StrengthResultScreen({ navigation, route }: Props) {
             })
           : null;
 
+      const nextBtn = user?.uid
+        ? await resolveResultNextButtonLabel(user.uid, 'strength', strengthAssessmentId)
+        : 'Next — Knowledge';
+
       if (cancelled) return;
 
       setConfig(
@@ -83,6 +91,7 @@ export function StrengthResultScreen({ navigation, route }: Props) {
           analysis,
           profile,
           previousLevel,
+          nextBtn,
         }),
       );
     })();
@@ -101,13 +110,23 @@ export function StrengthResultScreen({ navigation, route }: Props) {
   }
 
   const handleNext = () => {
+    if (nextLoading) return;
     void (async () => {
-      if (user?.uid) {
-        const next = await resolveOnboardingResumeRoute(user.uid);
-        navigation.replace(next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main');
-        return;
+      setNextLoading(true);
+      try {
+        if (user?.uid) {
+          await finalizeActiveAssessmentIfReady(user.uid);
+          invalidateHomeLongevityData(user.uid);
+          invalidateFitnessPillarData(user.uid);
+
+          const next = await resolveOnboardingResumeRoute(user.uid);
+          navigation.replace(next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main');
+          return;
+        }
+        navigation.navigate('KnowledgeIntro');
+      } catch {
+        setNextLoading(false);
       }
-      navigation.navigate('KnowledgeIntro');
     })();
   };
 
@@ -115,6 +134,7 @@ export function StrengthResultScreen({ navigation, route }: Props) {
     <LumenResultView
       config={config}
       showBackButton={false}
+      nextLoading={nextLoading}
       onNext={handleNext}
     />
   );
