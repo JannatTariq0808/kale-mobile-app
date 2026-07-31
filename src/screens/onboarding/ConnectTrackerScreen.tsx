@@ -6,6 +6,7 @@ import { useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,7 @@ import {
 } from '../../services/tracker/connectIssueCopy';
 import { lumen, sora } from '../../theme';
 import { isQuarterlyAssessmentFlow, setActiveAssessmentFlow, getActiveAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
+import { assignLevel1Unverified } from '../../services/cardio/assignLevel1Unverified';
 import type { AssessStravaOptions } from '../../services/tracker/assess';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ConnectTracker'>;
@@ -72,6 +74,7 @@ export function ConnectTrackerScreen({ navigation }: Props) {
   const trackers = getTrackerOptions();
   const [connecting, setConnecting] = useState<ConnectionBrand | null>(null);
   const [connectIssue, setConnectIssue] = useState<ConnectIssueContent | null>(null);
+  const [assigningLevel1, setAssigningLevel1] = useState(false);
 
   useConnectTrackerFlow({
     setConnecting,
@@ -107,8 +110,25 @@ export function ConnectTrackerScreen({ navigation }: Props) {
   }, []);
 
   const handleContinueLevel1 = useCallback(() => {
-    navigation.replace('CardioResult');
-  }, [navigation]);
+    if (assigningLevel1 || connecting) return;
+    void (async () => {
+      setAssigningLevel1(true);
+      try {
+        const result = await assignLevel1Unverified();
+        if (!result.ok) {
+          Alert.alert('Could not continue', result.message);
+          return;
+        }
+        navigation.replace('CardioResult');
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Could not assign Level 1. Please try again.';
+        Alert.alert('Could not continue', message);
+      } finally {
+        setAssigningLevel1(false);
+      }
+    })();
+  }, [assigningLevel1, connecting, navigation]);
 
   const insets = useSafeAreaInsets();
 
@@ -173,6 +193,7 @@ export function ConnectTrackerScreen({ navigation }: Props) {
               headline={connectIssue.headline}
               message={connectIssue.message}
               showActivityRequirements={connectIssue.showActivityRequirements}
+              busy={assigningLevel1}
               onTryAgain={clearIssue}
               onContinueLevel1={handleContinueLevel1}
             />

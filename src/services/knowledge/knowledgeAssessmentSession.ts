@@ -304,11 +304,7 @@ export async function ensureKnowledgeAssessment(
     return inProgress.id;
   }
 
-  const latestForSet = await fetchKnowledgeAssessmentForSet(uid, normalizedSetId);
-  if (latestForSet?.is_completed) {
-    return null;
-  }
-
+  // Prior completed attempt for this set must not block a new cycle — create fresh.
   return createKnowledgeAssessment(uid, normalizedSetId);
 }
 

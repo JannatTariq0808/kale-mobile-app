@@ -115,10 +115,26 @@ export async function resolveResultNextButtonLabel(
 /**
  * Next screen after completing a pillar (onboarding or quarterly).
  * When all pillars are done → LevelReveal (then HealthYears → FirstCycleRewards → Main).
+ *
+ * Pass `justCompleted` + `pillarRefId` from result screens so a slow assessment
+ * `strength_id` / `knowledge_id` write cannot bounce the user back to that intro.
  */
 export async function resolveOnboardingResumeRoute(
   uid: string,
+  options?: {
+    justCompleted?: AssessmentPillar;
+    pillarRefId?: string | null;
+  },
 ): Promise<keyof RootStackParamList> {
+  if (options?.justCompleted) {
+    const step = await resolveNextStepAfterPillar(
+      uid,
+      options.justCompleted,
+      options.pillarRefId,
+    );
+    return onboardingPillarStepToRoute(step);
+  }
+
   const inProgressOnboarding = await fetchInProgressOnboardingAssessment(uid);
   if (inProgressOnboarding) {
     const step = await resolveOnboardingPillarStep(inProgressOnboarding);

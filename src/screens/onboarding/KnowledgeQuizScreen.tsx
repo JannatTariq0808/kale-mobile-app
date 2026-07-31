@@ -3,7 +3,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QuizAdvanceBar } from '../../components/lumen/QuizAdvanceBar';
 import { QuizQuestionTimer } from '../../components/lumen/QuizQuestionTimer';
@@ -151,7 +151,6 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
 
       setResponses(assessment.responses);
       responsesRef.current = assessment.responses;
-      setQuestionIndex(assessment.responses.length);
 
       if (assessment.is_completed && total > 0) {
         resetToKnowledgeAnalysing(navigation, {
@@ -160,7 +159,26 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
           totalQuestions: total,
           meta,
         });
+        return;
       }
+
+      // Responses already cover the quiz but is_completed lagged — finish instead of
+      // blank screen (questionIndex >= questions.length → return null / no taps).
+      if (total > 0 && assessment.responses.length >= total) {
+        resetToKnowledgeAnalysing(navigation, {
+          assessmentId: ensuredId,
+          setId,
+          totalQuestions: total,
+          meta,
+        });
+        return;
+      }
+
+      setQuestionIndex(Math.min(assessment.responses.length, Math.max(0, total - 1)));
+      setPhase('answering');
+      setSelectedIndex(null);
+      setWasCorrect(false);
+      setTimedOut(false);
     })();
 
     return () => {
@@ -258,7 +276,11 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
   };
 
   if (!question) {
-    return null;
+    return (
+      <View style={[styles.screen, styles.loading]}>
+        <ActivityIndicator color={lumen.lime} size="large" />
+      </View>
+    );
   }
 
   return (
@@ -352,6 +374,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   flex: {
     flex: 1,

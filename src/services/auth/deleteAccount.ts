@@ -1,6 +1,6 @@
 import { cloudFunctionUrl } from '../../config/cloudFunctions';
 import { isFirebaseConfigured } from '../../config/firebase';
-import { clearOnboardingComplete } from '../onboarding/onboardingState';
+import { clearOnboardingComplete, clearCardioResultSeen } from '../onboarding/onboardingState';
 import { getFirebaseAuth, loadAuthModule } from './firebaseApp';
 
 export type DeleteAccountResult =
@@ -116,6 +116,7 @@ export async function deleteCurrentUserAccount(options?: {
       /* Auth already deleted by Cloud Function */
     }
     await clearOnboardingComplete();
+    await clearCardioResultSeen();
 
     return { ok: true };
   } catch (error) {

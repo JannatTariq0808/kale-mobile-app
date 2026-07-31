@@ -1,7 +1,7 @@
 // Design: kale-website ConnectIssueView + KaleLumenApp3 activity/sync error states
 
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LumenButton } from './LumenButton';
 import { lumen, sora } from '../../theme';
 
@@ -12,6 +12,7 @@ export type ConnectIssuePanelProps = {
   headline: string;
   message: string;
   showActivityRequirements?: boolean;
+  busy?: boolean;
   onTryAgain: () => void;
   onContinueLevel1: () => void;
 };
@@ -20,6 +21,7 @@ export function ConnectIssuePanel({
   headline,
   message,
   showActivityRequirements = false,
+  busy = false,
   onTryAgain,
   onContinueLevel1,
 }: ConnectIssuePanelProps) {
@@ -53,18 +55,28 @@ export function ConnectIssuePanel({
       </View>
 
       <View style={styles.actions}>
-        <LumenButton onPress={onTryAgain}>Try connecting again</LumenButton>
+        <LumenButton onPress={busy ? undefined : onTryAgain}>Try connecting again</LumenButton>
 
         <Pressable
           onPress={onContinueLevel1}
-          style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+          disabled={busy}
+          style={({ pressed }) => [
+            styles.secondaryBtn,
+            (pressed || busy) && styles.pressed,
+          ]}
           accessibilityRole="button"
+          accessibilityState={{ busy }}
         >
-          <Text style={styles.secondaryLabel}>Continue as Longevity Level 1</Text>
+          {busy ? (
+            <ActivityIndicator color={lumen.lime} />
+          ) : (
+            <Text style={styles.secondaryLabel}>Continue as Longevity Level 1</Text>
+          )}
         </Pressable>
 
         <Pressable
           onPress={() => void Linking.openURL(CONTACT_URL)}
+          disabled={busy}
           style={({ pressed }) => [styles.linkBtn, pressed && styles.pressed]}
           accessibilityRole="link"
         >

@@ -26,8 +26,8 @@ export function Vo2MaxPanel({
       <View style={styles.wrap}>
         <LumenCard style={styles.emptyCard}>
           <Text style={[styles.emptyText, { fontSize: type(14) }]}>
-            Connect Garmin or complete your cardio assessment to see VO₂max estimates and how each
-            source contributes.
+            VO₂max isn’t available yet. Connect Garmin or Strava and sync activities to unlock
+            estimates — Level 1 baseline doesn’t include a VO₂max reading.
           </Text>
         </LumenCard>
         <FitnessFaqSection items={faqItems} loading={faqLoading} accentColor={lumenPillar.cardio} />

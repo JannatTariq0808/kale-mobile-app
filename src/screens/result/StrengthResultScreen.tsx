@@ -10,6 +10,7 @@ import {
   fetchAssessmentsForUser,
   fetchPreviousPillarLevelFromAssessments,
   finalizeActiveAssessmentIfReady,
+  linkStrengthToOnboardingAssessment,
 } from '../../services/assessment/assessmentSession';
 import { resolveOnboardingResumeRoute, resolveResultNextButtonLabel } from '../../services/onboarding/resolveOnboardingNavigation';
 import { invalidateHomeLongevityData } from '../../hooks/useHomeLongevityData';
@@ -115,11 +116,17 @@ export function StrengthResultScreen({ navigation, route }: Props) {
       setNextLoading(true);
       try {
         if (user?.uid) {
+          if (strengthAssessmentId) {
+            await linkStrengthToOnboardingAssessment(user.uid, strengthAssessmentId);
+          }
           await finalizeActiveAssessmentIfReady(user.uid);
           invalidateHomeLongevityData(user.uid);
           invalidateFitnessPillarData(user.uid);
 
-          const next = await resolveOnboardingResumeRoute(user.uid);
+          const next = await resolveOnboardingResumeRoute(user.uid, {
+            justCompleted: 'strength',
+            pillarRefId: strengthAssessmentId,
+          });
           navigation.replace(next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main');
           return;
         }

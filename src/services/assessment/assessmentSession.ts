@@ -17,6 +17,7 @@ import { allowMultipleAssessmentsPerQuarter } from '../../config/assessmentDev';
 import { getCurrentKnowledgeQuarter } from '../../utils/assessmentCycle';
 import {
   getActiveAssessmentFlow,
+  getActiveAssessmentFlowAsync,
   setActiveAssessmentFlow,
 } from './assessmentFlowSession';
 import { getFirebaseFirestore } from '../auth/firebaseApp';
@@ -313,23 +314,24 @@ async function isAssessmentReadyForReveal(assessment: KaleAssessment): Promise<b
  * Parent assessment doc to attach new pillar refs to.
  * Never returns a completed assessment or onboarding that already finished all pillars
  * (those must not be overwritten by a later quarterly attempt).
+ *
+ * Incomplete onboarding always wins over a stale quarterly flow — otherwise strength/
+ * knowledge can land on the wrong assessment while resume routing still sees onboarding
+ * and bounces the user back to StrengthIntro / KnowledgeIntro.
  */
 async function resolveAssessmentForLinking(uid: string): Promise<KaleAssessment | null> {
+  await getActiveAssessmentFlowAsync();
   const flow = getActiveAssessmentFlow();
+
+  const onboarding = await fetchInProgressOnboardingAssessment(uid);
+  if (onboarding && !onboarding.is_completed && !(await isAssessmentReadyForReveal(onboarding))) {
+    return onboarding;
+  }
 
   if (flow?.assessmentId) {
     const byFlow = await fetchAssessmentById(flow.assessmentId, uid);
-    if (byFlow && !byFlow.is_completed) return byFlow;
-  }
-
-  if (flow?.mode === 'quarterly') {
-    return fetchInProgressQuarterlyAssessment(uid);
-  }
-
-  const onboarding = await fetchInProgressOnboardingAssessment(uid);
-  if (onboarding && !onboarding.is_completed) {
-    if (!(await isAssessmentReadyForReveal(onboarding))) {
-      return onboarding;
+    if (byFlow && !byFlow.is_completed && !(await isAssessmentReadyForReveal(byFlow))) {
+      return byFlow;
     }
   }
 
@@ -338,20 +340,17 @@ async function resolveAssessmentForLinking(uid: string): Promise<KaleAssessment 
 
 /** Parent assessment to finalize (includes onboarding waiting on level reveal). */
 async function resolveAssessmentForFinalize(uid: string): Promise<KaleAssessment | null> {
+  await getActiveAssessmentFlowAsync();
   const flow = getActiveAssessmentFlow();
-
-  if (flow?.assessmentId) {
-    const byFlow = await fetchAssessmentById(flow.assessmentId, uid);
-    if (byFlow && !byFlow.is_completed) return byFlow;
-  }
-
-  if (flow?.mode === 'quarterly') {
-    return fetchInProgressQuarterlyAssessment(uid);
-  }
 
   const onboarding = await fetchInProgressOnboardingAssessment(uid);
   if (onboarding && !onboarding.is_completed) {
     return onboarding;
+  }
+
+  if (flow?.assessmentId) {
+    const byFlow = await fetchAssessmentById(flow.assessmentId, uid);
+    if (byFlow && !byFlow.is_completed) return byFlow;
   }
 
   return fetchInProgressQuarterlyAssessment(uid);

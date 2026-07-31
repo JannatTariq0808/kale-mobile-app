@@ -18,32 +18,20 @@ import { invalidateFitnessPillarData } from '../../hooks/useFitnessPillarData';
 import { fetchCardioSummary } from '../../services/cardio/fetchCardioSummary';
 import { fetchHealthProfileForAssess } from '../../services/user/fetchHealthProfile';
 import { clearFirstTimeLogin } from '../../services/user/userProfile';
-import { buildCardioResultConfig } from '../../utils/buildCardioResultConfig';
+import { markCardioResultSeen } from '../../services/onboarding/onboardingState';
+import {
+  buildBaselineCardioResultConfig,
+  buildCardioResultConfig,
+  isBaselineCardioSummary,
+} from '../../utils/buildCardioResultConfig';
 import { lumen } from '../../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CardioResult'>;
 
-const FALLBACK_CONFIG: LumenResultConfig = {
-  pillar: 'cardio',
-  pillarLabel: 'Cardio',
+const FALLBACK_CONFIG = buildBaselineCardioResultConfig({
   level: 1,
-  trend: 'none',
-  levelNote: 'We could not load your cardio assessment yet.',
-  percentile: 35,
-  rpText: 'Complete a qualifying run or ride to see your cohort ranking.',
-  resultHero: '—',
-  resultUnit: 'min/km',
-  resultLabel: '',
-  tiles: [
-    { label: 'Best run', value: '—', unit: 'km' },
-    { label: 'Avg HR', value: '—', unit: 'bpm' },
-  ],
-  nextLevel: 2,
-  nextActions: [],
-  levelUpMessage:
-    'Connect Strava or Garmin and sync a qualifying run or ride to see your level-up target.',
   nextBtn: 'Next — Strength',
-};
+});
 
 export function CardioResultScreen({ navigation }: Props) {
   const { user } = useAuthSession();
@@ -53,6 +41,7 @@ export function CardioResultScreen({ navigation }: Props) {
   useEffect(() => {
     if (!user?.uid) return;
     void clearFirstTimeLogin(user.uid);
+    void markCardioResultSeen(user.uid);
   }, [user?.uid]);
 
   useEffect(() => {
@@ -79,15 +68,23 @@ export function CardioResultScreen({ navigation }: Props) {
         activeAssessment ??
         assessments.find((item) => item.cardio_id && !item.is_completed) ??
         assessments.find((item) => item.cardio_id);
-      const previousLevel = await fetchPreviousPillarLevelFromAssessments(user.uid, 'cardio', {
-        assessmentId: currentAssessment?.id,
-      });
 
       const nextBtn = await resolveResultNextButtonLabel(
         user.uid,
         'cardio',
         currentAssessment?.cardio_id,
       );
+
+      if (cancelled) return;
+
+      if (isBaselineCardioSummary(summary)) {
+        setConfig(buildBaselineCardioResultConfig({ level: summary.level || 1, nextBtn }));
+        return;
+      }
+
+      const previousLevel = await fetchPreviousPillarLevelFromAssessments(user.uid, 'cardio', {
+        assessmentId: currentAssessment?.id,
+      });
 
       if (cancelled) return;
 
@@ -129,7 +126,9 @@ export function CardioResultScreen({ navigation }: Props) {
               invalidateHomeLongevityData(user.uid);
               invalidateFitnessPillarData(user.uid);
 
-              const next = await resolveOnboardingResumeRoute(user.uid);
+              const next = await resolveOnboardingResumeRoute(user.uid, {
+                justCompleted: 'cardio',
+              });
               navigation.replace(
                 next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main',
               );

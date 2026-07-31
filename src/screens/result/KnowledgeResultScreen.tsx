@@ -87,7 +87,10 @@ export function KnowledgeResultScreen({ navigation, route }: Props) {
           invalidateHomeLongevityData(user.uid);
           invalidateFitnessPillarData(user.uid);
 
-          const next = await resolveOnboardingResumeRoute(user.uid);
+          const next = await resolveOnboardingResumeRoute(user.uid, {
+            justCompleted: 'knowledge',
+            pillarRefId: assessmentId,
+          });
           navigation.replace(
             next as 'KnowledgeIntro' | 'StrengthIntro' | 'LevelReveal' | 'Main',
           );

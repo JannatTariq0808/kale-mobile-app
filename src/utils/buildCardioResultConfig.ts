@@ -33,6 +33,52 @@ type BuildCardioResultInput = {
   nextBtn?: string;
 };
 
+/** Website "Continue as Level 1" — no tracker activities / VO₂max. */
+export function isBaselineCardioSummary(summary: CardioSummary): boolean {
+  const noVo2 = summary.vo2max == null || summary.vo2max <= 0;
+  const noDistance = summary.distanceKm == null || summary.distanceKm <= 0;
+  const noPace = summary.paceMinPerKm == null || summary.paceMinPerKm <= 0;
+  const noRuns =
+    (summary.runLevel == null || summary.runLevel <= 0) &&
+    (summary.cycleLevel == null || summary.cycleLevel <= 0);
+  const unverifiedLike =
+    summary.levelSource == null &&
+    (summary.assessmentStatus === 'level_assigned' ||
+      summary.assessmentStatus === 'no_activities' ||
+      summary.assessmentStatus === 'no_eligible');
+
+  return summary.level > 0 && noVo2 && noDistance && noPace && (unverifiedLike || noRuns);
+}
+
+export function buildBaselineCardioResultConfig(options?: {
+  level?: number;
+  nextBtn?: string;
+}): LumenResultConfig {
+  const level = Math.max(1, Math.min(10, options?.level ?? 1));
+  return {
+    pillar: 'cardio',
+    pillarLabel: 'Cardio',
+    level,
+    trend: 'none',
+    levelNote: 'Baseline Level 1 — no tracker connected yet.',
+    percentile: null,
+    rpText:
+      'No cohort ranking yet. Connect Garmin or Strava later to unlock VO₂max, activity history, and a fitness-based level.',
+    resultHero: '—',
+    resultUnit: '',
+    resultLabel: 'No synced activities',
+    tiles: [
+      { label: 'VO₂max', value: '—', unit: '' },
+      { label: 'Activities', value: '0' },
+    ],
+    nextLevel: Math.min(10, level + 1),
+    nextActions: [],
+    levelUpMessage:
+      'Connect Strava or Garmin and sync a qualifying run or ride to improve your cardio level.',
+    nextBtn: options?.nextBtn ?? 'Next — Strength',
+  };
+}
+
 function resolveFtpPerKg(
   summary: CardioSummary,
   weightKg: number,
@@ -119,6 +165,10 @@ export function buildCardioResultConfig({
   previousLevel,
   nextBtn = 'Next — Strength',
 }: BuildCardioResultInput): LumenResultConfig {
+  if (isBaselineCardioSummary(summary)) {
+    return buildBaselineCardioResultConfig({ level: summary.level || 1, nextBtn });
+  }
+
   const dob = new Date(`${profile.date_of_birth}T00:00:00`);
   const age = calculateAge(dob);
   const ageBracket = formatAgeBracketLabel(resolveAgeGroup(age));

@@ -12,18 +12,36 @@ import type { UserProfile } from '../user/userProfile';
 import { fetchUserProfile } from '../user/userProfile';
 import {
   clearOnboardingComplete,
+  hasSeenCardioResult,
   isOnboardingCompleteForUser,
 } from './onboardingState';
 import { onboardingPillarStepToRoute } from './resolveOnboardingNavigation';
 
 type PostAuthRoute = keyof RootStackParamList;
 
-async function fetchCardioDocStatus(cardioDocId: string): Promise<string | null> {
+type CardioDocMeta = {
+  status: string | null;
+  level: number;
+  completed: boolean;
+};
+
+function isCardioReadyStatus(status: string | null): boolean {
+  return status === 'level_assigned' || status === 'no_eligible' || status === 'no_activities';
+}
+
+async function fetchCardioDocMeta(cardioDocId: string): Promise<CardioDocMeta | null> {
   try {
     const cardioSnap = await getDoc(doc(getFirebaseFirestore(), 'cardios', cardioDocId));
     if (!cardioSnap.exists()) return null;
-    const status = cardioSnap.data()?.assessmentStatus;
-    return typeof status === 'string' ? status : null;
+    const data = cardioSnap.data();
+    const status = typeof data?.assessmentStatus === 'string' ? data.assessmentStatus : null;
+    const level =
+      typeof data?.level === 'number' && Number.isFinite(data.level) ? data.level : 0;
+    return {
+      status,
+      level,
+      completed: data?.is_completed === true || isCardioReadyStatus(status) || level > 0,
+    };
   } catch (error) {
     if (__DEV__) {
       console.warn('[auth] resolvePostAuthRoute: cardios lookup failed', error);
@@ -33,7 +51,8 @@ async function fetchCardioDocStatus(cardioDocId: string): Promise<string | null>
 }
 
 async function fetchLiveCardioAssessmentStatus(uid: string): Promise<string | null> {
-  return fetchCardioDocStatus(uid);
+  const meta = await fetchCardioDocMeta(uid);
+  return meta?.status ?? null;
 }
 
 /** True when any cardio doc exists for this user (live uid doc or assessment-linked). */
@@ -63,6 +82,43 @@ async function hasAnyCardioDoc(
   return false;
 }
 
+/** Website Level 1 / Unverified or any finished cardio assess — ready for CardioResult. */
+async function isCardioAssessmentAssigned(
+  uid: string,
+  assessments: KaleAssessment[],
+): Promise<boolean> {
+  const live = await fetchCardioDocMeta(uid);
+  if (live && (isCardioReadyStatus(live.status) || live.level > 0 || live.completed)) {
+    return true;
+  }
+
+  for (const assessment of assessments) {
+    const cardioId = assessment.cardio_id;
+    if (!cardioId) continue;
+    const meta = await fetchCardioDocMeta(cardioId);
+    if (meta && (isCardioReadyStatus(meta.status) || meta.level > 0 || meta.completed)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Show CardioResult once for website Level 1 / finished assess before Strength.
+ * Skipped after the user has already viewed the reveal on this device.
+ */
+async function routeCardioResultIfNeeded(
+  uid: string,
+  assessments: KaleAssessment[],
+): Promise<PostAuthRoute | null> {
+  if (await hasSeenCardioResult(uid)) return null;
+  if (!(await isCardioAssessmentAssigned(uid, assessments))) return null;
+  if (__DEV__) {
+    console.log('[auth] cardio assigned, reveal not seen → CardioResult');
+  }
+  return 'CardioResult';
+}
+
 function pillarStepToRoute(
   step: Awaited<ReturnType<typeof resolveOnboardingPillarStep>>,
 ): PostAuthRoute {
@@ -73,7 +129,13 @@ function pillarStepToRoute(
  * No open onboarding assessment — use live cardio if website already assessed,
  * otherwise start tracker connect in-app.
  */
-async function routeFromCardioStatus(uid: string): Promise<PostAuthRoute> {
+async function routeFromCardioStatus(
+  uid: string,
+  assessments: KaleAssessment[],
+): Promise<PostAuthRoute> {
+  const reveal = await routeCardioResultIfNeeded(uid, assessments);
+  if (reveal) return reveal;
+
   const cardioStatus = await fetchLiveCardioAssessmentStatus(uid);
   if (cardioStatus === 'level_assigned') {
     return 'StrengthIntro';
@@ -82,23 +144,27 @@ async function routeFromCardioStatus(uid: string): Promise<PostAuthRoute> {
 }
 
 /**
- * First-login / post-delete: only show analysing when a cardio doc already exists
- * (website sync in flight or finished). Otherwise send them to ConnectTracker.
+ * First-login / post-delete: analysing only while assess is in flight.
+ * Finished Level 1 / level_assigned → CardioResult (once), else ConnectTracker.
  */
 async function routeForMissingOrFirstCardio(
   uid: string,
   assessments: KaleAssessment[],
 ): Promise<PostAuthRoute> {
-  if (await hasAnyCardioDoc(uid, assessments)) {
+  if (!(await hasAnyCardioDoc(uid, assessments))) {
     if (__DEV__) {
-      console.log('[auth] cardio doc present → CardioAnalysing');
+      console.log('[auth] no cardio/assessment → ConnectTracker');
     }
-    return 'CardioAnalysing';
+    return 'ConnectTracker';
   }
+
+  const reveal = await routeCardioResultIfNeeded(uid, assessments);
+  if (reveal) return reveal;
+
   if (__DEV__) {
-    console.log('[auth] no cardio/assessment → ConnectTracker');
+    console.log('[auth] cardio doc present → CardioAnalysing');
   }
-  return 'ConnectTracker';
+  return 'CardioAnalysing';
 }
 
 /**
@@ -108,8 +174,13 @@ async function routeForMissingOrFirstCardio(
 async function routeFromOnboardingAssessment(
   uid: string,
   assessment: KaleAssessment,
+  assessments: KaleAssessment[],
 ): Promise<PostAuthRoute> {
   await rememberAssessmentId(uid, assessment.id);
+
+  const reveal = await routeCardioResultIfNeeded(uid, assessments);
+  if (reveal) return reveal;
+
   const step = await resolveOnboardingPillarStep(assessment);
 
   if (step === 'reveal' || step === 'done') {
@@ -182,11 +253,11 @@ export async function resolvePostAuthRoute(
   }
 
   if (onboardingAssessment) {
-    return routeFromOnboardingAssessment(uid, onboardingAssessment);
+    return routeFromOnboardingAssessment(uid, onboardingAssessment, assessments);
   }
 
   if (onboardingWithAllRefs) {
-    return routeFromOnboardingAssessment(uid, onboardingWithAllRefs);
+    return routeFromOnboardingAssessment(uid, onboardingWithAllRefs, assessments);
   }
 
   if (permissionDenied) {
@@ -199,7 +270,7 @@ export async function resolvePostAuthRoute(
         !cached.is_completed ||
         (cached.cardio_id && cached.strength_id && cached.knowledge_id)
       ) {
-        return routeFromOnboardingAssessment(uid, cached);
+        return routeFromOnboardingAssessment(uid, cached, assessments);
       }
     }
 
@@ -216,5 +287,5 @@ export async function resolvePostAuthRoute(
     return routeForMissingOrFirstCardio(uid, assessments);
   }
 
-  return routeFromCardioStatus(uid);
+  return routeFromCardioStatus(uid, assessments);
 }

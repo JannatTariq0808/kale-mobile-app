@@ -37,7 +37,8 @@ export type LumenResultConfig = {
   trend: Trend;
   trendDelta?: number;
   levelNote: string;
-  percentile: number;
+  /** Omit / null when there is no real cohort ranking (e.g. Level 1 Unverified). */
+  percentile: number | null;
   rpText: string;
   resultHero: string;
   resultUnit?: string;
@@ -160,12 +161,18 @@ export const LumenResultView = memo(function LumenResultView({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionLabel}>Relative performance</Text>
-              <View style={styles.percentileRow}>
-                <Text style={displayTextStyle(30, lumen.lime)}>{config.percentile}</Text>
-                <Text style={styles.percentileSuffix}>{ordinal(config.percentile)}</Text>
-              </View>
+              {config.percentile != null ? (
+                <View style={styles.percentileRow}>
+                  <Text style={displayTextStyle(30, lumen.lime)}>{config.percentile}</Text>
+                  <Text style={styles.percentileSuffix}>{ordinal(config.percentile)}</Text>
+                </View>
+              ) : (
+                <Text style={styles.percentileUnavailable}>—</Text>
+              )}
             </View>
-            <LumenHistogram percentile={config.percentile} />
+            {config.percentile != null ? (
+              <LumenHistogram percentile={config.percentile} />
+            ) : null}
             <View style={styles.rpCaption}>
               <LumenRuleCaption align="left" color={lumen.green} maxWidth={330} size={16}>
                 {config.rpText}
@@ -407,6 +414,12 @@ const styles = StyleSheet.create({
   percentileRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
+  },
+  percentileUnavailable: {
+    ...sora('extrabold'),
+    fontSize: 28,
+    lineHeight: 32,
+    color: lumen.fgMuted,
   },
   percentileSuffix: {
     ...sora('semibold'),
