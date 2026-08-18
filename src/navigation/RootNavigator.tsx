@@ -24,6 +24,7 @@ import { CardioResultScreen } from '../screens/result/CardioResultScreen';
 import { StrengthResultScreen } from '../screens/result/StrengthResultScreen';
 import { lumen } from '../theme';
 import { rootStackScreenOptions } from './stackScreenOptions';
+import { framed } from './framedScreen';
 import { TabNavigator } from './TabNavigator';
 import type { RootStackParamList } from './types';
 
@@ -48,45 +49,45 @@ export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigat
         initialRouteName={initialRouteName}
         screenOptions={rootStackScreenOptions}
       >
-        <Stack.Screen name="Welcome" component={WelcomeScreen} />
-        <Stack.Screen name="SignIn" component={SignInScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="Welcome" component={framed(WelcomeScreen)} />
+        <Stack.Screen name="SignIn" component={framed(SignInScreen)} />
+        <Stack.Screen name="SignUp" component={framed(SignUpScreen)} />
+        <Stack.Screen name="ResetPassword" component={framed(ResetPasswordScreen)} />
         <Stack.Screen
           name="NewPassword"
-          component={NewPasswordScreen}
+          component={framed(NewPasswordScreen)}
           options={{ gestureEnabled: false }}
         />
-        <Stack.Screen name="ConnectTracker" component={ConnectTrackerScreen} />
+        <Stack.Screen name="ConnectTracker" component={framed(ConnectTrackerScreen)} />
         <Stack.Screen
           name="CardioAnalysing"
-          component={CardioAnalysingScreen}
+          component={framed(CardioAnalysingScreen)}
           options={{ gestureEnabled: false }}
         />
         <Stack.Screen
           name="CardioResult"
-          component={CardioResultScreen}
+          component={framed(CardioResultScreen)}
           options={{ gestureEnabled: false }}
         />
-        <Stack.Screen name="StrengthIntro" component={StrengthIntroScreen} />
+        <Stack.Screen name="StrengthIntro" component={framed(StrengthIntroScreen)} />
         <Stack.Screen
           name="StrengthRecord"
           component={StrengthRecordScreen}
           options={{ gestureEnabled: false, animation: 'fade' }}
         />
-        <Stack.Screen name="StrengthAnalysing" component={StrengthAnalysingScreen} options={{ gestureEnabled: false }} />
-        <Stack.Screen name="StrengthResult" component={StrengthResultScreen} />
-        <Stack.Screen name="KnowledgeIntro" component={KnowledgeIntroScreen} />
+        <Stack.Screen name="StrengthAnalysing" component={framed(StrengthAnalysingScreen)} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="StrengthResult" component={framed(StrengthResultScreen)} />
+        <Stack.Screen name="KnowledgeIntro" component={framed(KnowledgeIntroScreen)} />
         <Stack.Screen
           name="KnowledgeQuiz"
-          component={KnowledgeQuizScreen}
+          component={framed(KnowledgeQuizScreen)}
           options={{ gestureEnabled: false }}
         />
-        <Stack.Screen name="KnowledgeAnalysing" component={KnowledgeAnalysingScreen} options={{ gestureEnabled: false }} />
-        <Stack.Screen name="KnowledgeResult" component={KnowledgeResultScreen} />
-        <Stack.Screen name="LevelReveal" component={LevelRevealScreen} />
-        <Stack.Screen name="HealthYears" component={HealthYearsScreen} />
-        <Stack.Screen name="FirstCycleRewards" component={FirstCycleRewardsScreen} />
+        <Stack.Screen name="KnowledgeAnalysing" component={framed(KnowledgeAnalysingScreen)} options={{ gestureEnabled: false }} />
+        <Stack.Screen name="KnowledgeResult" component={framed(KnowledgeResultScreen)} />
+        <Stack.Screen name="LevelReveal" component={framed(LevelRevealScreen)} />
+        <Stack.Screen name="HealthYears" component={framed(HealthYearsScreen)} />
+        <Stack.Screen name="FirstCycleRewards" component={framed(FirstCycleRewardsScreen)} />
         <Stack.Screen
           name="Main"
           component={TabNavigator}
