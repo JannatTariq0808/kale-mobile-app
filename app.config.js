@@ -31,7 +31,8 @@ const iosInfoPlist = {
 };
 
 const iosConfig = {
-  supportsTablet: true,
+  /** iPhone-only. Apple reviews tablet-capable binaries on iPad. */
+  supportsTablet: false,
   bundleIdentifier: BUNDLE_ID,
   /** Required for native FCM on iOS — pairs with Firebase APNs keys. */
   googleServicesFile: './GoogleService-Info.plist',
