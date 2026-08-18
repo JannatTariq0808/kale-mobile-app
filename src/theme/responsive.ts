@@ -42,21 +42,20 @@ export function getLayoutMetrics(
   fullWindowWidth = usableWidth,
 ): LayoutMetrics {
   const pixelDensity = PixelRatio.get();
-  // Short edge so landscape phones are not treated as tablets.
-  const isTablet = Math.min(fullWindowWidth, windowHeight) >= 600;
-  // Phone: full width (unchanged). Tablet: phone-width column so layouts don't stretch.
-  const layoutWidth = isTablet ? Math.min(usableWidth, CONTENT_MAX_WIDTH) : usableWidth;
-  const widthScale = Math.min(Math.max(layoutWidth / DESIGN_WIDTH, 0.68), 1.12);
+  const widthScale = Math.min(Math.max(usableWidth / DESIGN_WIDTH, 0.68), 1.12);
   const fontDampen = Math.min(Math.max(fontScale, 1), 1.5);
   const uiScale = widthScale / fontDampen;
 
   const frameWidth = Math.min(fullWindowWidth, CONTENT_MAX_WIDTH);
-  const horizontalPadding = Math.max(20, Math.round(layoutWidth * 0.06));
-  const contentWidth = Math.max(0, layoutWidth - horizontalPadding * 2);
-  const isCompact = layoutWidth < 370;
-  const isNarrow = layoutWidth < 400;
+  const horizontalPadding = Math.max(20, Math.round(usableWidth * 0.06));
+  const contentWidth = Math.max(0, usableWidth - horizontalPadding * 2);
+  const isCompact = usableWidth < 370;
+  const isNarrow = usableWidth < 400;
   const isLargeText = fontScale > 1.05;
   const isTight = isCompact || isNarrow || isLargeText || contentWidth < 310;
+  // Use the short edge so landscape phones are not treated as tablets
+  // (which would letterbox the camera with green side gutters).
+  const isTablet = Math.min(fullWindowWidth, windowHeight) >= 600;
   const scale = (size: number) => Math.round(size * widthScale);
   const type = (size: number) => Math.max(9, Math.round(size * uiScale));
   const leading = (fontSize: number, ratio = 1.35) =>
@@ -69,7 +68,7 @@ export function getLayoutMetrics(
     windowHeight,
     fontScale,
     pixelDensity,
-    usableWidth: layoutWidth,
+    usableWidth,
     widthScale,
     frameWidth,
     horizontalPadding,

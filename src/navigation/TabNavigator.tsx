@@ -20,7 +20,6 @@ import { FitnessScreen } from '../screens/FitnessScreen';
 import { KalettesStackNavigator } from './KalettesStackNavigator';
 import { LongevityStackNavigator } from './LongevityStackNavigator';
 import { shouldHideTabBarForLongevityRoute } from './longevityTabBar';
-import { framed } from './framedScreen';
 import { SettingsStackNavigator } from './SettingsStackNavigator';
 
 export type TabParamList = {
@@ -188,7 +187,7 @@ export function TabNavigator() {
             };
           }}
         />
-        <Tab.Screen name="Fitness" component={framed(FitnessScreen)} />
+        <Tab.Screen name="Fitness" component={FitnessScreen} />
         <Tab.Screen name="Kalettes" component={KalettesStackNavigator} />
         <Tab.Screen name="Settings" component={SettingsStackNavigator} />
       </Tab.Navigator>

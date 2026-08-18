@@ -2,7 +2,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View } from 'react-native';
 import { SettingsProfileScreen } from '../screens/settings/SettingsProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { framed } from './framedScreen';
 import { kalettesStackScreenOptions } from './stackScreenOptions';
 
 export type SettingsStackParamList = {
@@ -16,8 +15,8 @@ export function SettingsStackNavigator() {
   return (
     <View style={styles.shell}>
       <Stack.Navigator screenOptions={kalettesStackScreenOptions}>
-        <Stack.Screen name="Main" component={framed(SettingsScreen)} />
-        <Stack.Screen name="Profile" component={framed(SettingsProfileScreen)} />
+        <Stack.Screen name="Main" component={SettingsScreen} />
+        <Stack.Screen name="Profile" component={SettingsProfileScreen} />
       </Stack.Navigator>
     </View>
   );

@@ -5,7 +5,6 @@ import { RunningYearsEmptyScreen } from '../screens/runningYears/RunningYearsEmp
 import { RunningYearsGoalScreen } from '../screens/runningYears/RunningYearsGoalScreen';
 import { RunningYearsIntroScreen } from '../screens/runningYears/RunningYearsIntroScreen';
 import { RunningYearsMainScreen } from '../screens/runningYears/RunningYearsMainScreen';
-import { framed } from './framedScreen';
 import { kalettesStackScreenOptions } from './stackScreenOptions';
 
 export type LongevityStackParamList = {
@@ -22,11 +21,11 @@ export function LongevityStackNavigator() {
   return (
     <View style={styles.shell}>
       <Stack.Navigator screenOptions={kalettesStackScreenOptions}>
-        <Stack.Screen name="Home" component={framed(LongevityScreen)} />
-        <Stack.Screen name="RunningYearsIntro" component={framed(RunningYearsIntroScreen)} />
-        <Stack.Screen name="RunningYearsGoal" component={framed(RunningYearsGoalScreen)} />
-        <Stack.Screen name="RunningYearsMain" component={framed(RunningYearsMainScreen)} />
-        <Stack.Screen name="RunningYearsEmpty" component={framed(RunningYearsEmptyScreen)} />
+        <Stack.Screen name="Home" component={LongevityScreen} />
+        <Stack.Screen name="RunningYearsIntro" component={RunningYearsIntroScreen} />
+        <Stack.Screen name="RunningYearsGoal" component={RunningYearsGoalScreen} />
+        <Stack.Screen name="RunningYearsMain" component={RunningYearsMainScreen} />
+        <Stack.Screen name="RunningYearsEmpty" component={RunningYearsEmptyScreen} />
       </Stack.Navigator>
     </View>
   );

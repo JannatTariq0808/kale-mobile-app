@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import { defaultAppOrientationLock } from '../utils/appOrientationLock';
 
 export type StrengthCaptureOrientation = 'portrait' | 'landscape';
 
@@ -66,7 +65,7 @@ async function forcePortraitLock(): Promise<void> {
   if (AppState.currentState !== 'active') return;
 
   await ScreenOrientation.unlockAsync();
-  await ScreenOrientation.lockAsync(defaultAppOrientationLock());
+  await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
 }
 
 async function runOrientation(

@@ -2,7 +2,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View } from 'react-native';
 import { KalettesBalanceScreen } from '../screens/kalettes/KalettesBalanceScreen';
 import { KalettesMarketplaceScreen } from '../screens/kalettes/KalettesMarketplaceScreen';
-import { framed } from './framedScreen';
 import { kalettesStackScreenOptions } from './stackScreenOptions';
 
 export type KalettesStackParamList = {
@@ -18,8 +17,8 @@ export function KalettesStackNavigator() {
   return (
     <View style={styles.shell}>
       <Stack.Navigator screenOptions={kalettesStackScreenOptions}>
-        <Stack.Screen name="Balance" component={framed(KalettesBalanceScreen)} />
-        <Stack.Screen name="Marketplace" component={framed(KalettesMarketplaceScreen)} />
+        <Stack.Screen name="Balance" component={KalettesBalanceScreen} />
+        <Stack.Screen name="Marketplace" component={KalettesMarketplaceScreen} />
       </Stack.Navigator>
     </View>
   );

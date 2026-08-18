@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
-import { CONTENT_MAX_WIDTH } from '../../theme/responsive';
+import { lumen } from '../../theme';
 
 type Props = {
   children: ReactNode;
@@ -23,15 +23,18 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: lumen.bgDeep,
   },
   inner: {
     flex: 1,
     width: '100%',
     maxWidth: '100%',
+    overflow: 'hidden',
   },
   tabletInner: {
-    width: CONTENT_MAX_WIDTH,
-    maxWidth: '100%',
+    maxWidth: 480,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: lumen.hairline,
   },
 });

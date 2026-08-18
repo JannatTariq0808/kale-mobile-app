@@ -17,12 +17,12 @@ import { useSoraFonts } from './src/hooks/useSoraFonts';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 import { AUTH_LINK_PREFIXES } from './src/navigation/linking';
+import { ResponsiveAppFrame } from './src/components/layout/ResponsiveAppFrame';
 import { SplashView } from './src/components/lumen/SplashView';
 import { BackdropAnimatedContext } from './src/navigation/backdropContext';
 import { welcomeSurfaceReady } from './src/navigation/welcomeSurface';
 import { lumen, navigationFonts } from './src/theme';
 import { applySoraFontGlobally } from './src/utils/applySoraFont';
-import { defaultAppOrientationLock } from './src/utils/appOrientationLock';
 import { hideAndroidSystemNav } from './src/utils/hideAndroidSystemNav';
 import { useGlobalTrackerDeepLink } from './src/hooks/useGlobalTrackerDeepLink';
 import { useInitialAuthRoute } from './src/hooks/useInitialAuthRoute';
@@ -113,7 +113,7 @@ export default function App() {
   }, [fontsReady]);
 
   useEffect(() => {
-    void ScreenOrientation.lockAsync(defaultAppOrientationLock()).catch(
+    void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(
       (error) => {
         if (__DEV__) {
           console.warn('[app] could not lock portrait orientation', error);
@@ -178,10 +178,12 @@ export default function App() {
           }}
         >
           <BackdropAnimatedContext.Provider value={backdropAnimated && appActive}>
-            <RootNavigator
-              isAuthenticated={isAuthenticated}
-              initialAuthRoute={initialAuthRoute}
-            />
+            <ResponsiveAppFrame>
+              <RootNavigator
+                isAuthenticated={isAuthenticated}
+                initialAuthRoute={initialAuthRoute}
+              />
+            </ResponsiveAppFrame>
           </BackdropAnimatedContext.Provider>
           <StatusBar style="light" backgroundColor={lumen.bgDeep} />
         </NavigationContainer>
