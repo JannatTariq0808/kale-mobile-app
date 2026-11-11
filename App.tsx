@@ -7,7 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, InteractionManager, Platform, StyleSheet, View } from 'react-native';
+import { AppState, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useAuthDeepLink } from './src/hooks/useAuthDeepLink';
@@ -34,7 +34,7 @@ const styles = StyleSheet.create({
     backgroundColor: lumen.bgDeep,
   },
   splashOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 10,
   },
 });
@@ -60,13 +60,14 @@ export default function App() {
   const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
   const [backdropAnimated, setBackdropAnimated] = useState(false);
   const [appActive, setAppActive] = useState(() => AppState.currentState === 'active');
-  const backdropTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(
-    null,
-  );
+  // RN 0.87 removed InteractionManager; requestIdleCallback is its documented replacement.
+  const backdropTaskRef = useRef<number | null>(null);
 
   const handleNavigationStateChange = useCallback((state: NavigationState | undefined) => {
-    backdropTaskRef.current?.cancel();
-    backdropTaskRef.current = null;
+    if (backdropTaskRef.current != null) {
+      cancelIdleCallback(backdropTaskRef.current);
+      backdropTaskRef.current = null;
+    }
 
     if (!isBackdropAnimated(state)) {
       setBackdropAnimated(false);
@@ -80,7 +81,8 @@ export default function App() {
 
     // Static backdrop first — morphing animation starts after first Welcome mount.
     setBackdropAnimated(false);
-    backdropTaskRef.current = InteractionManager.runAfterInteractions(() => {
+    backdropTaskRef.current = requestIdleCallback(() => {
+      backdropTaskRef.current = null;
       setBackdropAnimated(true);
     });
   }, []);
@@ -183,7 +185,7 @@ export default function App() {
               initialAuthRoute={initialAuthRoute}
             />
           </BackdropAnimatedContext.Provider>
-          <StatusBar style="light" backgroundColor={lumen.bgDeep} />
+          <StatusBar style="light" />
         </NavigationContainer>
         ) : null}
         {!appReady ? (

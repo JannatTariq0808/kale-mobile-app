@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(234,243,228,0.04)',
   },
   imageSlot: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(234,243,228,0.06)',
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   remoteImage: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   tag: {
     position: 'absolute',

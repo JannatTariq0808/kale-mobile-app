@@ -1,5 +1,11 @@
 import React from 'react';
-import { StyleSheet, Text, TextInput, type StyleProp, type TextStyle } from 'react-native';
+import {
+  StyleSheet,
+  type StyleProp,
+  type TextInputProps,
+  type TextProps,
+  type TextStyle,
+} from 'react-native';
 import {
   SORA_FAMILIES,
   fontFamilyForWeight,
@@ -26,25 +32,74 @@ function withSoraFont(style: StyleProp<TextStyle>): StyleProp<TextStyle> {
   return { fontFamily: fontFamilyForWeight(weight), ...rest };
 }
 
-/** Ensures every Text/TextInput uses Sora — strips fontWeight that breaks custom fonts */
+type ReactNativeExports = Record<string, unknown>;
+
+/**
+ * Replaces an export on the `react-native` module object with a wrapper component.
+ *
+ * `react-native/index.js` exposes every component through a configurable getter, and
+ * `import { Text } from 'react-native'` compiles to a live property read, so redefining the
+ * getter makes every later render (app code and libraries alike) use the wrapper.
+ */
+function replaceExport(
+  rn: ReactNativeExports,
+  name: 'Text' | 'TextInput',
+  replacement: React.ComponentType<never>,
+): boolean {
+  try {
+    Object.defineProperty(rn, name, {
+      configurable: true,
+      enumerable: true,
+      get: () => replacement,
+    });
+    return rn[name] === replacement;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensures every Text/TextInput uses Sora — strips fontWeight that breaks custom fonts.
+ *
+ * React Native 0.87+ ships Text/TextInput as plain function components (no `.render` to
+ * monkey-patch), so we swap the module exports for thin wrappers instead. React 19 passes
+ * `ref` as a normal prop, so spreading props forwards refs unchanged.
+ */
 export function applySoraFontGlobally() {
   if (applied) return;
   applied = true;
 
-  const textRender = Text.render;
-  Text.render = function render(...args) {
-    const origin = textRender.call(this, ...args);
-    return React.cloneElement(origin, {
-      maxFontSizeMultiplier: origin.props.maxFontSizeMultiplier ?? 1,
-      style: withSoraFont(origin.props.style),
-    });
-  };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const rn = require('react-native') as ReactNativeExports;
+  const OriginalText = rn.Text as React.ComponentType<TextProps>;
+  const OriginalTextInput = rn.TextInput as React.ComponentType<TextInputProps>;
 
-  const textInputRender = TextInput.render;
-  TextInput.render = function render(...args) {
-    const origin = textInputRender.call(this, ...args);
-    return React.cloneElement(origin, {
-      style: withSoraFont(origin.props.style),
+  function SoraText(props: TextProps) {
+    return React.createElement(OriginalText, {
+      ...props,
+      maxFontSizeMultiplier: props.maxFontSizeMultiplier ?? 1,
+      style: withSoraFont(props.style),
     });
-  };
+  }
+  SoraText.displayName = 'Text';
+
+  function SoraTextInput(props: TextInputProps) {
+    return React.createElement(OriginalTextInput, {
+      ...props,
+      style: withSoraFont(props.style),
+    });
+  }
+  // Keep statics such as `TextInput.State` reachable through the wrapper.
+  Object.assign(SoraTextInput, OriginalTextInput);
+  SoraTextInput.displayName = 'TextInput';
+
+  const textOk = replaceExport(rn, 'Text', SoraText as React.ComponentType<never>);
+  const inputOk = replaceExport(rn, 'TextInput', SoraTextInput as React.ComponentType<never>);
+
+  if (__DEV__ && (!textOk || !inputOk)) {
+    console.warn('[fonts] could not install the global Sora Text/TextInput wrappers', {
+      textOk,
+      inputOk,
+    });
+  }
 }

@@ -51,10 +51,10 @@ function BackdropDefs() {
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: lumen.bgDeep,
   },
-  svg: StyleSheet.absoluteFillObject,
+  svg: StyleSheet.absoluteFill,
 });
 
 function BackdropSvg({ animated }: { animated: boolean }) {

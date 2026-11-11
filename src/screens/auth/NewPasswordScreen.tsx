@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +32,7 @@ function isValidPassword(value: string) {
 
 export function NewPasswordScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const confirmRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInputInstance>(null);
   const { oobCode } = route.params;
 
   const [password, setPassword] = useState('');

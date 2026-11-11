@@ -4,8 +4,8 @@ Kale longevity & fitness app — **Expo**, **React Native**, and **TypeScript**.
 
 ## Stack
 
-- Expo SDK 54
-- React Native 0.81
+- Expo SDK 58
+- React Native 0.88
 - React Navigation (native stack + bottom tabs)
 - Sora font (`@expo-google-fonts/sora`)
 - React Native Reanimated + SVG

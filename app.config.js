@@ -116,10 +116,11 @@ module.exports = ({ config }) => ({
     [
       'expo-navigation-bar',
       {
-        visibility: 'hidden',
-        barStyle: 'dark',
+        hidden: true,
+        style: 'dark',
       },
     ],
+    'expo-status-bar',
     [
       'expo-image-picker',
       {
@@ -157,7 +158,7 @@ module.exports = ({ config }) => ({
       'expo-build-properties',
       {
         ios: {
-          // Required by @react-native-firebase (firebase-ios-sdk) on Expo 54.
+          // Required by @react-native-firebase v26 (firebase-ios-sdk via CocoaPods).
           useFrameworks: 'static',
           forceStaticLinking: ['RNFBApp', 'RNFBMessaging'],
         },

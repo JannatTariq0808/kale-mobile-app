@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -47,7 +48,7 @@ function isValidPassword(value: string) {
 export function SignInScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { horizontalPadding } = useResponsiveLayout();
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);

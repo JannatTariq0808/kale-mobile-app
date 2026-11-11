@@ -6,7 +6,11 @@ import { lumen, sora } from '../../theme';
 
 const GARMIN_DEVICE_LOGO = require('../../../assets/garmin_device_logo.png');
 const LOGO_SOURCE = Image.resolveAssetSource(GARMIN_DEVICE_LOGO);
-const LOGO_ASPECT = LOGO_SOURCE.width / LOGO_SOURCE.height;
+/** Falls back to the PNG's intrinsic ratio if the asset cannot be resolved. */
+const LOGO_ASPECT =
+  LOGO_SOURCE?.width && LOGO_SOURCE?.height
+    ? LOGO_SOURCE.width / LOGO_SOURCE.height
+    : 259 / 92;
 
 type GarminDeviceTagProps = {
   device: string;

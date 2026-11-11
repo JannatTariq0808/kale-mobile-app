@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   center: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',

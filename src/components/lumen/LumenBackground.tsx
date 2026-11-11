@@ -16,10 +16,10 @@ const CURVE = `M0,${B} C 150,${B} 250,${PEAK + 40} ${W},${PEAK}`;
 /** Teal base + curved green header zone (top-left only). Render once at tab shell level. */
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: lumen.bgDeep,
   },
-  svg: StyleSheet.absoluteFillObject,
+  svg: StyleSheet.absoluteFill,
 });
 
 export const LumenBackground = memo(function LumenBackground() {

@@ -8,7 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  type TextInput,
+  type TextInputInstance,
   View,
 } from 'react-native';
 import { ScreenScroll } from '../../components/layout/ScreenScroll';
@@ -30,7 +30,7 @@ type Props = NativeStackScreenProps<SettingsStackParamList, 'Profile'>;
 export function SettingsProfileScreen({ navigation }: Props) {
   const { user } = useAuthSession();
   const settings = useSettingsData();
-  const weightRef = useRef<TextInput>(null);
+  const weightRef = useRef<TextInputInstance>(null);
 
   const [name, setName] = useState('');
   const [weight, setWeight] = useState('');

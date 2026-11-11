@@ -22,13 +22,13 @@ export function usePushNotifications(uid: string | undefined) {
 
     void (async () => {
       try {
-        const messagingModule = await import('@react-native-firebase/messaging');
+        // React Native Firebase v26+ ships only the modular API (no `messaging()` default export).
+        const { getMessaging, onMessage } = await import('@react-native-firebase/messaging');
         const Notifications = await import('expo-notifications');
-        const messaging = messagingModule.default;
 
         if (cancelled) return;
 
-        unsubscribe = messaging().onMessage(async (remoteMessage) => {
+        unsubscribe = onMessage(getMessaging(), async (remoteMessage) => {
           const title =
             remoteMessage.notification?.title ??
             remoteMessage.data?.title ??

@@ -8,19 +8,26 @@ export function isApnsDeviceToken(token: string): boolean {
 
 async function getTokenFromReactNativeFirebase(): Promise<string | null> {
   try {
-    const messagingModule = await import('@react-native-firebase/messaging');
-    const messaging = messagingModule.default;
+    // React Native Firebase v26+ ships only the modular API (no `messaging()` default export).
+    const {
+      AuthorizationStatus,
+      getMessaging,
+      getToken,
+      registerDeviceForRemoteMessages,
+      requestPermission,
+    } = await import('@react-native-firebase/messaging');
+    const messaging = getMessaging();
 
     if (Platform.OS === 'ios') {
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messaging);
       const enabled =
-        authStatus === messagingModule.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messagingModule.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
       if (!enabled) return null;
-      await messaging().registerDeviceForRemoteMessages();
+      await registerDeviceForRemoteMessages(messaging);
     }
 
-    const token = await messaging().getToken();
+    const token = await getToken(messaging);
     const trimmed = token?.trim() || null;
     if (trimmed && isApnsDeviceToken(trimmed)) return null;
     return trimmed;

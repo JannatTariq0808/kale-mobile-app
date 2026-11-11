@@ -8,6 +8,7 @@ import {
   Text,
   TextInput,
   View,
+  type TextInputInstance,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -94,7 +95,7 @@ function FieldStatusIcon({ status }: { status: FieldStatus }) {
   return null;
 }
 
-export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenField(
+export const LumenField = forwardRef<TextInputInstance, LumenFieldProps>(function LumenField(
   {
     label,
     value = '',
@@ -113,7 +114,7 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
   },
   forwardedRef,
 ) {
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [text, setText] = useState(value);
   const [focused, setFocused] = useState(false);
   const [reveal, setReveal] = useState(false);
@@ -122,7 +123,7 @@ export const LumenField = forwardRef<TextInput, LumenFieldProps>(function LumenF
     setText(value);
   }, [value]);
 
-  useImperativeHandle(forwardedRef, () => inputRef.current as TextInput);
+  useImperativeHandle(forwardedRef, () => inputRef.current as TextInputInstance);
 
   const handleChange = (next: string) => {
     setText(next);

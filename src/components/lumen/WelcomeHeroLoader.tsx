@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   glyphWrap: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

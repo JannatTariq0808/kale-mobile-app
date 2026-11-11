@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Text,
   View,
-  type TextInput,
+  type TextInputInstance,
 } from 'react-native';
 import type { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -119,12 +119,12 @@ const progressStyles = StyleSheet.create({
 export function SignUpScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<KeyboardAwareScrollView>(null);
-  const nameRef = useRef<TextInput>(null);
-  const monthRef = useRef<TextInput>(null);
-  const yearRef = useRef<TextInput>(null);
-  const weightRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputInstance>(null);
+  const monthRef = useRef<TextInputInstance>(null);
+  const yearRef = useRef<TextInputInstance>(null);
+  const weightRef = useRef<TextInputInstance>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
+  const confirmRef = useRef<TextInputInstance>(null);
 
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState('');

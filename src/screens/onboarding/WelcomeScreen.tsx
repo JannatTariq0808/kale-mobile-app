@@ -3,7 +3,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
-import { InteractionManager, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
@@ -92,12 +92,13 @@ export function WelcomeScreen({ navigation }: Props) {
       return;
     }
 
-    const task = InteractionManager.runAfterInteractions(() => {
+    // RN 0.87 removed InteractionManager; requestIdleCallback is its documented replacement.
+    const task = requestIdleCallback(() => {
       markWelcomeSurfaceReady();
       setHeroReady(true);
     });
 
-    return () => task.cancel();
+    return () => cancelIdleCallback(task);
   }, []);
 
   useFocusEffect(
