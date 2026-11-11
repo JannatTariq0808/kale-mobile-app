@@ -1,6 +1,6 @@
 // Inspired by kale-mobile-design — ForestConnect / settings connection rows
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRoute } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';

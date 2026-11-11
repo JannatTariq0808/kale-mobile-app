@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { StyleSheet, View } from 'react-native';
 import { lumen } from '../../theme';
 

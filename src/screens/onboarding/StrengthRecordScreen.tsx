@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — live plank capture (extends lum-03 strength flow)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { useKeepAwake } from 'expo-keep-awake';

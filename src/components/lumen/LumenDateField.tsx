@@ -1,5 +1,5 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { lumen, sora } from '../../theme';

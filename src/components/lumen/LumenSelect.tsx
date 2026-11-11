@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — kale-input select (screens/Auth.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { lumen, sora } from '../../theme';

@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — reset flow (KaleLumen.jsx + Auth.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import {

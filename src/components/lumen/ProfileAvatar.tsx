@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — LumHeader profile (screens/KaleLumenApp.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { profileInitials } from '../../utils/profileInitials';
 import { lumen, sora } from '../../theme';

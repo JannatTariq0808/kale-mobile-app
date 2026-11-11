@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../components/icons/Ionicons';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { useAssessmentCycle } from '../hooks/useAssessmentCycle';

@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — lum-11 KaleEarningsPreviewLumen (screens/KaleLumenOnboarding2.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

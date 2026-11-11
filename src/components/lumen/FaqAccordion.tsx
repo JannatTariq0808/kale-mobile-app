@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — KAFaq (screens/KaleApp.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';

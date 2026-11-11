@@ -15,6 +15,11 @@ import {
 
 let applied = false;
 
+/** @expo/vector-icons alias → the font file's own family name. */
+const ICON_FONT_FAMILIES: Record<string, string> = {
+  ionicons: 'Ionicons',
+};
+
 function withSoraFont(style: StyleProp<TextStyle>): StyleProp<TextStyle> {
   const flat = StyleSheet.flatten(style);
 
@@ -24,8 +29,16 @@ function withSoraFont(style: StyleProp<TextStyle>): StyleProp<TextStyle> {
 
   const { fontWeight, fontFamily, ...rest } = flat;
 
+  // Already Sora: keep the family, drop fontWeight (RN ignores a custom family when it is set).
   if (fontFamily && SORA_FAMILIES.has(fontFamily)) {
-    return rest;
+    return { ...rest, fontFamily };
+  }
+
+  // Another explicit family (icon fonts, monospace): leave it alone, apart from mapping
+  // @expo/vector-icons' lowercase aliases to the real family name iOS resolves (see fonts.ts).
+  if (fontFamily) {
+    const iconFamily = ICON_FONT_FAMILIES[fontFamily];
+    return iconFamily ? { ...flat, fontFamily: iconFamily } : flat;
   }
 
   const weight = String(fontWeight ?? '400') as FontWeightKey;

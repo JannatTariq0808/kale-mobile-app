@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import type { ComponentProps } from 'react';
 import type { RunningYearsGoalPreset } from '../../types/runningYearsGoalPreset';
 import { DraggableAgeSlider } from './DraggableAgeSlider';

@@ -1,9 +1,14 @@
 /** Sora — kale-tokens.css --font-sans */
+/**
+ * Keys are the fonts' own PostScript names, and useSoraFonts registers each file under the
+ * same key. Expo Go 58 (React Native 0.88) resolves runtime-loaded fonts on iOS by their real
+ * name only, so alias names such as "Sora_700Bold" render in the system font there.
+ */
 export const fonts = {
-  regular: 'Sora_400Regular',
-  semibold: 'Sora_600SemiBold',
-  bold: 'Sora_700Bold',
-  extrabold: 'Sora_800ExtraBold',
+  regular: 'Sora-Regular',
+  semibold: 'Sora-SemiBold',
+  bold: 'Sora-Bold',
+  extrabold: 'Sora-ExtraBold',
 } as const;
 
 export type FontWeightKey = '400' | '600' | '700' | '800';

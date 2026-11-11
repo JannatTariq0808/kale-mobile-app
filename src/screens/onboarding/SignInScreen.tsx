@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — lum-01b KaleSignInLumen (screens/KaleLumen.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useRef, useState } from 'react';

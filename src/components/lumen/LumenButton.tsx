@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — LumenButton (screens/KaleLumen.jsx, --lumen-btn #00C896)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { Platform, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { lumen, sora } from '../../theme';
 

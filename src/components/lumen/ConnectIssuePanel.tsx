@@ -1,6 +1,6 @@
 // Design: kale-website ConnectIssueView + KaleLumenApp3 activity/sync error states
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../icons/Ionicons';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LumenButton } from './LumenButton';
 import { lumen, sora } from '../../theme';

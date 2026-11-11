@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — lum-07 KaleQuizQuestionLumen (screens/KaleLumenOnboarding.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';

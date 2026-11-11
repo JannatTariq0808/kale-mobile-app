@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — lum-09 KaleLevelRevealLumen (screens/KaleLumenOnboarding2.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';

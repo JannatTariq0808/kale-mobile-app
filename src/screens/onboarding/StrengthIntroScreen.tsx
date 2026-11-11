@@ -1,6 +1,6 @@
 // Design: kale-mobile-design — lum-03 KaleStrengthIntroLumen (screens/KaleLumenOnboarding.jsx)
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '../../components/icons/Ionicons';
 import { useCallback, useEffect, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
