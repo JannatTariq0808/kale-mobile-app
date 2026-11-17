@@ -1,0 +1,37 @@
+/** Goals tab — users/{uid}.ipGoal, users/{uid}.coachGoals, users/{uid}.coachingRequestedAt */
+
+/** "Go up one level" or "Maintain my level" for the next assessment window. */
+export type QuarterGoalType = 'up' | 'hold';
+
+export type QuarterGoal = {
+  type: QuarterGoalType;
+  /** Optional free text: how they plan to do it */
+  how: string;
+  /** Level when the goal was set (target is level + 1 for "up") */
+  levelAtSet: number | null;
+  /** Assessment window the goal is for, e.g. "January" */
+  window: string | null;
+  setAt: Date | null;
+};
+
+export type CoachGoalPillar = 'cardio' | 'strength' | 'knowledge' | 'health';
+
+export type CoachGoal = {
+  pillar: CoachGoalPillar;
+  title: string;
+  /** Coach's commentary on how to get there */
+  note: string;
+};
+
+/** Long term goals set with a coach. Written by Kale ops, read-only in the app. */
+export type CoachGoals = {
+  coachName: string | null;
+  setAt: Date | null;
+  goals: CoachGoal[];
+};
+
+export type GoalsRecord = {
+  quarterGoal: QuarterGoal | null;
+  coachGoals: CoachGoals | null;
+  coachingRequestedAt: Date | null;
+};

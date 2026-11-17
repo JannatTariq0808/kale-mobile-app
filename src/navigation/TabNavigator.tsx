@@ -12,6 +12,7 @@ import { LumTabIcon, LumTabIconName } from '../components/lumen/LumTabIcon';
 import { prefetchArticles } from '../hooks/useArticles';
 import { prefetchFitnessPillarData } from '../hooks/useFitnessPillarData';
 import { prefetchHomeLongevityData } from '../hooks/useHomeLongevityData';
+import { prefetchIncomeProtection, useIncomeProtection } from '../hooks/useIncomeProtection';
 import { prefetchKalettesRewards } from '../hooks/useKalettesRewards';
 import { prefetchSettingsData } from '../hooks/useSettingsData';
 import { useAuthSession } from '../hooks/useAuthSession';
@@ -21,13 +22,20 @@ import { KalettesStackNavigator } from './KalettesStackNavigator';
 import { LongevityStackNavigator } from './LongevityStackNavigator';
 import { shouldHideTabBarForLongevityRoute } from './longevityTabBar';
 import { framed } from './framedScreen';
+import { GoalsStackNavigator, shouldHideTabBarForGoalsRoute } from './GoalsStackNavigator';
+import { PolicyStackNavigator, shouldHideTabBarForPolicyRoute } from './PolicyStackNavigator';
 import { SettingsStackNavigator } from './SettingsStackNavigator';
 
 export type TabParamList = {
   Longevity: undefined;
   Fitness: undefined;
+  /** Life customers */
   Kalettes: undefined;
   Settings: undefined;
+  /** Income Protection customers — Lumen for IP tab bar: Home, Fitness, Goals, Store, Policy */
+  Goals: undefined;
+  Store: undefined;
+  Policy: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -37,6 +45,9 @@ const tabIcons: Record<keyof TabParamList, LumTabIconName> = {
   Fitness: 'pulse',
   Kalettes: 'gift',
   Settings: 'gear',
+  Goals: 'target',
+  Store: 'bag',
+  Policy: 'shield',
 };
 
 const TAB_BAR_BG = '#00343499';
@@ -62,7 +73,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   tabBarBackground: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: TAB_BAR_BG,
   },
   iconWrap: {
@@ -85,6 +96,8 @@ const styles = StyleSheet.create({
     lineHeight: TAB_LABEL_LINE_HEIGHT,
   },
 });
+
+const HIDDEN_TAB_BAR = { display: 'none', height: 0, minHeight: 0, overflow: 'hidden' } as const;
 
 function getTabBarLayout(bottomInset: number) {
   const paddingTop = TAB_VERTICAL_PADDING;
@@ -109,6 +122,7 @@ function FitnessDataPrefetch() {
     prefetchHomeLongevityData(user?.uid);
     prefetchArticles();
     prefetchSettingsData(user?.uid);
+    prefetchIncomeProtection(user?.uid);
     prefetchKalettesRewards(user?.uid);
     void import('../services/kalettes/fetchRewardsProducts').then(({ fetchRewardsProducts }) =>
       fetchRewardsProducts(),
@@ -122,8 +136,14 @@ function tabItemColor(focused: boolean) {
   return focused ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR;
 }
 
+/** IP customers open the Store on the marketplace; the Kalettes balance is not part of IP. */
+function StoreStackNavigator() {
+  return <KalettesStackNavigator initialRouteName="Marketplace" />;
+}
+
 export function TabNavigator() {
   const insets = useSafeAreaInsets();
+  const { isIpCustomer } = useIncomeProtection();
   const bottomInset = Math.max(insets.bottom, 0);
   const tabBarLayout = getTabBarLayout(bottomInset);
   const defaultTabBarStyle = {
@@ -182,15 +202,45 @@ export function TabNavigator() {
             const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'Home';
             const hideTabBar = shouldHideTabBarForLongevityRoute(focusedRoute);
             return {
-              tabBarStyle: hideTabBar
-                ? { display: 'none', height: 0, minHeight: 0, overflow: 'hidden' }
-                : defaultTabBarStyle,
+              title: isIpCustomer ? 'Home' : 'Longevity',
+              tabBarStyle: hideTabBar ? HIDDEN_TAB_BAR : defaultTabBarStyle,
             };
           }}
         />
         <Tab.Screen name="Fitness" component={framed(FitnessScreen)} />
-        <Tab.Screen name="Kalettes" component={KalettesStackNavigator} />
-        <Tab.Screen name="Settings" component={SettingsStackNavigator} />
+        {isIpCustomer ? (
+          <>
+            <Tab.Screen
+              name="Goals"
+              component={GoalsStackNavigator}
+              options={({ route }) => {
+                const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'GoalsHome';
+                return {
+                  tabBarStyle: shouldHideTabBarForGoalsRoute(focusedRoute)
+                    ? HIDDEN_TAB_BAR
+                    : defaultTabBarStyle,
+                };
+              }}
+            />
+            <Tab.Screen name="Store" component={StoreStackNavigator} />
+            <Tab.Screen
+              name="Policy"
+              component={PolicyStackNavigator}
+              options={({ route }) => {
+                const focusedRoute = getFocusedRouteNameFromRoute(route) ?? 'Policy';
+                const hideTabBar = shouldHideTabBarForPolicyRoute(focusedRoute);
+                return {
+                  tabBarStyle: hideTabBar ? HIDDEN_TAB_BAR : defaultTabBarStyle,
+                };
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <Tab.Screen name="Kalettes" component={KalettesStackNavigator} />
+            <Tab.Screen name="Settings" component={SettingsStackNavigator} />
+          </>
+        )}
       </Tab.Navigator>
     </View>
   );

@@ -1,8 +1,9 @@
 // Design: kale-mobile-design — LumTabBar icons (screens/KaleLumenApp.jsx, lum-20 Settings)
+// IP tabs (target, bag, shield): Lumen for IP — LumTabBarIP (screens/LumenIP.jsx)
 
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 
-export type LumTabIconName = 'home' | 'pulse' | 'gift' | 'gear';
+export type LumTabIconName = 'home' | 'pulse' | 'gift' | 'gear' | 'target' | 'bag' | 'shield';
 
 type LumTabIconProps = {
   name: LumTabIconName;
@@ -63,6 +64,46 @@ export function LumTabIcon({ name, color, size = 22 }: LumTabIconProps) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      </Svg>
+    );
+  }
+
+  if (name === 'target') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Circle cx="12" cy="12" r="8.5" stroke={color} strokeWidth={STROKE_WIDTH} />
+        <Circle cx="12" cy="12" r="4.5" stroke={color} strokeWidth={STROKE_WIDTH} />
+        <Circle cx="12" cy="12" r="0.8" fill={color} />
+      </Svg>
+    );
+  }
+
+  if (name === 'bag') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M5 8h14l-1.2 11.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8Z"
+          stroke={color}
+          strokeWidth={STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path d="M9 8a3 3 0 0 1 6 0" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinecap="round" />
+      </Svg>
+    );
+  }
+
+  if (name === 'shield') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6Z"
+          stroke={color}
+          strokeWidth={STROKE_WIDTH}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <Path d="m8.8 12 2.2 2.2 4.4-4.4" stroke={color} strokeWidth={STROKE_WIDTH} strokeLinecap="round" strokeLinejoin="round" />
       </Svg>
     );
   }

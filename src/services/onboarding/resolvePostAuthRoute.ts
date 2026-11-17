@@ -153,7 +153,16 @@ async function routeForMissingOrFirstCardio(
 ): Promise<PostAuthRoute> {
   if (!(await hasAnyCardioDoc(uid, assessments))) {
     if (__DEV__) {
-      console.log('[auth] no cardio/assessment → ConnectTracker');
+      console.log('[auth] no cardio/assessment → ConnectTracker', {
+        uid,
+        lookedFor: `cardios/${uid}`,
+        assessments: assessments.map((item) => ({
+          id: item.id,
+          cardio_id: item.cardio_id,
+          isOnboarding: item.isOnboarding,
+          is_completed: item.is_completed,
+        })),
+      });
     }
     return 'ConnectTracker';
   }

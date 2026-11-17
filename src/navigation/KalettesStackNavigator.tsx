@@ -14,10 +14,15 @@ export type KalettesStackParamList = {
 
 const Stack = createNativeStackNavigator<KalettesStackParamList>();
 
-export function KalettesStackNavigator() {
+type KalettesStackNavigatorProps = {
+  /** IP customers open the Store tab on the marketplace directly. */
+  initialRouteName?: keyof KalettesStackParamList;
+};
+
+export function KalettesStackNavigator({ initialRouteName = 'Balance' }: KalettesStackNavigatorProps = {}) {
   return (
     <View style={styles.shell}>
-      <Stack.Navigator screenOptions={kalettesStackScreenOptions}>
+      <Stack.Navigator initialRouteName={initialRouteName} screenOptions={kalettesStackScreenOptions}>
         <Stack.Screen name="Balance" component={framed(KalettesBalanceScreen)} />
         <Stack.Screen name="Marketplace" component={framed(KalettesMarketplaceScreen)} />
       </Stack.Navigator>
