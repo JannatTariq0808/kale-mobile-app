@@ -2,7 +2,7 @@
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '../../components/icons/Ionicons';
 import { IPGhostButton } from '../../components/ip/IPGhostButton';
@@ -13,14 +13,28 @@ import { LumenHeader } from '../../components/lumen/LumenHeader';
 import { LumenRuleCaption } from '../../components/lumen/LumenRuleCaption';
 import { IP_COACH_NAME } from '../../config/incomeProtection';
 import { useAppNow } from '../../hooks/useAppNow';
+import { useAuthSession } from '../../hooks/useAuthSession';
 import { useGoals } from '../../hooks/useGoals';
 import { useHomeLongevityData } from '../../hooks/useHomeLongevityData';
 import type { GoalsStackParamList } from '../../navigation/GoalsStackNavigator';
+import {
+  fetchGoalTargets,
+  type GoalStep,
+  type GoalTarget,
+  type GoalTargets,
+} from '../../services/ip/goalTargets';
 import { lumen, lumenPillar, sora } from '../../theme';
 import { headlineTextStyle } from '../../theme/textMetrics';
 import type { CoachGoalPillar, QuarterGoal } from '../../types/goals';
 import { buildPolicyYear, formatLongDate } from '../../utils/ipPolicy';
-import { goalTargetLabel, GOAL_TITLES } from './goalCopy';
+import { athleteLevelCalculation } from '../../utils/athleteLevel';
+import {
+  goalTargetLabel,
+  GOAL_TITLES,
+  levelUpPathLine,
+  pillarsEnoughAlone,
+  type PillarKey,
+} from './goalCopy';
 
 type Props = NativeStackScreenProps<GoalsStackParamList, 'GoalsHome'>;
 
@@ -42,8 +56,68 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
-function QuarterGoalCard({ goal, level }: { goal: QuarterGoal; level: number }) {
+function ProgressRow({
+  label,
+  target,
+  color,
+}: {
+  label: string;
+  target: GoalTarget;
+  color: string;
+}) {
+  return (
+    <View style={styles.progressRow}>
+      <View style={styles.progressHead}>
+        <Text style={styles.progressLabel} numberOfLines={1}>
+          {label} <Text style={styles.progressNow}>{target.now}</Text>
+        </Text>
+        {target.target ? (
+          <Text style={[styles.progressTarget, { color }]}>{target.target}</Text>
+        ) : null}
+      </View>
+      <View style={styles.progressTrack}>
+        <View
+          style={[
+            styles.progressFill,
+            {
+              backgroundColor: color,
+              width: `${Math.round(target.progress * 100)}%`,
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+/** "Match your last results: 5k in 24:40 and a 2:04 plank." */
+function holdSummary(targets: GoalTargets | null): string | null {
+  const parts = [
+    targets?.cardio?.now ?? null,
+    targets?.strength ? `a ${targets.strength.now.replace(/^plank /, '')} plank` : null,
+    targets?.knowledge ? `${targets.knowledge.now.replace(/^quiz /, '')} on the quiz` : null,
+  ].filter((part): part is string => part != null);
+  if (parts.length === 0) return null;
+  const list =
+    parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
+  return `Match your last results: ${list}.`;
+}
+
+function QuarterGoalCard({
+  goal,
+  level,
+  targets,
+  pathLine,
+}: {
+  goal: QuarterGoal;
+  level: number;
+  targets: GoalTargets | null;
+  pathLine: string | null;
+}) {
   const baseLevel = goal.levelAtSet ?? level;
+  const hold = goal.type === 'hold' ? holdSummary(targets) : null;
+  const showTargets =
+    goal.type === 'up' && (targets?.cardio || targets?.strength || targets?.knowledge);
   return (
     <View style={styles.goalCard}>
       <View style={styles.goalHead}>
@@ -51,16 +125,55 @@ function QuarterGoalCard({ goal, level }: { goal: QuarterGoal; level: number }) 
         <Text style={styles.goalLevel}>{goalTargetLabel(goal.type, baseLevel)}</Text>
       </View>
       {goal.how ? <Text style={styles.goalHow}>“{goal.how}”</Text> : null}
-      <Text style={styles.goalMeta}>
-        {goal.window ? `For your ${goal.window} assessment` : 'For your next assessment'}
-      </Text>
+      {showTargets ? (
+        <View style={styles.progressList}>
+          {targets?.cardio ? (
+            <ProgressRow label="Cardio" target={targets.cardio} color={lumenPillar.cardio} />
+          ) : null}
+          {targets?.strength ? (
+            <ProgressRow label="Strength" target={targets.strength} color={lumenPillar.strength} />
+          ) : null}
+          {targets?.knowledge ? (
+            <ProgressRow
+              label="Knowledge"
+              target={targets.knowledge}
+              color={lumenPillar.knowledge}
+            />
+          ) : null}
+        </View>
+      ) : null}
+      {showTargets && pathLine ? <Text style={styles.goalMeta}>{pathLine}</Text> : null}
+      {hold ? <Text style={styles.goalMeta}>{hold}</Text> : null}
+      {!showTargets && !hold ? (
+        <Text style={styles.goalMeta}>
+          {goal.window ? `For your ${goal.window} assessment` : 'For your next assessment'}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 export function GoalsScreen({ navigation }: Props) {
   const { goals, loading, refresh } = useGoals();
-  const { level } = useHomeLongevityData();
+  const { user } = useAuthSession();
+  const uid = user?.uid;
+  const [targets, setTargets] = useState<GoalTargets | null>(null);
+
+  useEffect(() => {
+    if (!uid) return;
+    let cancelled = false;
+    fetchGoalTargets(uid)
+      .then((next) => {
+        if (!cancelled) setTargets(next);
+      })
+      .catch((error) => {
+        if (__DEV__) console.warn('[goals] fetchGoalTargets failed', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+  const { level, pillarLevels } = useHomeLongevityData();
   const now = useAppNow(false);
   const nextWindow = useMemo(() => buildPolicyYear(now, null)[1]?.window ?? null, [now]);
 
@@ -71,6 +184,20 @@ export function GoalsScreen({ navigation }: Props) {
   );
 
   const { quarterGoal, coachGoals } = goals;
+
+  // Next-level steps from the customer's own results; ones that lift the overall level alone first.
+  const { current: currentOverall, enough } = pillarsEnoughAlone(
+    pillarLevels,
+    athleteLevelCalculation,
+  );
+  const nextSteps = (['cardio', 'strength', 'knowledge'] as PillarKey[])
+    .map((key) => ({
+      key,
+      step: targets?.[key]?.step ?? null,
+      alone: enough.includes(key),
+    }))
+    .filter((item): item is { key: PillarKey; step: GoalStep; alone: boolean } => item.step != null)
+    .sort((a, b) => Number(b.alone) - Number(a.alone));
   const coachName = coachGoals?.coachName ?? IP_COACH_NAME;
 
   return (
@@ -91,7 +218,12 @@ export function GoalsScreen({ navigation }: Props) {
           ) : (
             <View style={styles.stack}>
               {quarterGoal ? (
-                <QuarterGoalCard goal={quarterGoal} level={level} />
+                <QuarterGoalCard
+                  goal={quarterGoal}
+                  level={level}
+                  targets={targets}
+                  pathLine={levelUpPathLine(pillarLevels, athleteLevelCalculation)}
+                />
               ) : (
                 <Text style={styles.body}>
                   {nextWindow
@@ -113,7 +245,11 @@ export function GoalsScreen({ navigation }: Props) {
           >
             <LumenCard padding={18}>
               <View style={styles.coachRow}>
-                <Image source={COACH_PHOTO} style={styles.coachPhoto} accessibilityIgnoresInvertColors />
+                <Image
+                  source={COACH_PHOTO}
+                  style={styles.coachPhoto}
+                  accessibilityIgnoresInvertColors
+                />
                 <View style={styles.coachText}>
                   <Text style={styles.coachTitle}>Longevity coaching with {IP_COACH_NAME}</Text>
                   <Text style={styles.coachSub}>
@@ -125,37 +261,66 @@ export function GoalsScreen({ navigation }: Props) {
             </LumenCard>
           </Pressable>
 
-          <SectionLabel>Long term, with your coach</SectionLabel>
-          {coachGoals ? (
-            <View style={styles.stack}>
-              {coachGoals.goals.map((goal, index) => (
-                <LumenCard key={`${goal.title}-${index}`} padding={16}>
-                  <View style={styles.longRow}>
-                    <View style={[styles.longDot, { backgroundColor: PILLAR_COLOR[goal.pillar] }]} />
-                    <View style={styles.longText}>
-                      <Text style={styles.longTitle}>{goal.title}</Text>
-                      {goal.note ? (
+          {nextSteps.length > 0 ? (
+            <>
+              <SectionLabel>{`How to reach L${Math.min(currentOverall + 1, 10)}`}</SectionLabel>
+              <View style={styles.stack}>
+                {nextSteps.map(({ key, step, alone }) => (
+                  <LumenCard key={key} padding={16}>
+                    <View style={styles.longRow}>
+                      <View style={[styles.longDot, { backgroundColor: lumenPillar[key] }]} />
+                      <View style={styles.longText}>
+                        <Text style={styles.longTitle}>{step.title}</Text>
                         <View style={styles.noteWrap}>
                           <LumenRuleCaption align="left" maxWidth={290} size={13.5}>
-                            {goal.note}
+                            {step.note}
                           </LumenRuleCaption>
                         </View>
-                      ) : null}
+                        {alone ? (
+                          <Text style={styles.aloneTag}>
+                            {`On its own, this gets you to L${currentOverall + 1}`}
+                          </Text>
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
-                </LumenCard>
-              ))}
-              <Text style={styles.setWith}>
-                {coachGoals.setAt
-                  ? `Set with ${coachName}, ${formatLongDate(coachGoals.setAt).replace(/ \d{4}$/, '')}`
-                  : `Set with ${coachName}`}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.body}>
-              Long term goals appear here once you’ve set them with a coach.
-            </Text>
-          )}
+                  </LumenCard>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {/* Only goals Alex has actually set; nothing is shown until then. */}
+          {coachGoals ? (
+            <>
+              <SectionLabel>Long term, with your coach</SectionLabel>
+              <View style={styles.stack}>
+                {coachGoals.goals.map((goal, index) => (
+                  <LumenCard key={`${goal.title}-${index}`} padding={16}>
+                    <View style={styles.longRow}>
+                      <View
+                        style={[styles.longDot, { backgroundColor: PILLAR_COLOR[goal.pillar] }]}
+                      />
+                      <View style={styles.longText}>
+                        <Text style={styles.longTitle}>{goal.title}</Text>
+                        {goal.note ? (
+                          <View style={styles.noteWrap}>
+                            <LumenRuleCaption align="left" maxWidth={290} size={13.5}>
+                              {goal.note}
+                            </LumenRuleCaption>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+                  </LumenCard>
+                ))}
+                <Text style={styles.setWith}>
+                  {coachGoals.setAt
+                    ? `Set with ${coachName}, ${formatLongDate(coachGoals.setAt).replace(/ \d{4}$/, '')}`
+                    : `Set with ${coachName}`}
+                </Text>
+              </View>
+            </>
+          ) : null}
         </ScreenScroll>
       </View>
     </View>
@@ -261,6 +426,46 @@ const styles = StyleSheet.create({
     color: lumen.fgMuted,
     marginTop: 12,
   },
+  progressList: {
+    gap: 12,
+    marginTop: 14,
+  },
+  progressRow: {
+    gap: 8,
+  },
+  progressHead: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 10,
+  },
+  progressLabel: {
+    ...sora('bold'),
+    flexShrink: 1,
+    fontSize: 13.5,
+    lineHeight: 18,
+    color: lumen.fg,
+  },
+  progressNow: {
+    ...sora('semibold'),
+    color: lumen.fgMuted,
+  },
+  progressTarget: {
+    ...sora('extrabold'),
+    fontSize: 13.5,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(234,243,228,0.14)',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
   coachCardWrap: {
     marginTop: 18,
   },
@@ -316,6 +521,15 @@ const styles = StyleSheet.create({
     color: lumen.fg,
   },
   noteWrap: {
+    marginTop: 10,
+  },
+  aloneTag: {
+    ...sora('extrabold'),
+    fontSize: 11,
+    lineHeight: 15,
+    letterSpacing: 0.88,
+    textTransform: 'uppercase',
+    color: lumen.lime,
     marginTop: 10,
   },
   setWith: {
