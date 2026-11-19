@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["BodyShapeVisionModule"] },
+  "android": { "modules": ["expo.modules.bodyshapevision.BodyShapeVisionModule"] }
+}

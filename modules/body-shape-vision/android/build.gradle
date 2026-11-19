@@ -1,0 +1,28 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'insure.kale'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.bodyshapevision"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+  // One copy of the pose model, shared with iOS.
+  sourceSets {
+    main {
+      assets.srcDirs += ["${projectDir}/../ios/Models"]
+    }
+  }
+  androidResources {
+    noCompress += ['task']
+  }
+}
+
+dependencies {
+  implementation 'com.google.mediapipe:tasks-vision:0.10.21'
+}

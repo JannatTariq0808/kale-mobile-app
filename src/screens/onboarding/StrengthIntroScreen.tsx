@@ -5,6 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isBodyShapeVisionAvailable } from '../../../modules/body-shape-vision';
+import { BodyShapeConsentModal } from '../../components/bodyshape/BodyShapeConsentModal';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
@@ -15,6 +17,11 @@ import {
   getActiveAssessmentFlowAsync,
   isQuarterlyAssessmentFlow,
 } from '../../services/assessment/assessmentFlowSession';
+import {
+  getBodyShapeConsent,
+  isBodyShapeEnabled,
+  setBodyShapeConsent,
+} from '../../services/bodyshape/settings';
 import { onboardingSkipTarget } from '../../services/onboarding/resolveOnboardingNavigation';
 import { lumen, lumenPillar, sora } from '../../theme';
 
@@ -50,7 +57,42 @@ export function StrengthIntroScreen({ navigation }: Props) {
     };
   }, []);
 
+  // Body shape: ask once, before the first strength test, when it's switched on.
+  const [askBodyShape, setAskBodyShape] = useState(false);
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid || !isBodyShapeVisionAvailable()) return;
+    let cancelled = false;
+    void (async () => {
+      if (!(await isBodyShapeEnabled())) return;
+      const consent = await getBodyShapeConsent(uid);
+      if (!cancelled && consent === null) setAskBodyShape(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  const [showConsent, setShowConsent] = useState(false);
+
   const handleRecord = () => {
+    if (askBodyShape) {
+      setShowConsent(true);
+      return;
+    }
+    navigation.navigate('StrengthRecord');
+  };
+
+  const handleConsentAnswer = async (consent: boolean) => {
+    if (user?.uid) {
+      try {
+        await setBodyShapeConsent(user.uid, consent);
+      } catch {
+        /* never block the strength test on this */
+      }
+    }
+    setAskBodyShape(false);
+    setShowConsent(false);
     navigation.navigate('StrengthRecord');
   };
 
@@ -125,6 +167,7 @@ export function StrengthIntroScreen({ navigation }: Props) {
           <OnboardingLogoutLink navigation={navigation} />
         </View>
       </View>
+      <BodyShapeConsentModal visible={showConsent} onAnswer={handleConsentAnswer} />
     </View>
   );
 }

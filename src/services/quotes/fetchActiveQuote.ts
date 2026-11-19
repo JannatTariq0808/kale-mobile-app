@@ -84,7 +84,7 @@ function pickBestQuote(quotes: PolicyQuote[]): PolicyQuote | null {
   return quotes[0] ?? null;
 }
 
-async function resolveAuthEmail(uid: string): Promise<string | null> {
+export async function resolveAuthEmail(uid: string): Promise<string | null> {
   const authEmail = getFirebaseAuth().currentUser?.email;
   if (authEmail?.trim()) return normalizeEmail(authEmail);
 

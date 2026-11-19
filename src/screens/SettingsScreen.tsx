@@ -1,7 +1,7 @@
 import { Ionicons } from '../components/icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ScreenScroll } from '../components/layout/ScreenScroll';
 import { DeleteAccountModal } from '../components/lumen/DeleteAccountModal';
@@ -15,6 +15,11 @@ import { useAuthSession } from '../hooks/useAuthSession';
 import { patchNotificationPreferences, useSettingsData } from '../hooks/useSettingsData';
 import type { SettingsStackParamList } from '../navigation/SettingsStackNavigator';
 import { deleteCurrentUserAccount } from '../services/auth/deleteAccount';
+import {
+  getBodyShapeConsent,
+  isBodyShapeEnabled,
+  setBodyShapeConsent,
+} from '../services/bodyshape/settings';
 import { logoutAndReturnToWelcome } from '../services/auth/session';
 import {
   saveAssessmentAndCycleUpdatesPreference,
@@ -79,6 +84,43 @@ export function SettingsScreen({ navigation }: Props) {
       }
     },
     [prefs.marketing, savingMarketing, user?.uid],
+  );
+
+  // Body shape (research data): shown when the feature is on for this member, or
+  // they've opted in before, so they can always turn it off.
+  const [bodyShape, setBodyShape] = useState<{ visible: boolean; value: boolean }>({
+    visible: false,
+    value: false,
+  });
+  const [savingBodyShape, setSavingBodyShape] = useState(false);
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    let cancelled = false;
+    void (async () => {
+      const [enabled, consent] = await Promise.all([isBodyShapeEnabled(), getBodyShapeConsent(uid)]);
+      if (!cancelled) setBodyShape({ visible: enabled || consent === true, value: consent === true });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid]);
+
+  const handleBodyShape = useCallback(
+    async (next: boolean) => {
+      if (!user?.uid || savingBodyShape) return;
+      setBodyShape((s) => ({ ...s, value: next }));
+      setSavingBodyShape(true);
+      try {
+        await setBodyShapeConsent(user.uid, next);
+      } catch (error) {
+        setBodyShape((s) => ({ ...s, value: !next }));
+        if (__DEV__) console.warn('[settings] save body shape consent failed', error);
+      } finally {
+        setSavingBodyShape(false);
+      }
+    },
+    [savingBodyShape, user?.uid],
   );
 
   const handleLogout = () => {
@@ -192,9 +234,19 @@ export function SettingsScreen({ navigation }: Props) {
               sub="Occasional offers from Kale"
               value={prefs.marketing}
               saving={savingMarketing}
-              last
+              last={!bodyShape.visible}
               onChange={(next) => void handleMarketing(next)}
             />
+            {bodyShape.visible ? (
+              <SettingsToggle
+                label="Body shape measurements"
+                sub="Measured on your phone from your strength test video, to improve fitness estimates. Turning this off deletes saved measurements within 30 days."
+                value={bodyShape.value}
+                saving={savingBodyShape}
+                last
+                onChange={(next) => void handleBodyShape(next)}
+              />
+            ) : null}
           </LumenCard>
 
           <LumenCard padding={0} style={styles.sectionCard}>

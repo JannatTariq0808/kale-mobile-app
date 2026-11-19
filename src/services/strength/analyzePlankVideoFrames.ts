@@ -111,6 +111,11 @@ export async function analyzePlankVideoFrames(
   }
 
   const estimatedValidHoldSec = estimateValidPlankHoldSec(durationSec, frameSamples);
+  const validTimes = frameSamples.filter((f) => f.valid).map((f) => f.timeMs);
+  const validWindowMs =
+    validTimes.length > 0
+      ? { startMs: Math.min(...validTimes), endMs: Math.max(...validTimes) }
+      : null;
 
   if (__DEV__) {
     console.log('[strength] estimated valid hold', {
@@ -125,6 +130,7 @@ export async function analyzePlankVideoFrames(
     sampledFrames,
     validFrames,
     estimatedValidHoldSec,
+    validWindowMs,
     sampleIntervalSec,
     networkErrors,
     serviceErrors,

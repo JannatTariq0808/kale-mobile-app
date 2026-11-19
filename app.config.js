@@ -154,6 +154,7 @@ module.exports = ({ config }) => ({
     ],
     '@react-native-firebase/app',
     '@react-native-firebase/messaging',
+    './plugins/withRnfbDisableSpm',
     [
       'expo-build-properties',
       {

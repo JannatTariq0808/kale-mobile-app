@@ -9,6 +9,7 @@ import { ResultLoaderRing } from '../../components/lumen/ResultLoaderRing';
 import { useAuthSession } from '../../hooks/useAuthSession';
 import type { RootStackParamList } from '../../navigation/types';
 import { analyzePlankRecording } from '../../services/strength/analyzePlankRecording';
+import { capturePlankBodyShape } from '../../services/bodyshape/capturePlank';
 import { saveStrengthAssessment } from '../../services/strength/strengthAssessmentSession';
 import { fetchDemographicsForAssess } from '../../services/user/fetchHealthProfile';
 import { bodyTextStyle, headlineTextStyle } from '../../theme/textMetrics';
@@ -76,6 +77,21 @@ export function StrengthAnalysingScreen({ navigation, route }: Props) {
         if (savedId) strengthAssessmentId = savedId;
         else if (__DEV__) {
           console.warn('[strength] Firestore save failed — check rules for strength collection');
+        }
+
+        // Body shape (research data): runs after the result is saved, in the
+        // background, only with the flag on and the member's consent. Never awaited,
+        // and it can't throw, so the strength test is unaffected.
+        if (savedId) {
+          void capturePlankBodyShape({
+            uid: user.uid,
+            videoUri,
+            durationSec: recordedDurationSec,
+            validWindowMs: poseStats?.validWindowMs,
+            strengthId: savedId,
+          }).then((status) => {
+            if (__DEV__) console.log('[bodyshape]', status);
+          });
         }
       }
 

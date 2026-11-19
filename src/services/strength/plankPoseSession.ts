@@ -21,6 +21,8 @@ export type PlankPoseSessionStats = {
   sampledFrames: number;
   validFrames: number;
   estimatedValidHoldSec: number;
+  /** First and last valid sampled frame (ms into the video), for body-shape frame picking. */
+  validWindowMs?: { startMs: number; endMs: number } | null;
   sampleIntervalSec: number;
   networkErrors: number;
   serviceErrors: number;

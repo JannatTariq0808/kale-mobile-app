@@ -13,6 +13,8 @@ type PlankSetupOverlayProps = {
   statusMessage: string;
   visible: boolean;
   isLandscape: boolean;
+  /** Body-shape advice (phone level / fitted clothing). Advice only, never blocks. */
+  advice?: string | null;
 };
 
 function arrowIconName(arrow: 'up' | 'down' | 'back' | 'none'): keyof typeof Ionicons.glyphMap {
@@ -28,6 +30,7 @@ export function PlankSetupOverlay({
   hints,
   visible,
   isLandscape,
+  advice,
 }: PlankSetupOverlayProps) {
   if (!visible) return null;
 
@@ -71,11 +74,31 @@ export function PlankSetupOverlay({
           </View>
         ) : null}
       </View>
+      {advice ? (
+        <View style={styles.advicePill}>
+          <Text style={styles.adviceText}>{advice}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  advicePill: {
+    alignSelf: 'center',
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  adviceText: {
+    ...sora('semibold'),
+    fontSize: 13,
+    lineHeight: 18,
+    color: lumen.fg,
+    textAlign: 'center',
+  },
   wrap: {
     flex: 1,
     minHeight: 0,
