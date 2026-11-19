@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MAX_PLANK_RECORDING_SEC } from '../../config/strengthRecording';
 import { PlankRecordingReviewModal } from '../../components/strength/PlankRecordingReviewModal';
 import { PlankSetupOverlay } from '../../components/strength/PlankSetupOverlay';
-import { useBodyShapeSetupAdvice } from '../../hooks/useBodyShapeSetupAdvice';
+import { useBodyShapeOptedIn, useBodyShapeSetupAdvice } from '../../hooks/useBodyShapeSetupAdvice';
 import { usePlankSetupGate } from '../../hooks/usePlankSetupGate';
 import { useStrengthRecordingOrientation } from '../../hooks/useStrengthRecordingOrientation';
 import type { RootStackParamList } from '../../navigation/types';
@@ -437,8 +437,10 @@ export function StrengthRecordScreen({ navigation }: Props) {
   }, [clearTick, finishing, recording, resetRecordingUi, restorePortrait]);
 
   const plankDetected = setupGate.isLocked || recording || setupPaused;
+  const bodyShapeOptedIn = useBodyShapeOptedIn();
   const bodyShapeAdvice = useBodyShapeSetupAdvice(
     !recording && !finishing && pendingReview == null,
+    bodyShapeOptedIn,
   );
   const levelTip = useMemo(
     () => (recording ? nextPlankLevelTip(elapsedSec, demoDob, demoGender) : null),
@@ -487,7 +489,8 @@ export function StrengthRecordScreen({ navigation }: Props) {
           facing={facing}
           mode={cameraMode}
           // Body shape needs frames of at least 1080 px on the long edge.
-          videoQuality="1080p"
+          // 1080p only for body-shape members; everyone else keeps the camera default.
+          videoQuality={bodyShapeOptedIn ? '1080p' : undefined}
           mute
           // Portrait only — in landscape this fights the lock and can invert/freeze iOS preview.
           responsiveOrientationWhenOrientationLocked={cameraOrientation === 'portrait'}

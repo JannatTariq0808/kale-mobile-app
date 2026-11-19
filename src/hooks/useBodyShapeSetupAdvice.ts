@@ -21,10 +21,10 @@ export function phoneTiltDeg(x: number, y: number): number {
   return Math.min(angle, 90 - angle);
 }
 
-export function useBodyShapeSetupAdvice(active: boolean): string | null {
+/** True once the flag is on and this member has agreed to body shape. */
+export function useBodyShapeOptedIn(): boolean {
   const { user } = useAuthSession();
   const [optedIn, setOptedIn] = useState(false);
-  const [tilt, setTilt] = useState<number | null>(null);
 
   useEffect(() => {
     const uid = user?.uid;
@@ -38,6 +38,12 @@ export function useBodyShapeSetupAdvice(active: boolean): string | null {
       cancelled = true;
     };
   }, [user?.uid]);
+
+  return optedIn;
+}
+
+export function useBodyShapeSetupAdvice(active: boolean, optedIn: boolean): string | null {
+  const [tilt, setTilt] = useState<number | null>(null);
 
   useEffect(() => {
     if (!optedIn || !active) return;
