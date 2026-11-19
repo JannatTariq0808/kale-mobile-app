@@ -80,7 +80,9 @@ async function resolveStepAssumingPillarComplete(
     justCompleted === 'cardio'
       ? pillarRefId ?? assessment.cardio_id
       : assessment.cardio_id;
-  if (!cardioId) return 'cardio';
+  // Cardio was just finished (tracker assess or Level 1 skip) — the server links
+  // `assessment.cardio_id` a moment later, so never send the user back to connect.
+  if (!cardioId && justCompleted !== 'cardio') return 'cardio';
 
   const strengthId =
     justCompleted === 'strength'

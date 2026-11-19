@@ -8,6 +8,7 @@ import {
   parseTrackerConnectLink,
 } from '../navigation/trackerLinking';
 import {
+  isPendingTokenFinished,
   isPendingTokenInFlight,
   isTrackerOAuthInProgress,
   recordConnectLinkUrl,
@@ -37,7 +38,17 @@ export function useGlobalTrackerDeepLink(
         return;
       }
 
-      if (link.pendingToken && isPendingTokenInFlight(link.pendingToken)) {
+      if (
+        link.pendingToken &&
+        (isPendingTokenInFlight(link.pendingToken) || isPendingTokenFinished(link.pendingToken))
+      ) {
+        return;
+      }
+
+      // Only reopen ConnectTracker while the user is still in the cardio connect step.
+      // A late link after cardio finished must not pull them back from Analysing/Result/Strength.
+      const current = navigationRef.current?.getCurrentRoute()?.name;
+      if (current && current !== 'ConnectTracker' && link.status === 'connected') {
         return;
       }
 

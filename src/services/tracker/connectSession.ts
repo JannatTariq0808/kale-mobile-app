@@ -1,6 +1,8 @@
 import { parseTrackerConnectLink } from '../../navigation/trackerLinking';
 
 const inflightByPendingToken = new Map<string, Promise<unknown>>();
+/** Tokens already claimed — a late OAuth deep link must not reopen ConnectTracker. */
+const finishedPendingTokens = new Set<string>();
 
 let trackerOAuthInProgress = false;
 let lastConnectLinkUrl: string | null = null;
@@ -37,6 +39,7 @@ export function dedupeFinishTrackerConnection<T>(
 
   const promise = run().finally(() => {
     inflightByPendingToken.delete(pendingToken);
+    finishedPendingTokens.add(pendingToken);
   });
   inflightByPendingToken.set(pendingToken, promise);
   return promise;
@@ -44,4 +47,8 @@ export function dedupeFinishTrackerConnection<T>(
 
 export function isPendingTokenInFlight(pendingToken: string): boolean {
   return inflightByPendingToken.has(pendingToken);
+}
+
+export function isPendingTokenFinished(pendingToken: string): boolean {
+  return finishedPendingTokens.has(pendingToken);
 }

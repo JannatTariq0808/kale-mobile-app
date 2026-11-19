@@ -50,9 +50,20 @@ async function fetchCardioDocMeta(cardioDocId: string): Promise<CardioDocMeta | 
   }
 }
 
-async function fetchLiveCardioAssessmentStatus(uid: string): Promise<string | null> {
-  const meta = await fetchCardioDocMeta(uid);
-  return meta?.status ?? null;
+/** True when the live doc or any assessment-linked cardio doc has a level assigned. */
+async function hasCardioLevelAssigned(
+  uid: string,
+  assessments: KaleAssessment[],
+): Promise<boolean> {
+  const ids = new Set<string>([uid]);
+  for (const assessment of assessments) {
+    if (assessment.cardio_id) ids.add(assessment.cardio_id);
+  }
+  for (const id of ids) {
+    const meta = await fetchCardioDocMeta(id);
+    if (meta && (meta.status === 'level_assigned' || meta.level > 0)) return true;
+  }
+  return false;
 }
 
 /** True when any cardio doc exists for this user (live uid doc or assessment-linked). */
@@ -136,8 +147,9 @@ async function routeFromCardioStatus(
   const reveal = await routeCardioResultIfNeeded(uid, assessments);
   if (reveal) return reveal;
 
-  const cardioStatus = await fetchLiveCardioAssessmentStatus(uid);
-  if (cardioStatus === 'level_assigned') {
+  // Cardio usually lives in a per-assessment doc (cardios/{autoId}), not cardios/{uid},
+  // so check every linked cardio doc before restarting the connect step.
+  if (await hasCardioLevelAssigned(uid, assessments)) {
     return 'StrengthIntro';
   }
   return 'ConnectTracker';
