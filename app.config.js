@@ -50,7 +50,7 @@ module.exports = ({ config }) => ({
   ...config,
   name: APP_NAME,
   slug: 'kale-mobile-app',
-  version: '1.0.0',
+  version: '1.0.1',
   orientation: 'default',
   icon: './assets/icon.png',
   backgroundColor: '#004C4C',
