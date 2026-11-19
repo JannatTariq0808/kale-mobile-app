@@ -101,3 +101,5 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+# Local Expo module build output
+modules/*/android/build/
