@@ -15,7 +15,7 @@ import { saveQuarterGoal } from '../../services/ip/goals';
 import { lumen, sora } from '../../theme';
 import type { QuarterGoalType } from '../../types/goals';
 import { buildPolicyYear } from '../../utils/ipPolicy';
-import { GOAL_TITLES, goalTargetLabel, MAX_LEVEL } from './goalCopy';
+import { GOAL_TITLES, goalTargetLabel, isCurrentQuarterGoal, MAX_LEVEL } from './goalCopy';
 
 type Props = NativeStackScreenProps<GoalsStackParamList, 'AddGoal'>;
 
@@ -30,7 +30,7 @@ export function AddGoalScreen({ navigation }: Props) {
 
   const atTop = level >= MAX_LEVEL;
   const options = useMemo<QuarterGoalType[]>(() => (atTop ? ['hold'] : ['up', 'hold']), [atTop]);
-  const existing = goals.quarterGoal;
+  const existing = isCurrentQuarterGoal(goals.quarterGoal, nextWindow, now) ? goals.quarterGoal : null;
 
   const [type, setType] = useState<QuarterGoalType>(
     existing && options.includes(existing.type) ? existing.type : options[0],

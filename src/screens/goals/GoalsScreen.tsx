@@ -31,6 +31,7 @@ import { athleteLevelCalculation } from '../../utils/athleteLevel';
 import {
   goalTargetLabel,
   GOAL_TITLES,
+  isCurrentQuarterGoal,
   levelUpPathLine,
   pillarsEnoughAlone,
   type PillarKey,
@@ -183,7 +184,13 @@ export function GoalsScreen({ navigation }: Props) {
     }, [refresh]),
   );
 
-  const { quarterGoal, coachGoals } = goals;
+  const { coachGoals } = goals;
+  // Each assessment gets its own goal: one set for an earlier assessment no longer counts.
+  const quarterGoal = isCurrentQuarterGoal(goals.quarterGoal, nextWindow, now)
+    ? goals.quarterGoal
+    : null;
+  // Steps to the next level go with "Go up one level" (or no goal yet), not "Maintain".
+  const showLevelUpSteps = quarterGoal?.type !== 'hold';
 
   // Next-level steps from the customer's own results; ones that lift the overall level alone first.
   const { current: currentOverall, enough } = pillarsEnoughAlone(
@@ -261,7 +268,7 @@ export function GoalsScreen({ navigation }: Props) {
             </LumenCard>
           </Pressable>
 
-          {nextSteps.length > 0 ? (
+          {showLevelUpSteps && nextSteps.length > 0 ? (
             <>
               <SectionLabel>{`How to reach L${Math.min(currentOverall + 1, 10)}`}</SectionLabel>
               <View style={styles.stack}>

@@ -87,3 +87,18 @@ export function pillarsEnoughAlone(
   });
   return { current, enough };
 }
+
+/** A goal belongs to one assessment; older goals stop counting so a new one can be set. */
+const GOAL_MAX_AGE_DAYS = 100;
+
+export function isCurrentQuarterGoal(
+  goal: { window: string | null; setAt: Date | null } | null,
+  nextWindow: string | null,
+  now: Date,
+): boolean {
+  if (!goal) return false;
+  if (goal.window && nextWindow && goal.window !== nextWindow) return false;
+  // Window names repeat every year, so also require the goal to be recent.
+  if (goal.setAt && now.getTime() - goal.setAt.getTime() > GOAL_MAX_AGE_DAYS * 86_400_000) return false;
+  return true;
+}
