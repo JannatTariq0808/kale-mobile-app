@@ -45,11 +45,38 @@ function readCoachGoal(raw: unknown): CoachGoal | null {
   if (!title) return null;
   const pillar = PILLARS.includes(data.pillar as CoachGoalPillar)
     ? (data.pillar as CoachGoalPillar)
-    : 'cardio';
+    : null;
   return { pillar, title, note: typeof data.note === 'string' ? data.note : '' };
 }
 
-function readCoachGoals(raw: unknown): CoachGoals | null {
+/**
+ * Goals a coach adds in the website admin (Kale-Website lib/admin/goals-data.ts):
+ * `users/{uid}.coachingGoals`, an array of { id, title, description, createdAt, updatedAt }
+ * with ISO timestamps. Oldest first, as the admin lists them.
+ */
+function readAdminCoachingGoals(raw: unknown): CoachGoals | null {
+  if (!Array.isArray(raw)) return null;
+  let latest: Date | null = null;
+  const goals: CoachGoal[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const data = item as Record<string, unknown>;
+    const title = typeof data.title === 'string' ? data.title.trim() : '';
+    if (!title) continue;
+    goals.push({
+      pillar: null,
+      title,
+      note: typeof data.description === 'string' ? data.description.trim() : '',
+    });
+    const at = toDate(data.updatedAt) ?? toDate(data.createdAt);
+    if (at && (!latest || at > latest)) latest = at;
+  }
+  if (goals.length === 0) return null;
+  return { coachName: null, setAt: latest, goals };
+}
+
+/** Older shape (`users/{uid}.coachGoals` map). Kept so any record written that way still shows. */
+function readLegacyCoachGoals(raw: unknown): CoachGoals | null {
   if (!raw || typeof raw !== 'object') return null;
   const data = raw as Record<string, unknown>;
   const goals = Array.isArray(data.goals)
@@ -68,7 +95,8 @@ export async function fetchGoals(uid: string): Promise<GoalsRecord> {
   const data = snap.exists() ? snap.data() : undefined;
   return {
     quarterGoal: readQuarterGoal(data?.ipGoal),
-    coachGoals: readCoachGoals(data?.coachGoals),
+    coachGoals:
+      readAdminCoachingGoals(data?.coachingGoals) ?? readLegacyCoachGoals(data?.coachGoals),
     coachingRequestedAt: toDate(data?.coachingRequestedAt),
   };
 }

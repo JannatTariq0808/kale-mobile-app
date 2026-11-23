@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { fetchIncomeProtection } from '../services/ip/incomeProtection';
 import type { IncomeProtectionRecord } from '../types/incomeProtection';
@@ -8,9 +9,35 @@ export type IncomeProtectionState = {
   /** True once the users doc has an incomeProtection map. */
   isIpCustomer: boolean;
   loading: boolean;
+  /**
+   * True once isIpCustomer can be trusted: from this launch's fetch, or from the
+   * answer saved on the last launch. The tab bar waits for it so it never shows
+   * the 4 life tabs first and then switches to the 5 IP tabs.
+   */
+  known: boolean;
 };
 
-const IDLE: IncomeProtectionState = { record: null, isIpCustomer: false, loading: false };
+const IDLE: IncomeProtectionState = {
+  record: null,
+  isIpCustomer: false,
+  loading: false,
+  known: false,
+};
+
+const IP_CUSTOMER_KEY_PREFIX = 'kale.ipCustomer.';
+
+async function readCachedIpCustomer(uid: string): Promise<boolean | null> {
+  try {
+    const value = await AsyncStorage.getItem(IP_CUSTOMER_KEY_PREFIX + uid);
+    return value === '1' ? true : value === '0' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedIpCustomer(uid: string, isIpCustomer: boolean) {
+  AsyncStorage.setItem(IP_CUSTOMER_KEY_PREFIX + uid, isIpCustomer ? '1' : '0').catch(() => {});
+}
 
 type Listener = (state: IncomeProtectionState) => void;
 const stateByUid = new Map<string, IncomeProtectionState>();
@@ -29,15 +56,28 @@ function load(uid: string): Promise<void> {
   const previous = stateByUid.get(uid);
   publish(uid, { ...(previous ?? IDLE), loading: true });
 
+  // First load this launch: use last launch's answer straight away, so the
+  // tabs appear at once and only change if the account really changed.
+  if (!previous?.known) {
+    void readCachedIpCustomer(uid).then((cached) => {
+      const current = stateByUid.get(uid);
+      if (cached == null || !current || current.known) return;
+      publish(uid, { ...current, isIpCustomer: cached, known: true });
+    });
+  }
+
   const promise = fetchIncomeProtection(uid)
     .then((record) => {
-      publish(uid, { record, isIpCustomer: record != null, loading: false });
+      const isIpCustomer = record != null;
+      writeCachedIpCustomer(uid, isIpCustomer);
+      publish(uid, { record, isIpCustomer, loading: false, known: true });
     })
     .catch((error) => {
       if (__DEV__) {
         console.warn('[ip] fetchIncomeProtection failed', error);
       }
-      publish(uid, { ...(previous ?? IDLE), loading: false });
+      // Don't hold the tab bar forever: fall back to what we had (or life tabs).
+      publish(uid, { ...(stateByUid.get(uid) ?? previous ?? IDLE), loading: false, known: true });
     })
     .finally(() => {
       inflight.delete(uid);

@@ -305,7 +305,7 @@ export function GoalsScreen({ navigation }: Props) {
                   <LumenCard key={`${goal.title}-${index}`} padding={16}>
                     <View style={styles.longRow}>
                       <View
-                        style={[styles.longDot, { backgroundColor: PILLAR_COLOR[goal.pillar] }]}
+                        style={[styles.longDot, { backgroundColor: goal.pillar ? PILLAR_COLOR[goal.pillar] : lumen.mint }]}
                       />
                       <View style={styles.longText}>
                         <Text style={styles.longTitle}>{goal.title}</Text>

@@ -77,15 +77,13 @@ module.exports = ({ config }) => ({
       {
         action: 'VIEW',
         autoVerify: true,
+        // www only: bare kale.insure redirects to www, and Android app-link
+        // verification does not follow redirects, so listing it fails the check.
         data: [
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/open-app/reset-password' },
-          { scheme: 'https', host: 'kale.insure', pathPrefix: '/open-app/reset-password' },
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/open-app/connect' },
-          { scheme: 'https', host: 'kale.insure', pathPrefix: '/open-app/connect' },
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/reset-password' },
-          { scheme: 'https', host: 'kale.insure', pathPrefix: '/reset-password' },
           { scheme: 'https', host: AUTH_HOST, pathPrefix: '/__/auth' },
-          { scheme: 'https', host: 'kale.insure', pathPrefix: '/__/auth' },
         ],
         category: ['BROWSABLE', 'DEFAULT'],
       },

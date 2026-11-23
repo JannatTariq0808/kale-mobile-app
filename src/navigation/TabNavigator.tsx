@@ -5,7 +5,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { PlatformPressable } from '@react-navigation/elements';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LumenBackground } from '../components/lumen/LumenBackground';
 import { LumTabIcon, LumTabIconName } from '../components/lumen/LumTabIcon';
@@ -90,6 +90,11 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
     paddingVertical: 0,
   },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabLabel: {
     marginTop: TAB_ICON_LABEL_GAP,
     fontSize: TAB_LABEL_SIZE,
@@ -143,7 +148,7 @@ function StoreStackNavigator() {
 
 export function TabNavigator() {
   const insets = useSafeAreaInsets();
-  const { isIpCustomer } = useIncomeProtection();
+  const { isIpCustomer, known: ipStatusKnown } = useIncomeProtection();
   const bottomInset = Math.max(insets.bottom, 0);
   const tabBarLayout = getTabBarLayout(bottomInset);
   const defaultTabBarStyle = {
@@ -157,6 +162,20 @@ export function TabNavigator() {
     elevation: 0,
     shadowOpacity: 0,
   } as const;
+
+  // Which tabs to show depends on the policy type. Wait for it (usually instant,
+  // from last launch's answer) instead of showing the life tabs and swapping.
+  if (!ipStatusKnown) {
+    return (
+      <View style={styles.shell}>
+        <LumenBackground />
+        <FitnessDataPrefetch />
+        <View style={styles.loading}>
+          <ActivityIndicator color={lumen.mint} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.shell}>
