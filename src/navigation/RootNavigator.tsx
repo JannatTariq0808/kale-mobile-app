@@ -7,6 +7,7 @@ import { NewPasswordScreen } from '../screens/auth/NewPasswordScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { SignUpScreen } from '../screens/auth/SignUpScreen';
 import { FirstCycleRewardsScreen } from '../screens/onboarding/FirstCycleRewardsScreen';
+import { FitnessAgeScreen } from '../screens/onboarding/FitnessAgeScreen';
 import { HealthYearsScreen } from '../screens/onboarding/HealthYearsScreen';
 import { LevelRevealScreen } from '../screens/onboarding/LevelRevealScreen';
 import { KnowledgeAnalysingScreen } from '../screens/onboarding/KnowledgeAnalysingScreen';
@@ -87,6 +88,7 @@ export function RootNavigator({ isAuthenticated, initialAuthRoute }: RootNavigat
         <Stack.Screen name="KnowledgeResult" component={framed(KnowledgeResultScreen)} />
         <Stack.Screen name="LevelReveal" component={framed(LevelRevealScreen)} />
         <Stack.Screen name="HealthYears" component={framed(HealthYearsScreen)} />
+        <Stack.Screen name="FitnessAge" component={framed(FitnessAgeScreen)} />
         <Stack.Screen name="FirstCycleRewards" component={framed(FirstCycleRewardsScreen)} />
         <Stack.Screen
           name="Main"

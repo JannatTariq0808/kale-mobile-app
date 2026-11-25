@@ -60,6 +60,7 @@ export type RootStackParamList = {
   };
   LevelReveal: undefined;
   HealthYears: undefined;
+  FitnessAge: undefined;
   FirstCycleRewards: undefined;
   Main: undefined;
 };

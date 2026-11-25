@@ -147,8 +147,8 @@ export function HealthYearsScreen({ navigation }: Props) {
         </ScrollView>
 
         <View style={styles.footer}>
-          <LumenButton onPress={() => navigation.replace('FirstCycleRewards')}>
-            See your first cycle rewards
+          <LumenButton onPress={() => navigation.replace('FitnessAge')}>
+            See your Fitness Age
           </LumenButton>
         </View>
       </View>

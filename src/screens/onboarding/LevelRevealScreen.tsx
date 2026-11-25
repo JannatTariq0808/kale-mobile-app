@@ -380,7 +380,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   errorButton: {
-    alignSelf: 'stretch',
+    alignSelf: 'center',
+    width: '100%',
     maxWidth: 280,
   },
   content: {
