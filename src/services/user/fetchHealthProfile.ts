@@ -1,4 +1,4 @@
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 import { getFirebaseAuth, getFirebaseFirestore } from '../auth/firebaseApp';
 
 export type HealthProfileForAssess = {
@@ -71,4 +71,43 @@ export async function fetchHealthProfileForAssess(): Promise<HealthProfileForAss
     date_of_birth: demographics.date_of_birth,
     weight_kg: demographics.weight_kg,
   };
+}
+
+/** What the cardio assessment still needs from the member before it can run. */
+export type MissingHealthField = 'weight' | 'gender' | 'dateOfBirth';
+
+export async function fetchMissingHealthFields(): Promise<MissingHealthField[]> {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) return [];
+  const snap = await getDoc(doc(getFirebaseFirestore(), 'users', uid));
+  const data = (snap.exists() ? snap.data() : {}) as Record<string, unknown>;
+  const missing: MissingHealthField[] = [];
+  if (readWeightKg(data) == null) missing.push('weight');
+  if (!normalizeGender(data.gender)) missing.push('gender');
+  if (!formatDateOfBirth(data.dateOfBirth) && !formatDateOfBirth(data.date_of_birth)) {
+    missing.push('dateOfBirth');
+  }
+  return missing;
+}
+
+export type HealthFieldsInput = {
+  weightKg?: number;
+  gender?: 'Female' | 'Male';
+  dateOfBirth?: Date;
+};
+
+/** Saves only the fields given (same shapes the website writes). */
+export async function saveHealthFields(input: HealthFieldsInput): Promise<void> {
+  const uid = getFirebaseAuth().currentUser?.uid;
+  if (!uid) throw new Error('You must be signed in.');
+  const patch: Record<string, unknown> = {};
+  if (input.weightKg != null) patch.weightKg = Math.round(input.weightKg * 10) / 10;
+  if (input.gender) patch.gender = input.gender;
+  if (input.dateOfBirth) {
+    const d = input.dateOfBirth;
+    patch.dateOfBirth = Timestamp.fromDate(new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())));
+  }
+  if (Object.keys(patch).length === 0) return;
+  patch.updatedAt = serverTimestamp();
+  await setDoc(doc(getFirebaseFirestore(), 'users', uid), patch, { merge: true });
 }

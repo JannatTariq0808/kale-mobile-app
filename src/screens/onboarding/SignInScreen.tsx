@@ -21,6 +21,7 @@ import { LumenAuthScrollView } from '../../components/lumen/LumenAuthScrollView'
 import { LumenButton } from '../../components/lumen/LumenButton';
 import { LumenField } from '../../components/lumen/LumenField';
 import { LumenGlyph } from '../../components/lumen/LumenGlyph';
+import { KaleWordmarkWhite } from '../../components/lumen/KaleWordmarkWhite';
 import type { RootStackParamList } from '../../navigation/types';
 import { consumeAuthNotice, setAuthNotice } from '../../services/auth/authNotice';
 import { mapFirebaseAuthError, signInWithEmail } from '../../services/auth/passwordReset';
@@ -32,7 +33,7 @@ import {
   ProfileFetchError,
 } from '../../services/user/userProfile';
 import { lumen, sora, typography } from '../../theme';
-import { headlineTextStyle } from '../../theme/textMetrics';
+import { headlineLineHeight, headlineTextStyle } from '../../theme/textMetrics';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
@@ -47,7 +48,9 @@ function isValidPassword(value: string) {
 
 export function SignInScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { horizontalPadding } = useResponsiveLayout();
+  const { horizontalPadding, type } = useResponsiveLayout();
+  const headlineSize = type(typography.hero);
+  const logotypeHeight = headlineSize * 0.72;
   const passwordRef = useRef<TextInputInstance>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -135,11 +138,22 @@ export function SignInScreen({ navigation }: Props) {
                 <LumenGlyph color={lumen.green} height={26} />
               </View>
 
-              <Text style={styles.headline}>
-                Welcome <Text style={styles.headlineAccent}>back</Text>.
-              </Text>
+              <View style={styles.headlineRow}>
+                <Text
+                  style={[
+                    styles.headline,
+                    { fontSize: headlineSize, lineHeight: headlineLineHeight(headlineSize) },
+                  ]}
+                >
+                  Log in to{' '}
+                </Text>
+                <View style={styles.logotypeWrap}>
+                  <KaleWordmarkWhite height={logotypeHeight} color={lumen.lime} />
+                </View>
+              </View>
               <Text style={styles.subhead}>
-                Log in with your Kale account to pick up your longevity programme.
+                Use the email and password you made on the Kale website. There's nothing new to
+                sign up for.
               </Text>
 
               <View style={styles.form}>
@@ -244,6 +258,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 22,
+  },
+  headlineRow: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'baseline',
+    overflow: 'visible',
+  },
+  logotypeWrap: {
+    justifyContent: 'flex-end',
   },
   headline: {
     ...headlineTextStyle(typography.hero, lumen.fg),

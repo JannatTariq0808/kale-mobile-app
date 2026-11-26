@@ -15,8 +15,8 @@ import {
 import { resolveOnboardingResumeRoute, resolveResultNextButtonLabel } from '../../services/onboarding/resolveOnboardingNavigation';
 import { invalidateHomeLongevityData } from '../../hooks/useHomeLongevityData';
 import { invalidateFitnessPillarData } from '../../hooks/useFitnessPillarData';
-import { fetchCardioSummary } from '../../services/cardio/fetchCardioSummary';
-import { fetchHealthProfileForAssess } from '../../services/user/fetchHealthProfile';
+import { fetchCardioSummaryForUser } from '../../services/cardio/fetchCardioSummary';
+import { fetchDemographicsForAssess } from '../../services/user/fetchHealthProfile';
 import { clearFirstTimeLogin } from '../../services/user/userProfile';
 import { markCardioResultSeen } from '../../services/onboarding/onboardingState';
 import {
@@ -50,12 +50,17 @@ export function CardioResultScreen({ navigation }: Props) {
     void (async () => {
       if (!user?.uid) return;
 
-      const [{ assessments }, summary, profile, activeAssessment] = await Promise.all([
+      const [{ assessments }, summary, demographics, activeAssessment] = await Promise.all([
         fetchAssessmentsForUser(user.uid),
-        fetchCardioSummary(user.uid),
-        fetchHealthProfileForAssess(),
+        fetchCardioSummaryForUser(user.uid),
+        fetchDemographicsForAssess(),
         fetchActiveInProgressAssessment(user.uid),
       ]);
+      // Weight only matters for cycling power; a running result shows without it
+      // (a missing weight used to hide a real result behind the empty Level 1 screen).
+      const profile = demographics
+        ? { ...demographics, weight_kg: demographics.weight_kg ?? 0 }
+        : null;
 
       if (cancelled) return;
 

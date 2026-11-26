@@ -19,6 +19,7 @@ import {
   type ConnectionBrand,
 } from '../../components/lumen/ConnectionBrandIcon';
 import { ConnectIssuePanel } from '../../components/lumen/ConnectIssuePanel';
+import { HealthDetailsModal } from '../../components/lumen/HealthDetailsModal';
 import { LumEyebrow } from '../../components/lumen/LumEyebrow';
 import { OnboardingLogoutLink } from '../../components/onboarding/OnboardingLogoutLink';
 import { useConnectTrackerFlow } from '../../hooks/useConnectTrackerFlow';
@@ -32,6 +33,12 @@ import { lumen, sora } from '../../theme';
 import { isQuarterlyAssessmentFlow, setActiveAssessmentFlow, getActiveAssessmentFlow } from '../../services/assessment/assessmentFlowSession';
 import { assignLevel1Unverified } from '../../services/cardio/assignLevel1Unverified';
 import type { AssessStravaOptions } from '../../services/tracker/assess';
+import {
+  fetchMissingHealthFields,
+  saveHealthFields,
+  type HealthFieldsInput,
+  type MissingHealthField,
+} from '../../services/user/fetchHealthProfile';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ConnectTracker'>;
 
@@ -75,6 +82,11 @@ export function ConnectTrackerScreen({ navigation }: Props) {
   const [connecting, setConnecting] = useState<ConnectionBrand | null>(null);
   const [connectIssue, setConnectIssue] = useState<ConnectIssueContent | null>(null);
   const [assigningLevel1, setAssigningLevel1] = useState(false);
+  /** Tracker waiting on the "a few details first" sheet (missing weight, sex or date of birth). */
+  const [detailsFor, setDetailsFor] = useState<ConnectionBrand | null>(null);
+  const [missingFields, setMissingFields] = useState<MissingHealthField[]>([]);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   useConnectTrackerFlow({
     setConnecting,
@@ -132,7 +144,7 @@ export function ConnectTrackerScreen({ navigation }: Props) {
 
   const insets = useSafeAreaInsets();
 
-  const handleConnect = useCallback(
+  const runConnect = useCallback(
     async (brand: ConnectionBrand) => {
       if (connecting) return;
 
@@ -158,6 +170,46 @@ export function ConnectTrackerScreen({ navigation }: Props) {
       }
     },
     [connecting, navigation, routeParams],
+  );
+
+  // The cardio level needs weight, sex and date of birth. Ask for any that are missing
+  // before connecting, instead of failing afterwards and falling back to Level 1.
+  const handleConnect = useCallback(
+    async (brand: ConnectionBrand) => {
+      if (connecting || detailsFor) return;
+      if (brand !== 'apple') {
+        const missing = await fetchMissingHealthFields().catch(() => []);
+        if (missing.length > 0) {
+          setMissingFields(missing);
+          setDetailsError(null);
+          setDetailsFor(brand);
+          return;
+        }
+      }
+      await runConnect(brand);
+    },
+    [connecting, detailsFor, runConnect],
+  );
+
+  const handleSaveDetails = useCallback(
+    async (input: HealthFieldsInput) => {
+      const brand = detailsFor;
+      if (!brand || savingDetails) return;
+      setSavingDetails(true);
+      setDetailsError(null);
+      try {
+        await saveHealthFields(input);
+        setDetailsFor(null);
+        await runConnect(brand);
+      } catch (error) {
+        setDetailsError(
+          error instanceof Error ? error.message : 'Could not save your details. Please try again.',
+        );
+      } finally {
+        setSavingDetails(false);
+      }
+    },
+    [detailsFor, runConnect, savingDetails],
   );
 
   const showPicker = !connectIssue;
@@ -278,6 +330,14 @@ export function ConnectTrackerScreen({ navigation }: Props) {
           <OnboardingLogoutLink navigation={navigation} />
         </View>
       </View>
+      <HealthDetailsModal
+        visible={detailsFor != null}
+        missing={missingFields}
+        saving={savingDetails}
+        errorMessage={detailsError}
+        onCancel={() => setDetailsFor(null)}
+        onSave={(input) => void handleSaveDetails(input)}
+      />
     </View>
   );
 }

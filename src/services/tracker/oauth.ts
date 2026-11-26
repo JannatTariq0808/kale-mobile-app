@@ -123,9 +123,13 @@ export async function runTrackerOAuth(
   setTrackerOAuthInProgress(true);
   try {
     const result = await WebBrowser.openAuthSessionAsync(startUrl, returnUrl, {
-      // Strava: don't reuse Safari/Chrome cookies — otherwise an existing Strava
-      // login + prior Kale authorization can complete without showing any UI.
-      preferEphemeralSession: provider === 'strava',
+      // Ephemeral for both providers. Strava: don't reuse Safari/Chrome cookies —
+      // otherwise an existing Strava login + prior Kale authorization can complete
+      // without showing any UI. Garmin: a non-ephemeral ASWebAuthenticationSession
+      // did not reliably dismiss/return to the app on the manual `kale://` hand-off,
+      // leaving the user stuck on the picker after "Garmin connected". Ephemeral
+      // makes the return behave like Strava's (which works).
+      preferEphemeralSession: true,
     });
 
     if (__DEV__) {

@@ -3,7 +3,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import { LumenButton } from '../../components/lumen/LumenButton';
@@ -56,17 +56,18 @@ const STEPS = [
   {
     color: lumen.green,
     title: 'Assess your longevity',
-    subtitle: 'Three short tests — cardio, strength & knowledge.',
+    subtitle: 'Three short tests: cardio, strength and knowledge.',
   },
   {
     color: lumenPillar.strength,
     title: 'Know your level',
-    subtitle: "See the healthy years you've added — and how to add more.",
+    subtitle: 'See your Longevity Level and Fitness Age, and how to improve them.',
   },
   {
     color: lumenPillar.knowledge,
-    title: 'Earn Kalettes',
-    subtitle: 'Rewards every quarter you complete an assessment.',
+    title: 'Pay less as you get fitter',
+    subtitle:
+      'Your price is re-rated every quarter. If your Fitness Age is lower than your real age, you pay the Fitness Age price.',
   },
 ] as const;
 
@@ -152,16 +153,8 @@ export function WelcomeScreen({ navigation }: Props) {
             >
               Welcome to{' '}
             </Text>
-              <View
-                style={[
-                  styles.logotypeWrap,
-                  {
-                    height: headlineLineHeight(headline.fontSize),
-                    marginTop: Platform.OS === 'ios' ? headline.fontSize * 0.06 : 0,
-                  },
-                ]}
-              >
-                <KaleWordmarkWhite height={headline.logotypeHeight} />
+              <View style={styles.logotypeWrap}>
+                <KaleWordmarkWhite height={headline.logotypeHeight} color={lumen.lime} />
               </View>
           </View>
           <Text style={styles.subhead}>The longevity programme inside your Kale policy.</Text>
@@ -256,14 +249,16 @@ const styles = StyleSheet.create({
   headlineRow: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
-    alignItems: 'flex-start',
+    // Sit the wordmark on the text baseline instead of centring it in the line box,
+    // which left "Kale" floating slightly high next to "Welcome to".
+    alignItems: 'baseline',
     justifyContent: 'center',
     alignSelf: 'center',
     marginTop: 26,
     overflow: 'visible',
   },
   logotypeWrap: {
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
   headline: {
     ...sora('extrabold'),
