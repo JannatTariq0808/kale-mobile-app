@@ -201,8 +201,8 @@ export function AssessmentLiveCard({
         )}
 
         <Text style={[styles.reward, { fontSize: type(13) }]}>
-          Complete it to bank{' '}
-          <Text style={styles.rewardAccent}>{kaletteReward} Kalettes</Text>.
+          Complete it to get your updated{' '}
+          <Text style={styles.rewardAccent}>Longevity Level</Text>.
         </Text>
       </LinearGradient>
     </View>

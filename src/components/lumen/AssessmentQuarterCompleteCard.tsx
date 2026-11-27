@@ -43,12 +43,10 @@ export function AssessmentQuarterCompleteCard({
           One assessment per quarter — including onboarding. Your next window opens {nextOpen}.
         </Text>
 
-        {pendingKalettes != null && pendingKalettes > 0 ? (
-          <Text style={[styles.reward, { fontSize: type(13) }]}>
-            <Text style={styles.rewardAccent}>{pendingKalettes.toLocaleString('en-GB')} Kalettes</Text>{' '}
-            waiting to bank at that next on-time assessment.
-          </Text>
-        ) : null}
+        <Text style={[styles.reward, { fontSize: type(13) }]}>
+          Come back on time to keep your{' '}
+          <Text style={styles.rewardAccent}>Longevity Level</Text> moving.
+        </Text>
       </LinearGradient>
     </View>
   );

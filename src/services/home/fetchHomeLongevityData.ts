@@ -14,6 +14,8 @@ import {
 import { getFirebaseAuth, getFirebaseFirestore } from '../auth/firebaseApp';
 import { fetchFitnessPillarLevels, type FitnessPillarLevels } from '../fitness/fetchFitnessPillarData';
 import { fetchAthleteLevel } from '../user/athleteLevel';
+import { fetchDemographicsForAssess } from '../user/fetchHealthProfile';
+import { ageFromDob, fitnessAge as computeFitnessAge, toSex } from '../fitness/fitnessAge';
 import { fetchRunningYearsProjection } from '../runningYears/fetchRunningYearsProjection';
 import { readRunningYearsGoal } from '../runningYears/runningYearsStorage';
 import {
@@ -35,6 +37,23 @@ export type HomeChartSeries = {
   levels: number[];
   lifespan: number[];
   healthspan: number[];
+};
+
+export type FitnessAgeOutlook = {
+  /** The member's real age today. */
+  currentRealAge: number;
+  /** Their Fitness Age today (can be lower than their real age). */
+  currentFitnessAge: number;
+  /** currentRealAge − currentFitnessAge; positive means younger than their years. */
+  yearsYounger: number;
+  /** Actual ages along the x-axis (today → +5y). */
+  ages: number[];
+  /** Fitness Age at each of those ages, holding the current level. */
+  fitnessAges: number[];
+  /** Indicative monthly premium at this Fitness Age (placeholder until price API). */
+  monthlyPriceGbp: number;
+  /** Indicative monthly premium at their actual age — the "older body" price. */
+  actualAgePriceGbp: number;
 };
 
 export type HomeLongevityData = {
@@ -59,8 +78,47 @@ export type HomeLongevityData = {
   policyCoverType: string | null;
   pillarLevels: FitnessPillarLevels;
   chartSeries: HomeChartSeries | null;
+  fitnessAgeOutlook: FitnessAgeOutlook | null;
   completedAssessmentThisQuarter: boolean;
 };
+
+/** Project Fitness Age vs actual age over the next few years at the current level. */
+const FITNESS_OUTLOOK_YEARS = 5;
+
+/**
+ * Indicative monthly premiums shown on the home Fitness Age card — the lower
+ * "fitter body" price vs the higher actual-age price. Placeholders until the
+ * Best reassessment (MTA) price API is wired up; swap for live values then.
+ */
+const PLACEHOLDER_FITNESS_PRICE_GBP = 25;
+const PLACEHOLDER_ACTUAL_AGE_PRICE_GBP = 30;
+
+function buildFitnessAgeOutlook(
+  level: number,
+  demographics: Awaited<ReturnType<typeof fetchDemographicsForAssess>>,
+): FitnessAgeOutlook | null {
+  const realAge = demographics ? ageFromDob(demographics.date_of_birth) : null;
+  if (realAge == null) return null;
+
+  const sex = toSex(demographics?.gender);
+  const ages: number[] = [];
+  const fitnessAges: number[] = [];
+  for (let i = 0; i <= FITNESS_OUTLOOK_YEARS; i += 1) {
+    const age = realAge + i;
+    ages.push(age);
+    fitnessAges.push(computeFitnessAge(level, age, sex));
+  }
+
+  return {
+    currentRealAge: realAge,
+    currentFitnessAge: fitnessAges[0],
+    yearsYounger: realAge - fitnessAges[0],
+    ages,
+    fitnessAges,
+    monthlyPriceGbp: PLACEHOLDER_FITNESS_PRICE_GBP,
+    actualAgePriceGbp: PLACEHOLDER_ACTUAL_AGE_PRICE_GBP,
+  };
+}
 
 function parseFirstName(raw: string | null | undefined): string {
   const trimmed = raw?.trim();
@@ -68,7 +126,7 @@ function parseFirstName(raw: string | null | undefined): string {
   return trimmed.split(/\s+/)[0] ?? 'Member';
 }
 
-async function fetchUserFirstName(uid: string): Promise<string> {
+export async function fetchUserFirstName(uid: string): Promise<string> {
   const authName = getFirebaseAuth().currentUser?.displayName;
   if (authName?.trim()) return parseFirstName(authName);
 
@@ -225,20 +283,33 @@ function estimateRunningYearsAhead(level: number, healthSpanYears: number): numb
 }
 
 export async function fetchHomeLongevityData(uid: string): Promise<HomeLongevityData> {
-  const [{ assessments }, firstName, pillarLevels, runningYearsProjection, savedGoal, quoteRecord] =
-    await Promise.all([
-      fetchAssessmentsForUser(uid),
-      fetchUserFirstName(uid),
-      fetchFitnessPillarLevels(uid),
-      fetchRunningYearsProjection(uid).catch((error) => {
-        if (__DEV__) {
-          console.warn('[home] fetchRunningYearsProjection failed', error);
-        }
-        return null;
-      }),
-      readRunningYearsGoal(uid),
-      fetchQuoteRecord(uid),
-    ]);
+  const [
+    { assessments },
+    firstName,
+    pillarLevels,
+    runningYearsProjection,
+    savedGoal,
+    quoteRecord,
+    demographics,
+  ] = await Promise.all([
+    fetchAssessmentsForUser(uid),
+    fetchUserFirstName(uid),
+    fetchFitnessPillarLevels(uid),
+    fetchRunningYearsProjection(uid).catch((error) => {
+      if (__DEV__) {
+        console.warn('[home] fetchRunningYearsProjection failed', error);
+      }
+      return null;
+    }),
+    readRunningYearsGoal(uid),
+    fetchQuoteRecord(uid),
+    fetchDemographicsForAssess().catch((error) => {
+      if (__DEV__) {
+        console.warn('[home] fetchDemographicsForAssess failed', error);
+      }
+      return null;
+    }),
+  ]);
 
   const completed = await resolveChartAssessments(uid, assessments);
 
@@ -282,6 +353,7 @@ export async function fetchHomeLongevityData(uid: string): Promise<HomeLongevity
     policyCoverType,
     pillarLevels,
     chartSeries: buildChartSeries(completed),
+    fitnessAgeOutlook: buildFitnessAgeOutlook(level, demographics),
     completedAssessmentThisQuarter: hasCompletedAssessmentThisQuarter(assessments, new Date()),
   };
 }

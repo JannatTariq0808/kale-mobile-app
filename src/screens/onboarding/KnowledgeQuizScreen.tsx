@@ -119,8 +119,12 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [wasCorrect, setWasCorrect] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
-  const savingRef = useRef(false);
+  /** Answers save one after another; the next question never waits for a save. */
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingSaveIdsRef = useRef(new Set<string>());
   const assessmentIdRef = useRef(initialAssessmentId);
+  /** Set on the first answer: the resume load must not move the quiz after that. */
+  const answeredRef = useRef(false);
 
   useEffect(() => {
     responsesRef.current = responses;
@@ -149,8 +153,14 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
       const assessment = await fetchKnowledgeAssessmentById(ensuredId);
       if (cancelled || !assessment) return;
 
-      setResponses(assessment.responses);
-      responsesRef.current = assessment.responses;
+      // Keep answers given while this load was in flight (the save may land after it).
+      const fetchedIds = new Set(assessment.responses.map((item) => item.questionId));
+      const merged = [
+        ...assessment.responses,
+        ...responsesRef.current.filter((item) => !fetchedIds.has(item.questionId)),
+      ];
+      setResponses(merged);
+      responsesRef.current = merged;
 
       if (assessment.is_completed && total > 0) {
         resetToKnowledgeAnalysing(navigation, {
@@ -164,7 +174,7 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
 
       // Responses already cover the quiz but is_completed lagged — finish instead of
       // blank screen (questionIndex >= questions.length → return null / no taps).
-      if (total > 0 && assessment.responses.length >= total) {
+      if (total > 0 && merged.length >= total) {
         resetToKnowledgeAnalysing(navigation, {
           assessmentId: ensuredId,
           setId,
@@ -174,7 +184,11 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
         return;
       }
 
-      setQuestionIndex(Math.min(assessment.responses.length, Math.max(0, total - 1)));
+      // The member already answered on this screen: leave the current question and its
+      // revealed answer alone. Resetting here made the answer vanish and froze the timer.
+      if (answeredRef.current) return;
+
+      setQuestionIndex(Math.min(merged.length, Math.max(0, total - 1)));
       setPhase('answering');
       setSelectedIndex(null);
       setWasCorrect(false);
@@ -194,12 +208,15 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
 
   const advance = useCallback(() => {
     if (questionIndex >= total - 1) {
-      resetToKnowledgeAnalysing(navigation, {
-        assessmentId: assessmentIdRef.current,
-        setId,
-        totalQuestions: total,
-        meta,
-      });
+      // Let the last answers finish saving so the score includes them.
+      void saveQueueRef.current.then(() =>
+        resetToKnowledgeAnalysing(navigation, {
+          assessmentId: assessmentIdRef.current,
+          setId,
+          totalQuestions: total,
+          meta,
+        }),
+      );
       return;
     }
     setQuestionIndex((i) => i + 1);
@@ -212,8 +229,19 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
   const revealAnswer = useCallback(
     async (index: number, fromTimeout = false) => {
       if (phase !== 'answering' || !question) return;
-      if (responsesRef.current.some((item) => item.questionId === question.id)) return;
-      if (savingRef.current) return;
+      if (pendingSaveIdsRef.current.has(question.id)) return;
+
+      // Already answered (e.g. saved before the screen reloaded): show that answer
+      // so "Next" runs, instead of ignoring taps and the timeout.
+      const existing = responsesRef.current.find((item) => item.questionId === question.id);
+      if (existing) {
+        setSelectedIndex(existing.selectedIndex);
+        setWasCorrect(existing.isCorrect);
+        setTimedOut(existing.selectedIndex < 0);
+        setPhase('revealed');
+        return;
+      }
+      answeredRef.current = true;
 
       const selection = revealSelection(question, index);
       setSelectedIndex(selection.selectedIndex);
@@ -222,28 +250,37 @@ export function KnowledgeQuizScreen({ navigation, route }: Props) {
       setPhase('revealed');
 
       if (!user?.uid) return;
+      const uid = user.uid;
 
-      savingRef.current = true;
-      try {
-        const saved = await appendKnowledgeResponse(
-          user.uid,
-          setId,
-          assessmentIdRef.current,
-          { question, selectedIndex: selection.selectedIndex },
-          total,
-          responsesRef.current,
-        );
-        if (saved) {
-          setActiveAssessmentId(saved.assessmentId);
-          assessmentIdRef.current = saved.assessmentId;
-          setResponses(saved.assessment.responses);
-          responsesRef.current = saved.assessment.responses;
-        } else if (__DEV__) {
-          console.warn('[knowledge] save failed — check Firestore rules for knowledge collection');
-        }
-      } finally {
-        savingRef.current = false;
-      }
+      // Queue the save behind any earlier one so responses are written in order,
+      // but don't hold the screen: a slow save used to freeze the next question
+      // (taps and the timeout were ignored until it finished).
+      pendingSaveIdsRef.current.add(question.id);
+      saveQueueRef.current = saveQueueRef.current
+        .then(async () => {
+          const saved = await appendKnowledgeResponse(
+            uid,
+            setId,
+            assessmentIdRef.current,
+            { question, selectedIndex: selection.selectedIndex },
+            total,
+            responsesRef.current,
+          );
+          if (saved) {
+            setActiveAssessmentId(saved.assessmentId);
+            assessmentIdRef.current = saved.assessmentId;
+            setResponses(saved.assessment.responses);
+            responsesRef.current = saved.assessment.responses;
+          } else if (__DEV__) {
+            console.warn('[knowledge] save failed — check Firestore rules for knowledge collection');
+          }
+        })
+        .catch((error) => {
+          if (__DEV__) console.warn('[knowledge] save threw', error);
+        })
+        .finally(() => {
+          pendingSaveIdsRef.current.delete(question.id);
+        });
     },
     [phase, question, setId, total, user?.uid],
   );

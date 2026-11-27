@@ -141,11 +141,6 @@ function tabItemColor(focused: boolean) {
   return focused ? TAB_ACTIVE_COLOR : TAB_INACTIVE_COLOR;
 }
 
-/** IP customers open the Store on the marketplace; the Kalettes balance is not part of IP. */
-function StoreStackNavigator() {
-  return <KalettesStackNavigator initialRouteName="Marketplace" />;
-}
-
 export function TabNavigator() {
   const insets = useSafeAreaInsets();
   const { isIpCustomer, known: ipStatusKnown } = useIncomeProtection();
@@ -241,7 +236,6 @@ export function TabNavigator() {
                 };
               }}
             />
-            <Tab.Screen name="Store" component={StoreStackNavigator} />
             <Tab.Screen
               name="Policy"
               component={PolicyStackNavigator}
@@ -255,10 +249,7 @@ export function TabNavigator() {
             />
           </>
         ) : (
-          <>
-            <Tab.Screen name="Kalettes" component={KalettesStackNavigator} />
-            <Tab.Screen name="Settings" component={SettingsStackNavigator} />
-          </>
+          <Tab.Screen name="Settings" component={SettingsStackNavigator} />
         )}
       </Tab.Navigator>
     </View>

@@ -6,11 +6,15 @@ import { useAssessmentCycle } from '../hooks/useAssessmentCycle';
 import { useAssessmentWindow } from '../hooks/useAssessmentWindow';
 import { useArticles } from '../hooks/useArticles';
 import { invalidateHomeLongevityData, useHomeLongevityData } from '../hooks/useHomeLongevityData';
+import { useAuthSession } from '../hooks/useAuthSession';
 import { useKalettesRewards } from '../hooks/useKalettesRewards';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { AssessmentLiveCard } from '../components/lumen/AssessmentLiveCard';
 import { ArticlesSection } from '../components/lumen/ArticlesSection';
 import { RunningYearsPromoCard } from '../components/runningYears/RunningYearsPromoCard';
+import { useSharedValue } from 'react-native-reanimated';
+import { ChartFadeIn } from '../components/lumen/ChartFadeIn';
+import { FitnessAgeTrendChart } from '../components/lumen/FitnessAgeTrendChart';
 import { HealthYearsTrendChart } from '../components/lumen/HealthYearsTrendChart';
 import { LegendDot, QuickStatPillar } from '../components/lumen/HomeMetrics';
 import { LongevityLevelTrendChart } from '../components/lumen/LongevityLevelTrendChart';
@@ -65,7 +69,9 @@ function SectionEyebrow({
 export function LongevityScreen() {
   const { scale, type, leading, isCompact, isNarrow, isTight, cardPadding, contentWidth } =
     useResponsiveLayout();
+  const { user } = useAuthSession();
   const home = useHomeLongevityData();
+  const scrollY = useSharedValue(0);
   const articlesState = useArticles();
   const homeRefresh = home.refresh;
   const articlesRefresh = articlesState.refresh;
@@ -96,7 +102,10 @@ export function LongevityScreen() {
   const heroRingSize = scale(isCompact ? 80 : 104);
   const countdownSize = type(isTight ? 34 : 46);
 
-  if (home.loading) {
+  // Show the loader until auth + data are both ready. Without the `!user`
+  // guard the screen briefly renders empty default data before the loader
+  // (the load "glitch") while the auth session is still resolving.
+  if (home.loading || !user) {
     return (
       <View style={styles.screen}>
         <LumenHeader />
@@ -111,7 +120,13 @@ export function LongevityScreen() {
     <View style={styles.screen}>
       <LumenHeader />
 
-      <ScreenScroll contentContainerStyle={styles.scrollContent}>
+      <ScreenScroll
+        contentContainerStyle={styles.scrollContent}
+        onScroll={(e) => {
+          scrollY.value = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+      >
         <Text style={[styles.greeting, { fontSize: type(21), lineHeight: leading(type(21)) }]}>
           {home.firstName}, training today is training for{' '}
           <Text style={styles.greetingAccent}>your future</Text>.
@@ -209,12 +224,12 @@ export function LongevityScreen() {
             <Text style={[styles.nextReward, { fontSize: type(13) }]}>
               {home.completedAssessmentThisQuarter ? (
                 <>
-                  Assessment done this quarter. Next window opens soon — pending Kalettes bank then.
+                  Assessment done this quarter. Next window opens soon.
                 </>
               ) : (
                 <>
-                  Complete it to bank{' '}
-                  <Text style={styles.nextRewardAccent}>{kaletteReward} Kalettes</Text>.
+                  Complete it to get your updated{' '}
+                  <Text style={styles.nextRewardAccent}>Longevity Level</Text>.
                 </>
               )}
             </Text>
@@ -223,6 +238,7 @@ export function LongevityScreen() {
 
         {chartSeries ? (
           <>
+            <ChartFadeIn scrollY={scrollY}>
             <LumenCard style={styles.chartCard}>
               <SectionEyebrow
                 trailing={chartSeries.projected ? 'PROJECTED' : '5y outlook'}
@@ -257,7 +273,9 @@ export function LongevityScreen() {
                 </Text>
               </View>
             </LumenCard>
+            </ChartFadeIn>
 
+            <ChartFadeIn scrollY={scrollY}>
             <LumenCard style={styles.chartCard}>
               <SectionEyebrow
                 trailing={
@@ -286,7 +304,57 @@ export function LongevityScreen() {
                 </Text>
               ) : null}
             </LumenCard>
+            </ChartFadeIn>
           </>
+        ) : null}
+
+        {home.fitnessAgeOutlook ? (
+          <ChartFadeIn scrollY={scrollY}>
+          <LumenCard style={styles.chartCard}>
+            <SectionEyebrow
+              trailing={
+                home.fitnessAgeOutlook.yearsYounger > 0
+                  ? `${home.fitnessAgeOutlook.yearsYounger} YEARS YOUNGER`
+                  : '5y outlook'
+              }
+              trailingMuted={home.fitnessAgeOutlook.yearsYounger <= 0}
+            >
+              Fitness Age over time
+            </SectionEyebrow>
+            <TrendChartScroll pointCount={2} height={150}>
+              {(width) => (
+                <FitnessAgeTrendChart
+                  width={width}
+                  ages={home.fitnessAgeOutlook!.ages}
+                  fitnessAges={home.fitnessAgeOutlook!.fitnessAges}
+                />
+              )}
+            </TrendChartScroll>
+            <View style={styles.legendRow}>
+              <View style={styles.legendColumn}>
+                <LegendDot
+                  color={lumen.lime}
+                  name="Fitness Age"
+                  value={`${home.fitnessAgeOutlook.currentFitnessAge}`}
+                />
+                <LegendDot
+                  color={lumen.coral}
+                  name="Actual age"
+                  value={`${home.fitnessAgeOutlook.currentRealAge}`}
+                />
+              </View>
+              <View style={styles.priceColumn}>
+                <Text style={styles.priceStrong}>
+                  £{home.fitnessAgeOutlook.monthlyPriceGbp} a month
+                </Text>
+                <Text style={styles.priceMuted}>
+                  £{home.fitnessAgeOutlook.actualAgePriceGbp} a month
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.levelCaption}>at Level {home.level}</Text>
+          </LumenCard>
+          </ChartFadeIn>
         ) : null}
 
         <RunningYearsPromoCard
@@ -489,6 +557,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
     flexShrink: 1,
+  },
+  priceColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
+    flexShrink: 0,
+  },
+  priceStrong: {
+    ...sora('bold'),
+    fontSize: 13,
+    color: lumen.lime,
+  },
+  priceMuted: {
+    ...sora('semibold'),
+    fontSize: 13,
+    color: lumen.fgMuted,
+  },
+  levelCaption: {
+    ...sora('semibold'),
+    fontSize: 11,
+    color: lumen.fgMuted,
+    textAlign: 'right',
+    marginTop: 8,
   },
   levelTag: {
     ...sora('semibold'),

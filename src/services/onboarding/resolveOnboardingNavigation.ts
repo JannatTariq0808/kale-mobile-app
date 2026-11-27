@@ -116,7 +116,7 @@ export async function resolveResultNextButtonLabel(
 
 /**
  * Next screen after completing a pillar (onboarding or quarterly).
- * When all pillars are done → LevelReveal (then HealthYears → FirstCycleRewards → Main).
+ * When all pillars are done → LevelReveal (then HealthYears → FitnessAge → Main).
  *
  * Pass `justCompleted` + `pillarRefId` from result screens so a slow assessment
  * `strength_id` / `knowledge_id` write cannot bounce the user back to that intro.

@@ -23,6 +23,7 @@ const EMPTY: HomeLongevityData = {
   policyCoverType: null,
   pillarLevels: { cardio: 1, strength: 1, knowledge: 1 },
   chartSeries: null,
+  fitnessAgeOutlook: null,
   completedAssessmentThisQuarter: false,
 };
 

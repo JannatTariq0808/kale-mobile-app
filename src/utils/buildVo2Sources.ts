@@ -11,7 +11,7 @@ const GARMIN_LABEL = 'Garmin device';
 /** Garmin's native device VO₂max reading. */
 export const GARMIN_ACCURACY = 4;
 /** Any Kale-calculated estimate (submaximal, pace+HR, HRR). */
-export const KALE_FORMULA_ACCURACY = 2;
+export const KALE_FORMULA_ACCURACY = 3;
 
 export function formatVo2Estimate(value: number): string {
   return (Math.round(value * 10) / 10).toFixed(1);
@@ -100,7 +100,7 @@ function pushUniqueSource(sources: Vo2SourceRow[], row: Vo2SourceRow, existingVa
 
 /**
  * Build VO₂ source rows for the fitness tab.
- * Garmin device = 4 stars; Kale submaximal / pace / HRR = 2 stars.
+ * Garmin device = 4 stars; Kale submaximal / pace / HRR = 3 stars.
  */
 export function buildVo2Sources(
   summary: CardioSummary | null,
@@ -237,7 +237,7 @@ export function resolveVo2Summary(sources: Vo2SourceRow[]): string {
     return 'Average of agreeing sources below. All values are estimates — not lab tests.';
   }
 
-  return 'Each row is a separate estimate — not averaged. ★★★★ = Garmin device, ★★ = Kale.';
+  return 'Each row is a separate estimate — not averaged. ★★★★ = Garmin device, ★★★ = Kale.';
 }
 
 export function resolveVo2FormulaCopy(
@@ -251,7 +251,7 @@ export function resolveVo2FormulaCopy(
     const sport = summary?.vo2maxSubmaximalMeta?.source ?? 'activity';
     return {
       formula: 'Two ways to read your fitness',
-      formulaNote: `Garmin device (★★★★) is your watch's VO₂max. Kale submaximal (★★) is calibrated from heart rate during your ${sport} sessions — a separate estimate.`,
+      formulaNote: `Garmin device (★★★★) is your watch's VO₂max. Kale submaximal (★★★) is calibrated from heart rate during your ${sport} sessions — a separate estimate.`,
     };
   }
 
@@ -259,7 +259,7 @@ export function resolveVo2FormulaCopy(
     const sport = summary?.vo2maxSubmaximalMeta?.source ?? 'activity';
     return {
       formula: 'Kale submaximal model',
-      formulaNote: `Calibrated from heart rate during your Garmin ${sport} sessions. ★★ = Kale estimate; ★★★★ = Garmin device reading.`,
+      formulaNote: `Calibrated from heart rate during your Garmin ${sport} sessions. ★★★ = Kale estimate; ★★★★ = Garmin device reading.`,
     };
   }
 
@@ -267,7 +267,7 @@ export function resolveVo2FormulaCopy(
     return {
       formula: 'Garmin device VO₂max',
       formulaNote:
-        'Read from your Garmin watch (★★★★). Kale pace and HR estimates use ★★ when shown.',
+        'Read from your Garmin watch (★★★★). Kale pace and HR estimates use ★★★ when shown.',
     };
   }
 

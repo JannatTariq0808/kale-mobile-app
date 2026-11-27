@@ -38,8 +38,11 @@ export function resetToWelcome(navigation: SessionNavigation): void {
   );
 }
 
-/** Enter the main app home screen after LevelReveal → HealthYears → FirstCycleRewards. */
-export function enterMainApp(navigation: SessionNavigation): void {
+/**
+ * Enter the main app after LevelReveal → HealthYears → FitnessAge.
+ * Pass `tab` to land on a specific bottom tab (e.g. 'Goals'); omit for Home.
+ */
+export function enterMainApp(navigation: SessionNavigation, tab?: 'Goals'): void {
   const uid = getFirebaseAuth().currentUser?.uid;
   if (uid) {
     void markOnboardingComplete(uid);
@@ -51,7 +54,11 @@ export function enterMainApp(navigation: SessionNavigation): void {
   getRootNavigation(navigation).dispatch(
     CommonActions.reset({
       index: 0,
-      routes: [{ name: 'Main' }],
+      routes: [
+        tab
+          ? { name: 'Main', state: { index: 0, routes: [{ name: tab }] } }
+          : { name: 'Main' },
+      ],
     }),
   );
 }

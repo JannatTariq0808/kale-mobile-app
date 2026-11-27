@@ -15,19 +15,30 @@ import {
 
 let applied = false;
 
+/**
+ * True inside another Text. A nested span that sets no font (e.g. just a colour, like the
+ * green word in "Your goals") must inherit the parent's Sora weight, not reset to Regular.
+ */
+const InsideTextContext = React.createContext(false);
+
 /** @expo/vector-icons alias → the font file's own family name. */
 const ICON_FONT_FAMILIES: Record<string, string> = {
   ionicons: 'Ionicons',
 };
 
-function withSoraFont(style: StyleProp<TextStyle>): StyleProp<TextStyle> {
+function withSoraFont(style: StyleProp<TextStyle>, nested = false): StyleProp<TextStyle> {
   const flat = StyleSheet.flatten(style);
 
   if (!flat) {
-    return { fontFamily: fonts.regular };
+    return nested ? undefined : { fontFamily: fonts.regular };
   }
 
   const { fontWeight, fontFamily, ...rest } = flat;
+
+  // Nested span with no font of its own: leave the family off so it inherits the parent's.
+  if (nested && !fontFamily && fontWeight == null) {
+    return rest;
+  }
 
   // Already Sora: keep the family, drop fontWeight (RN ignores a custom family when it is set).
   if (fontFamily && SORA_FAMILIES.has(fontFamily)) {
@@ -88,11 +99,13 @@ export function applySoraFontGlobally() {
   const OriginalTextInput = rn.TextInput as React.ComponentType<TextInputProps>;
 
   function SoraText(props: TextProps) {
-    return React.createElement(OriginalText, {
+    const nested = React.useContext(InsideTextContext);
+    const text = React.createElement(OriginalText, {
       ...props,
       maxFontSizeMultiplier: props.maxFontSizeMultiplier ?? 1,
-      style: withSoraFont(props.style),
+      style: withSoraFont(props.style, nested),
     });
+    return nested ? text : React.createElement(InsideTextContext.Provider, { value: true }, text);
   }
   SoraText.displayName = 'Text';
 
