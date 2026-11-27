@@ -40,8 +40,9 @@ export function FitnessAgeTrendChart({
   const actualEnd = ages[n - 1];
   const fitnessNow = fitnessAges[0];
   const fitnessEnd = fitnessAges[fitnessAges.length - 1];
-  // The fitness line enters level with the midpoint, then dips to "today".
-  const anchorV = (actualNow + fitnessNow) / 2;
+  // The fitness line starts on the actual-age line (shared junction, so the
+  // start dot sits on the coral line), then dips down to "today".
+  const anchorV = actualNow;
 
   const allValues = [...ages, ...fitnessAges];
   const minV = Math.min(...allValues) - 2;
